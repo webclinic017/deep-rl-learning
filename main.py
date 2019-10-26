@@ -4,6 +4,7 @@
 import os
 import sys
 import gym
+import gym_anytrading
 import argparse
 import numpy as np
 import pandas as pd
@@ -24,6 +25,7 @@ from utils.networks import get_session
 gym.logger.set_level(40)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+
 def parse_args(args):
     """ Parse arguments from command line input
     """
@@ -36,12 +38,12 @@ def parse_args(args):
     #
     parser.add_argument('--nb_episodes', type=int, default=5000, help="Number of training episodes")
     parser.add_argument('--batch_size', type=int, default=64, help="Batch size (experience replay)")
-    parser.add_argument('--consecutive_frames', type=int, default=4, help="Number of consecutive frames (action repeat)")
+    parser.add_argument('--consecutive_frames', type=int, default=24, help="Number of consecutive frames (action repeat)")
     parser.add_argument('--training_interval', type=int, default=30, help="Network training frequency")
     parser.add_argument('--n_threads', type=int, default=8, help="Number of threads (A3C)")
     #
     parser.add_argument('--gather_stats', dest='gather_stats', action='store_true',help="Compute Average reward per episode (slower)")
-    parser.add_argument('--render', dest='render', action='store_true', help="Render environment while training")
+    parser.add_argument('--render', dest='render', default=False, action='store_true', help="Render environment while training")
     parser.add_argument('--env', type=str, default='BreakoutNoFrameskip-v4',help="OpenAI Gym Environment")
     parser.add_argument('--gpu', type=int, default=0, help='GPU ID')
     #
@@ -77,10 +79,17 @@ def main(args=None):
         act_range = action_space.high
     else:
         # Standard Environments
-        env = Environment(gym.make(args.env), args.consecutive_frames)
+        # env = Environment(gym.make(args.env), args.consecutive_frames)
+        env = gym.make('forex-v0')
+        print("env information:")
+        print("> shape:", env.shape)
+        print("> df.shape:", env.df.shape)
+        print("> prices.shape:", env.prices.shape)
+        print("> signal_features.shape:", env.signal_features.shape)
+        print("> max_possible_profit:", env.max_possible_profit())
         env.reset()
-        state_dim = env.get_state_size()
-        action_dim = gym.make(args.env).action_space.n
+        state_dim = (2,)
+        action_dim = 2
 
     # Pick algorithm to train
     if(args.type=="DDQN"):
