@@ -1,5 +1,8 @@
 import random
 import numpy as np
+import logging
+
+logging.basicConfig(filename='log/app.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
 from tqdm import tqdm
 from keras.models import Model
@@ -86,7 +89,8 @@ class A2C:
                 # Actor picks an action (following the policy)
                 a = self.policy_action(old_state)
                 # Retrieve new state, reward, and whether the state is terminal
-                new_state, r, done, _ = env.step(a)
+                new_state, r, done, info = env.step(a)
+                logging.warning(info)
                 # Memorize (s, a, r) for training
                 actions.append(to_categorical(a, self.act_dim))
                 rewards.append(r)

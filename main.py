@@ -121,7 +121,7 @@ def main(args=None):
         args.batch_size)
 
     algo.save_weights(export_path)
-    env.env.close()
+
 
 if __name__ == "__main__":
     main()
