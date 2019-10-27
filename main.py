@@ -21,7 +21,7 @@ from keras.utils import to_categorical
 from utils.atari_environment import AtariEnvironment
 from utils.continuous_environments import Environment
 from utils.networks import get_session
-
+import matplotlib.pyplot as plt
 gym.logger.set_level(40)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -121,7 +121,9 @@ def main(args=None):
         args.batch_size)
 
     algo.save_weights(export_path)
-
+    plt.cla()
+    env.render_all()
+    plt.savefig('results.png')
 
 if __name__ == "__main__":
     main()
