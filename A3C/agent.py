@@ -21,7 +21,10 @@ class Agent:
         """
         return self.model.predict(self.reshape(inp))
 
+    # def reshape(self, x):
+    #     if len(x.shape) < 4 and len(self.inp_dim) > 2: return np.expand_dims(x, axis=0)
+    #     elif len(x.shape) < 2: return np.expand_dims(x, axis=0)
+    #     else: return x
     def reshape(self, x):
-        if len(x.shape) < 4 and len(self.inp_dim) > 2: return np.expand_dims(x, axis=0)
-        elif len(x.shape) < 2: return np.expand_dims(x, axis=0)
+        if len(x.shape) < 3: return np.expand_dims(x, axis=0)
         else: return x

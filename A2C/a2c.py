@@ -40,8 +40,10 @@ class A2C:
         """
         inp = Input((self.env_dim))
         x = Flatten()(inp)
-        x = Dense(64, activation='relu')(x)
         x = Dense(128, activation='relu')(x)
+        x = Dense(128, activation='relu')(x)
+        x = Dense(128, activation='relu')(x)
+        x = Dense(32, activation='relu')(x)
         return Model(inp, x)
 
     def policy_action(self, s):
@@ -99,6 +101,9 @@ class A2C:
                 old_state = new_state
                 cumul_reward += r
                 time += 1
+                # Display score
+                tqdm_e.set_description("Profit: " + str(info['total_profit']))
+                tqdm_e.refresh()
 
             # Train using discounted rewards ie. compute updates
             self.train_models(states, actions, rewards, done)
@@ -112,10 +117,6 @@ class A2C:
             score = tfSummary('score', cumul_reward)
             summary_writer.add_summary(score, global_step=e)
             summary_writer.flush()
-
-            # Display score
-            tqdm_e.set_description("Score: " + str(cumul_reward))
-            tqdm_e.refresh()
 
         return results
 

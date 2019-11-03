@@ -9,6 +9,7 @@ from utils.networks import tfSummary
 episode = 0
 lock = Lock()
 
+
 def training_thread(agent, Nmax, env, action_dim, f, summary_writer, tqdm, render):
     """ Build threads to run shared computation across
     """
