@@ -43,23 +43,32 @@ class A3C:
     def buildNetwork(self):
         """ Assemble shared layers
         """
+        # inp = Input((self.env_dim))
+        # # If we have an image, apply convolutional layers
+        # if(len(self.env_dim) > 2):
+        #     # Images
+        #     x = Reshape((self.env_dim[1], self.env_dim[2], -1))(inp)
+        #     x = conv_block(x, 32, (2, 2))
+        #     x = conv_block(x, 32, (2, 2))
+        #     x = Flatten()(x)
+        # elif(len(self.env_dim)==2):
+        #     # 2D Inputs
+        #     x = Flatten()(inp)
+        #     x = Dense(64, activation='relu')(x)
+        #     x = Dense(128, activation='relu')(x)
+        # else:
+        #     # 1D Inputs
+        #     x = Dense(64, activation='relu')(inp)
+        #     x = Dense(128, activation='relu')(x)
+        # return Model(inp, x)
+        """ Assemble shared layers
+        """
         inp = Input((self.env_dim))
-        # If we have an image, apply convolutional layers
-        if(len(self.env_dim) > 2):
-            # Images
-            x = Reshape((self.env_dim[1], self.env_dim[2], -1))(inp)
-            x = conv_block(x, 32, (2, 2))
-            x = conv_block(x, 32, (2, 2))
-            x = Flatten()(x)
-        elif(len(self.env_dim)==2):
-            # 2D Inputs
-            x = Flatten()(inp)
-            x = Dense(64, activation='relu')(x)
-            x = Dense(128, activation='relu')(x)
-        else:
-            # 1D Inputs
-            x = Dense(64, activation='relu')(inp)
-            x = Dense(128, activation='relu')(x)
+        x = Flatten()(inp)
+        x = Dense(128, activation='relu')(x)
+        x = Dense(128, activation='relu')(x)
+        x = Dense(128, activation='relu')(x)
+        x = Dense(32, activation='relu')(x)
         return Model(inp, x)
 
     def policy_action(self, s):
@@ -88,17 +97,19 @@ class A3C:
         self.c_opt([states, discounted_rewards])
 
     def train(self, env, args, summary_writer):
-
+        envs = [env for i in range(args.n_threads)]
+        state_dim = (24, 2)
+        action_dim = 2
         # Instantiate one environment per thread
-        if(args.is_atari):
-            envs = [AtariEnvironment(args) for i in range(args.n_threads)]
-            state_dim = envs[0].get_state_size()
-            action_dim = envs[0].get_action_size()
-        else:
-            envs = [Environment(gym.make(args.env), args.consecutive_frames) for i in range(args.n_threads)]
-            [e.reset() for e in envs]
-            state_dim = envs[0].get_state_size()
-            action_dim = gym.make(args.env).action_space.n
+        # if(args.is_atari):
+        #     envs = [AtariEnvironment(args) for i in range(args.n_threads)]
+        #     state_dim = envs[0].get_state_size()
+        #     action_dim = envs[0].get_action_size()
+        # else:
+        #     envs = [Environment(gym.make(args.env), args.consecutive_frames) for i in range(args.n_threads)]
+        #     [e.reset() for e in envs]
+        #     state_dim = envs[0].get_state_size()
+        #     action_dim = gym.make(args.env).action_space.n
 
         # Create threads
         tqdm_e = tqdm(range(int(args.nb_episodes)), desc='Score', leave=True, unit=" episodes")
