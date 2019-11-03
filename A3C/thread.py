@@ -25,17 +25,21 @@ def training_thread(agent, Nmax, env, action_dim, f, summary_writer, tqdm, rende
             if render:
                 with lock: env.render()
             # Actor picks an action (following the policy)
-            a = agent.policy_action(np.expand_dims(old_state, axis=0))
-            # Retrieve new state, reward, and whether the state is terminal
-            new_state, r, done, _ = env.step(a)
-            # Memorize (s, a, r) for training
-            actions.append(to_categorical(a, action_dim))
-            rewards.append(r)
-            states.append(old_state)
-            # Update current state
-            old_state = new_state
-            cumul_reward += r
-            time += 1
+            if old_state.shape[0] != 24 or time == 6000:
+                done = True
+            else:
+                a = agent.policy_action(old_state)
+                # Retrieve new state, reward, and whether the state is terminal
+
+                new_state, r, done, _ = env.step(a)
+                # Memorize (s, a, r) for training
+                actions.append(to_categorical(a, action_dim))
+                rewards.append(r)
+                states.append(old_state)
+                # Update current state
+                old_state = new_state
+                cumul_reward += r
+                time += 1
             # Asynchronous training
             if(time%f==0 or done):
                 lock.acquire()
