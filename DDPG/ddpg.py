@@ -84,7 +84,10 @@ class DDPG:
                 # Clip continuous values to be valid w.r.t. environment
                 a = np.clip(a+noise.generate(time), -self.act_range, self.act_range)
                 # Retrieve new state, reward, and whether the state is terminal
-                new_state, r, done, _ = env.step(a)
+                new_state, r, done, info = env.step(np.argmax(a))
+                # Display score
+                tqdm_e.set_description("Profit: " + info['total_profit'])
+                tqdm_e.refresh()
                 # Add outputs to memory buffer
                 self.memorize(old_state, a, r, done, new_state)
                 # Sample experience from buffer
@@ -109,9 +112,6 @@ class DDPG:
             score = tfSummary('score', cumul_reward)
             summary_writer.add_summary(score, global_step=e)
             summary_writer.flush()
-            # Display score
-            tqdm_e.set_description("Score: " + str(cumul_reward))
-            tqdm_e.refresh()
 
         return results
 
