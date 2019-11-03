@@ -86,7 +86,7 @@ class DDPG:
                 # Retrieve new state, reward, and whether the state is terminal
                 new_state, r, done, info = env.step(np.argmax(a))
                 # Display score
-                tqdm_e.set_description("Profit: " + info['total_profit'])
+                tqdm_e.set_description("Profit: " + str(round(info['total_profit'], 7)))
                 tqdm_e.refresh()
                 # Add outputs to memory buffer
                 self.memorize(old_state, a, r, done, new_state)
