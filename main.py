@@ -78,12 +78,12 @@ def main(args=None):
         action_dim = env.get_action_size()
     elif args.type == "DDPG":
         # Continuous Environments Wrapper
-        env = Environment(gym.make(args.env), args.consecutive_frames)
+        env = gym.make('forex-v0')
         env.reset()
-        state_dim = env.get_state_size()
-        action_space = gym.make(args.env).action_space
-        action_dim = action_space.high.shape[0]
-        act_range = action_space.high
+        state_dim = (2,)
+        action_space = (2,)
+        action_dim = 2
+        act_range = 2
     else:
         # Standard Environments
         # env = Environment(gym.make(args.env), args.consecutive_frames)
