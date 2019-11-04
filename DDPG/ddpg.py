@@ -1,6 +1,8 @@
 import sys
 import numpy as np
+import logging
 
+logging.basicConfig(filename='log/ddpg.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 from tqdm import tqdm
 from .actor import Actor
 from .critic import Critic
@@ -86,6 +88,8 @@ class DDPG:
                 # Retrieve new state, reward, and whether the state is terminal
                 new_state, r, done, info = env.step(np.argmax(a))
                 # Display score
+                logging.warning(a)
+                logging.warning(info)
                 tqdm_e.set_description("Profit: " + str(round(info['total_profit'], 7)))
                 tqdm_e.refresh()
                 # Add outputs to memory buffer
