@@ -104,9 +104,9 @@ class DDPG:
                 time += 1
 
             # Gather stats every episode for plotting
-            if(args.gather_stats):
-                mean, stdev = gather_stats(self, env)
-                results.append([e, mean, stdev])
+            # if(args.gather_stats):
+            #     mean, stdev = gather_stats(self, env)
+            #     results.append([e, mean, stdev])
 
             # Export results for Tensorboard
             score = tfSummary('score', cumul_reward)
