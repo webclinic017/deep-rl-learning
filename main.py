@@ -112,9 +112,9 @@ def main(args=None):
     stats = algo.train(env, args, summary_writer)
 
     # Export results to CSV
-    if args.gather_stats:
-        df = pd.DataFrame(np.array(stats))
-        df.to_csv(args.type + "/logs.csv", header=['Episode', 'Mean', 'Stddev'], float_format='%10.5f')
+    # if args.gather_stats:
+    #     df = pd.DataFrame(np.array(stats))
+    #     df.to_csv(args.type + "/logs.csv", header=['Episode', 'Mean', 'Stddev'], float_format='%10.5f')
 
     # Save weights and close environments
     exp_dir = '{}/models/'.format(args.type)
