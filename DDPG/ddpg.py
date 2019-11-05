@@ -98,6 +98,7 @@ class DDPG:
                 # a = np.clip(a+noise.generate(time), -self.act_range, self.act_range)
                 # Retrieve new state, reward, and whether the state is terminal
                 new_state, r, done, info = env.step(a)
+                done = True if cumul_reward < 100 else False
                 # Display score
                 logging.warning(info)
                 tqdm_e.set_description("Profit: " + str(round(info['total_profit'], 3)))
