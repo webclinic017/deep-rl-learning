@@ -83,7 +83,7 @@ def main(args=None):
         state_dim = (2,)
         action_space = (2,)
         action_dim = 2
-        act_range = 10
+        act_range = 1
     else:
         # Standard Environments
         # env = Environment(gym.make(args.env), args.consecutive_frames)
