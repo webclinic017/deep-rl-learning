@@ -25,8 +25,9 @@ class DDQN:
         self.action_dim = action_dim
         self.state_dim = (args.consecutive_frames,) + state_dim
         #
-        self.lr = 2.5e-4
-        self.gamma = 0.95
+        self.lr = 2.5e-5
+        self.lr_decay = 1e-5
+        self.gamma = 0.8
         self.epsilon = 1
         self.epsilon_min = 0.2
         self.epsilon_decay = 0.99
