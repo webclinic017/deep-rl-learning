@@ -103,7 +103,7 @@ class DDPG:
                 tqdm_e.set_description("Profit: " + str(round(info['total_profit'], 3)))
                 tqdm_e.refresh()
                 # Add outputs to memory buffer
-                self.memorize(old_state, self.actor.predict(old_state)[0], r, True if cumul_reward < 100 else False, new_state)
+                self.memorize(old_state, self.actor.predict(old_state)[0], r, True if r < 0 else False, new_state)
                 # Sample experience from buffer
                 states, actions, rewards, dones, new_states, _ = self.sample_batch(args.batch_size)
                 # Predict target q-values using target networks
