@@ -87,7 +87,7 @@ def main(args=None):
     else:
         # Standard Environments
         # env = Environment(gym.make(args.env), args.consecutive_frames)
-        env = gym.make('stocks-v0')
+        env = gym.make('forex-v0')
         print("env information:")
         print("> shape:", env.shape)
         print("> df.shape:", env.df.shape)
