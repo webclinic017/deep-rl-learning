@@ -42,7 +42,7 @@ def parse_args(args):
     #
     parser.add_argument('--nb_episodes', type=int, default=5000000, help="Number of training episodes")
     parser.add_argument('--batch_size', type=int, default=64, help="Batch size (experience replay)")
-    parser.add_argument('--consecutive_frames', type=int, default=24,
+    parser.add_argument('--consecutive_frames', type=int, default=30,
                         help="Number of consecutive frames (action repeat)")
     parser.add_argument('--training_interval', type=int, default=30, help="Network training frequency")
     parser.add_argument('--n_threads', type=int, default=8, help="Number of threads (A3C)")
@@ -87,7 +87,7 @@ def main(args=None):
     else:
         # Standard Environments
         # env = Environment(gym.make(args.env), args.consecutive_frames)
-        env = gym.make('forex-v0')
+        env = gym.make('stocks-v0')
         print("env information:")
         print("> shape:", env.shape)
         print("> df.shape:", env.df.shape)
@@ -99,13 +99,13 @@ def main(args=None):
         action_dim = 2
 
     # Pick algorithm to train
-    if (args.type == "DDQN"):
+    if args.type == "DDQN":
         algo = DDQN(action_dim, state_dim, args)
-    elif (args.type == "A2C"):
+    elif args.type == "A2C":
         algo = A2C(action_dim, state_dim, args.consecutive_frames)
-    elif (args.type == "A3C"):
+    elif args.type == "A3C":
         algo = A3C(action_dim, state_dim, args.consecutive_frames, is_atari=args.is_atari)
-    elif (args.type == "DDPG"):
+    elif args.type == "DDPG":
         algo = DDPG(action_dim, state_dim, act_range, args.consecutive_frames)
 
     # Train

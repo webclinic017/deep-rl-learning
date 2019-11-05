@@ -2,6 +2,7 @@ import sys
 import numpy as np
 import logging
 from random import random, randrange
+
 logging.basicConfig(filename='log/ddpg.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 from tqdm import tqdm
 from .actor import Actor
@@ -10,11 +11,12 @@ from utils.stats import gather_stats
 from utils.networks import tfSummary, OrnsteinUhlenbeckProcess
 from utils.memory_buffer import MemoryBuffer
 
+
 class DDPG:
     """ Deep Deterministic Policy Gradient (DDPG) Helper Class
     """
 
-    def __init__(self, act_dim, env_dim, act_range, k, buffer_size = 20000, gamma = 0.99, lr = 0.00005, tau = 0.001):
+    def __init__(self, act_dim, env_dim, act_range, k, buffer_size=20000, gamma=0.99, lr=1e-4, tau=0.001):
         """ Initialization
         """
         # Environment and A2C parameters
