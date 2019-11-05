@@ -97,7 +97,7 @@ class DDQN:
                 new_state, r, done, info = env.step(a)
                 logging.warning(info)
                 # Memorize for experience replay
-                self.memorize(old_state, a, r, done, new_state)
+                self.memorize(old_state, a, r, True if r < 0 else False, new_state)
                 # Update current state
                 old_state = new_state
                 cumul_reward += r
