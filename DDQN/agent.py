@@ -8,10 +8,10 @@ from keras.layers import Input, Dense, Flatten, Reshape, LSTM, Lambda
 from keras.regularizers import l2
 from utils.networks import conv_block
 
+
 class Agent:
     """ Agent Class (Network) for DDQN
     """
-
     def __init__(self, state_dim, action_dim, lr, tau, dueling):
         self.state_dim = state_dim
         self.action_dim = action_dim
@@ -34,19 +34,21 @@ class Agent:
         inp = Input((self.state_dim))
 
         # Determine whether we are dealing with an image input (Atari) or not
-        if(len(self.state_dim) > 2):
-            inp = Input((self.state_dim[1:]))
-            x = conv_block(inp, 32, (2, 2), 8)
-            x = conv_block(x, 64, (2, 2), 4)
-            x = conv_block(x, 64, (2, 2), 3)
-            x = Flatten()(x)
-            x = Dense(256, activation='relu')(x)
-        else:
-            x = Flatten()(inp)
-            x = Dense(64, activation='relu')(x)
-            x = Dense(64, activation='relu')(x)
+        # if(len(self.state_dim) > 2):
+        #     inp = Input((self.state_dim[1:]))
+        #     x = conv_block(inp, 32, (2, 2), 8)
+        #     x = conv_block(x, 64, (2, 2), 4)
+        #     x = conv_block(x, 64, (2, 2), 3)
+        #     x = Flatten()(x)
+        #     x = Dense(256, activation='relu')(x)
+        # else:
+        x = Flatten()(inp)
+        x = Dense(512, activation='relu')(x)
+        x = Dense(256, activation='relu')(x)
+        x = Dense(128, activation='relu')(x)
+        x = Dense(64, activation='relu')(x)
 
-        if(dueling):
+        if dueling:
             # Have the network estimate the Advantage function as an intermediate layer
             x = Dense(self.action_dim + 1, activation='linear')(x)
             x = Lambda(lambda i: K.expand_dims(i[:,0],-1) + i[:,1:] - K.mean(i[:,1:], keepdims=True), output_shape=(self.action_dim,))(x)
@@ -84,7 +86,7 @@ class Agent:
         else: return x
 
     def save(self, path):
-        if(self.dueling):
+        if self.dueling:
             path += '_dueling'
         self.model.save_weights(path + '.h5')
 

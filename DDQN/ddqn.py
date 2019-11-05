@@ -10,6 +10,7 @@ from utils.memory_buffer import MemoryBuffer
 from utils.networks import tfSummary
 from utils.stats import gather_stats
 
+
 class DDQN:
     """ Deep Q-Learning Main Algorithm
     """
@@ -24,11 +25,12 @@ class DDQN:
         #
         self.lr = 2.5e-4
         self.gamma = 0.95
-        self.epsilon = 0.8
+        self.epsilon = 1
+        self.epsilon_min = 0.2
         self.epsilon_decay = 0.99
         self.buffer_size = 20000
         #
-        if(len(state_dim) < 3):
+        if len(state_dim) < 3:
             self.tau = 1e-2
         else:
             self.tau = 1.0
@@ -63,14 +65,14 @@ class DDQN:
             else:
                 next_best_action = np.argmax(next_q[i,:])
                 q[i, a[i]] = r[i] + self.gamma * q_targ[i, next_best_action]
-            if(self.with_per):
+            if self.with_per:
                 # Update PER Sum Tree
                 self.buffer.update(idx[i], abs(old_q - q[i, a[i]]))
         # Train on batch
         self.agent.fit(s, q)
         # Decay epsilon
-        self.epsilon *= self.epsilon_decay
-
+        if self.epsilon > self.epsilon_min:
+            self.epsilon *= self.epsilon_decay
 
     def train(self, env, args, summary_writer):
         """ Main DDQN Training Algorithm
@@ -81,7 +83,7 @@ class DDQN:
 
         for e in tqdm_e:
             # Reset episode
-            time, cumul_reward, done  = 0, 0, False
+            time, cumul_reward, done = 0, 0, False
             old_state = env.reset()
 
             while not done:
@@ -97,14 +99,14 @@ class DDQN:
                 cumul_reward += r
                 time += 1
                 # Train DDQN and transfer weights to target network
-                if(self.buffer.size() > args.batch_size):
+                if self.buffer.size() > args.batch_size:
                     self.train_agent(args.batch_size)
                     self.agent.transfer_weights()
 
             # Gather stats every episode for plotting
-            if(args.gather_stats):
-                mean, stdev = gather_stats(self, env)
-                results.append([e, mean, stdev])
+            # if args.gather_stats:
+            #     mean, stdev = gather_stats(self, env)
+            #     results.append([e, mean, stdev])
 
             # Export results for Tensorboard
             score = tfSummary('score', cumul_reward)
@@ -121,7 +123,7 @@ class DDQN:
         """ Store experience in memory buffer
         """
 
-        if(self.with_per):
+        if self.with_per:
             q_val = self.agent.predict(state)
             q_val_t = self.agent.target_predict(new_state)
             next_best_action = np.argmax(q_val)
@@ -133,7 +135,7 @@ class DDQN:
 
     def save_weights(self, path):
         path += '_LR_{}'.format(self.lr)
-        if(self.with_per):
+        if self.with_per:
             path += '_PER'
         self.agent.save(path)
 
