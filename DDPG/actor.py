@@ -40,8 +40,8 @@ class Actor:
         x = Dense(128, activation='relu')(x)
         x = GaussianNoise(1.0)(x)
         #
-        out = Dense(self.act_dim, activation='softmax', kernel_initializer=RandomUniform())(x)
-        # out = Lambda(lambda i: i * self.act_range)(out)
+        out = Dense(self.act_dim, activation='tanh', kernel_initializer=RandomUniform())(x)
+        out = Lambda(lambda i: i * self.act_range)(out)
         #
         return Model(inp, out)
 
