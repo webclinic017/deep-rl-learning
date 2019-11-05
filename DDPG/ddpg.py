@@ -35,11 +35,12 @@ class DDPG:
         """ Use the actor to predict value
         """
         # return self.actor.predict(s)[0]
-        # return np.random.choice(np.arange(self.act_dim), 1, p=self.actor.predict(s).ravel())[0]
-        if random() <= self.epsilon:
-            return randrange(self.act_dim)
-        else:
-            return np.argmax(self.actor.predict(s)[0])
+        logging.warning(self.actor.predict(s))
+        return np.random.choice(np.arange(self.act_dim), 1, p=self.actor.predict(s).ravel())[0]
+        # if random() <= self.epsilon:
+        #     return randrange(self.act_dim)
+        # else:
+        #     return np.argmax(self.actor.predict(s)[0])
 
     def bellman(self, rewards, q_values, dones):
         """ Use the Bellman Equation to compute the critic target
@@ -98,9 +99,8 @@ class DDPG:
                 # Retrieve new state, reward, and whether the state is terminal
                 new_state, r, done, info = env.step(a)
                 # Display score
-                logging.warning(a)
                 logging.warning(info)
-                tqdm_e.set_description("Profit: " + str(round(info['total_profit'], 7)))
+                tqdm_e.set_description("Profit: " + str(round(info['total_profit'], 3)))
                 tqdm_e.refresh()
                 # Add outputs to memory buffer
                 self.memorize(old_state, self.actor.predict(old_state)[0], r, done, new_state)
