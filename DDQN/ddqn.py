@@ -1,3 +1,4 @@
+import logging
 import sys
 import random
 import numpy as np
@@ -9,6 +10,7 @@ from random import random, randrange
 from utils.memory_buffer import MemoryBuffer
 from utils.networks import tfSummary
 from utils.stats import gather_stats
+logging.basicConfig(filename='log/ddpg.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
 
 class DDQN:
@@ -45,6 +47,7 @@ class DDQN:
         if random() <= self.epsilon:
             return randrange(self.action_dim)
         else:
+            logging.warning(self.agent.predict(s)[0])
             return np.argmax(self.agent.predict(s)[0])
 
     def train_agent(self, batch_size):
@@ -91,7 +94,8 @@ class DDQN:
                 # Actor picks an action (following the policy)
                 a = self.policy_action(old_state)
                 # Retrieve new state, reward, and whether the state is terminal
-                new_state, r, done, _ = env.step(a)
+                new_state, r, done, info = env.step(a)
+                logging.warning(info)
                 # Memorize for experience replay
                 self.memorize(old_state, a, r, done, new_state)
                 # Update current state
