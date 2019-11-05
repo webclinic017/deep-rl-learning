@@ -102,6 +102,9 @@ class DDQN:
                 old_state = new_state
                 cumul_reward += r
                 time += 1
+                # Display score
+                tqdm_e.set_description("Profit: " + str(round(info['total_profit'], 3)))
+                tqdm_e.refresh()
                 # Train DDQN and transfer weights to target network
                 if self.buffer.size() > args.batch_size:
                     self.train_agent(args.batch_size)
@@ -116,10 +119,6 @@ class DDQN:
             score = tfSummary('score', cumul_reward)
             summary_writer.add_summary(score, global_step=e)
             summary_writer.flush()
-
-            # Display score
-            tqdm_e.set_description("Score: " + str(cumul_reward))
-            tqdm_e.refresh()
 
         return results
 
