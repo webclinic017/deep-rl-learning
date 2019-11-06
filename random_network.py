@@ -159,7 +159,7 @@ print("> max_possible_profit:", env.max_possible_profit())
 dqn = CuriosityNet(n_a=2, n_s=48, lr=0.01, output_graph=True)
 ep_steps = []
 number_episode = 500000
-save_models_path = 'random_network/'
+save_models_path = 'random_network'
 if not os.path.exists(save_models_path):
     os.makedirs(save_models_path)
 
