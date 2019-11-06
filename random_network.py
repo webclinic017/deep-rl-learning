@@ -159,7 +159,7 @@ print("> max_possible_profit:", env.max_possible_profit())
 dqn = CuriosityNet(n_a=2, n_s=48, lr=0.01, output_graph=True)
 ep_steps = []
 number_episode = 500000
-save_models_path = 'random_network'
+save_models_path = 'random_network/'
 if not os.path.exists(save_models_path):
     os.makedirs(save_models_path)
 
@@ -179,7 +179,7 @@ for epi in range(number_episode):
         if done:
             print('Epi: ', epi, "| total_profit: ", info['total_profit'])
             # ep_steps.append(steps)
-            dqn.save(save_models_path, steps)
+            dqn.save("{}/profit_{}".format(save_models_path, round(info['total_profit'], 4)), steps)
             break
         s = s_
         steps += 1
