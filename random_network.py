@@ -204,7 +204,7 @@ for epi in tqdm_e:
         s_, r, done, info = env.step(a)
         if steps == 0:
             current_profit = info['total_profit']
-        r = 1 if info['total_profit'] > current_profit else 0
+        r = 10 if info['total_profit'] > current_profit else 0
 
         current_profit = info['total_profit']
 
