@@ -198,7 +198,7 @@ for epi in tqdm_e:
     s = env.reset()
     s = s.flatten()
     steps = 0
-    tqdm_s = tqdm(range(6225), desc='Profit', leave=True, unit=" steps")
+    tqdm_s = tqdm(range(6224), desc='Profit', leave=True, unit=" steps")
     for _ in tqdm_s:
         # env.render()
         a = dqn.choose_action(s)
