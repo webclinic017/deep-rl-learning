@@ -198,8 +198,7 @@ for epi in tqdm_e:
     s = env.reset()
     s = s.flatten()
     steps = 0
-    tqdm_s = tqdm(range(6224), desc='Profit', leave=True, unit=" steps")
-    for _ in tqdm_s:
+    while True:
         # env.render()
         a = dqn.choose_action(s)
         s_, r, done, info = env.step(a)
@@ -211,8 +210,8 @@ for epi in tqdm_e:
 
         logging.warning(info)
         # Display score
-        tqdm_s.set_description("Profit: " + str(info['total_profit']))
-        tqdm_s.refresh()
+        tqdm_e.set_description("Profit: " + str(info['total_profit']))
+        tqdm_e.refresh()
         s_ = s_.flatten()
         dqn.store_transition(s, a, r, s_)
         dqn.learn()
@@ -224,7 +223,7 @@ for epi in tqdm_e:
             if max_profit < info['total_profit']:
                 max_profit = info['total_profit']
                 dqn.notification(max_profit)
-            # break
+            break
 
         s = s_
         steps += 1
