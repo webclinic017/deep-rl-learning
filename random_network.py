@@ -9,6 +9,11 @@ import csv
 import smtplib
 import ssl
 import matplotlib.pyplot as plt
+from tqdm import tqdm
+import logging
+
+logging.basicConfig(filename='log/app.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
+
 
 
 class CuriosityNet:
@@ -183,31 +188,43 @@ dqn = CuriosityNet(n_a=2, n_s=48, lr=0.01, output_graph=True)
 ep_steps = []
 number_episode = 500000
 max_profit = 0
+current_profit = 10
 save_models_path = 'random_network'
 if not os.path.exists(save_models_path):
     os.makedirs(save_models_path)
 
-for epi in range(number_episode):
+tqdm_e = tqdm(range(number_episode), leave=True, unit=" episodes")
+for epi in tqdm_e:
     s = env.reset()
     s = s.flatten()
     steps = 0
-    while True:
+    tqdm_s = tqdm(range(6225), desc='Profit', leave=True, unit=" steps")
+    for _ in tqdm_s:
         # env.render()
         a = dqn.choose_action(s)
         s_, r, done, info = env.step(a)
-        print(info)
+        if steps == 0:
+            current_profit = info['total_profit']
+        r = 1 if info['total_profit'] > current_profit else 0
+
+        current_profit = info['total_profit']
+
+        logging.warning(info)
+        # Display score
+        tqdm_s.set_description("Profit: " + str(info['total_profit']))
+        tqdm_s.refresh()
         s_ = s_.flatten()
         dqn.store_transition(s, a, r, s_)
         dqn.learn()
 
         if done:
-            print('Epi: ', epi, "| total_profit: ", info['total_profit'])
+            # print('Epi: ', epi, "| total_profit: ", info['total_profit'])
             # ep_steps.append(steps)
             dqn.save("{}/profit_{}".format(save_models_path, round(info['total_profit'], 4)), steps)
             if max_profit < info['total_profit']:
                 max_profit = info['total_profit']
                 dqn.notification(max_profit)
-            break
+            # break
 
         s = s_
         steps += 1
