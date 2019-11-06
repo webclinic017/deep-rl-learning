@@ -5,6 +5,9 @@ import numpy as np
 import tensorflow as tf
 import gym
 import gym_anytrading
+import csv
+import smtplib
+import ssl
 import matplotlib.pyplot as plt
 
 
@@ -142,6 +145,26 @@ class CuriosityNet:
     def save(self, export_path, step):
         self.saver.save(self.sess, export_path, global_step=step, write_meta_graph=True)
 
+    def notification(self, profit):
+        message = """Subject: Your profit
+
+        Hi {name}, max profit is {profit}"""
+        from_address = "thinhle.ai@gmail.com"
+        to_address = "thinhlx1993@gmail.com"
+        password = "HanhBaby123"
+
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
+            server.login(from_address, password)
+            with open("contacts_file.csv") as file:
+                reader = csv.reader(file)
+                next(reader)  # Skip header row
+                for name, email, grade in reader:
+                    server.sendmail(
+                        from_address,
+                        email,
+                        message.format(name=name, profit=profit),
+                    )
 
 # env = gym.make('MountainCar-v0')
 
@@ -159,6 +182,7 @@ print("> max_possible_profit:", env.max_possible_profit())
 dqn = CuriosityNet(n_a=2, n_s=48, lr=0.01, output_graph=True)
 ep_steps = []
 number_episode = 500000
+max_profit = 0
 save_models_path = 'random_network'
 if not os.path.exists(save_models_path):
     os.makedirs(save_models_path)
@@ -180,7 +204,10 @@ for epi in range(number_episode):
             print('Epi: ', epi, "| total_profit: ", info['total_profit'])
             # ep_steps.append(steps)
             dqn.save("{}/profit_{}".format(save_models_path, round(info['total_profit'], 4)), steps)
+            if max_profit < info['total_profit']:
+                dqn.notification()
             break
+
         s = s_
         steps += 1
 
