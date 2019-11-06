@@ -1,4 +1,5 @@
 """This is a simple implementation of [Exploration by Random Network Distillation](https://arxiv.org/abs/1810.12894)"""
+import os
 
 import numpy as np
 import tensorflow as tf
@@ -45,6 +46,7 @@ class CuriosityNet:
         with tf.variable_scope('hard_replacement'):
             self.target_replace_op = [tf.assign(t, e) for t, e in zip(t_params, e_params)]
 
+        self.saver = tf.train.Saver(max_to_keep=50, keep_checkpoint_every_n_hours=24)
         self.sess = tf.Session()
 
         if output_graph:
@@ -137,6 +139,9 @@ class CuriosityNet:
             self.sess.run(self.pred_train, feed_dict={self.tfs_: bs_})
         self.learn_step_counter += 1
 
+    def save(self, export_path, step):
+        self.saver.save(self.sess, export_path, global_step=step, write_meta_graph=True)
+
 
 # env = gym.make('MountainCar-v0')
 
@@ -151,9 +156,14 @@ print("> signal_features.shape:", env.signal_features.shape)
 print("> max_possible_profit:", env.max_possible_profit())
 
 
-dqn = CuriosityNet(n_a=2, n_s=48, lr=0.01, output_graph=False)
+dqn = CuriosityNet(n_a=2, n_s=48, lr=0.01, output_graph=True)
 ep_steps = []
-for epi in range(200):
+number_episode = 500000
+save_models_path = 'random_network'
+if not os.path.exists(save_models_path):
+    os.makedirs(save_models_path)
+
+for epi in range(number_episode):
     s = env.reset()
     s = s.flatten()
     steps = 0
@@ -165,9 +175,11 @@ for epi in range(200):
         s_ = s_.flatten()
         dqn.store_transition(s, a, r, s_)
         dqn.learn()
+
         if done:
-            print('Epi: ', epi, "| steps: ", steps)
+            print('Epi: ', epi, "| total_profit: ", info['total_profit'])
             # ep_steps.append(steps)
+            dqn.save(save_models_path, steps)
             break
         s = s_
         steps += 1
