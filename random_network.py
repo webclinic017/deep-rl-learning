@@ -205,7 +205,8 @@ for epi in range(number_episode):
             # ep_steps.append(steps)
             dqn.save("{}/profit_{}".format(save_models_path, round(info['total_profit'], 4)), steps)
             if max_profit < info['total_profit']:
-                dqn.notification()
+                max_profit = info['total_profit']
+                dqn.notification(max_profit)
             break
 
         s = s_
