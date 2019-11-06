@@ -151,7 +151,7 @@ class CuriosityNet:
         Hi {name}, max profit is {profit}"""
         from_address = "thinhle.ai@gmail.com"
         to_address = "thinhlx1993@gmail.com"
-        password = "HanhBaby123"
+        password = "kunegiucpavhdutu"
 
         context = ssl.create_default_context()
         with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
