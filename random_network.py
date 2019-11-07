@@ -130,6 +130,7 @@ class CuriosityNet:
             # forward feed the observation and get q value for every actions
             actions_value = self.sess.run(self.q, feed_dict={self.tfs: s})
             action = np.argmax(actions_value)
+            logging.warning(actions_value)
         else:
             action = np.random.randint(0, self.n_a)
         return action
@@ -207,10 +208,10 @@ for epi in tqdm_e:
     s = s.flatten()
     steps = 0
     while True:
-        # env.render()
+        env.render()
         a = dqn.choose_action(s)
         s_, r, done, info = env.step(a)
-        logging.warning(info)
+        # logging.warning(info)
         # Display score
         tqdm_e.set_description("Profit: " + str(info['total_profit']))
         tqdm_e.refresh()
