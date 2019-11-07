@@ -5,7 +5,7 @@ import numpy as np
 import tensorflow as tf
 import gym
 import gym_anytrading
-import math
+from scipy.stats import logistic
 import csv
 import smtplib
 import ssl
@@ -192,7 +192,7 @@ def norm(state):
 
 
 def sigmoid(x):
-    return 1 / (1 + math.exp(-x))
+    return logistic.cdf(x)
 
 # env = gym.make('MountainCar-v0')
 # env = gym.make('forex-v0')
