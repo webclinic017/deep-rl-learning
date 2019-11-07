@@ -5,7 +5,7 @@ import numpy as np
 import tensorflow as tf
 import gym
 import gym_anytrading
-from gym_anytrading.datasets import FOREX_EURUSD_1H_ASK, STOCKS_GOOGL
+import math
 import csv
 import smtplib
 import ssl
@@ -190,6 +190,10 @@ def norm(state):
     s_4 = state[4] - s_0
     return np.array([0, s_1, s_2, s_3, s_4])
 
+
+def sigmoid(x):
+    return 1 / (1 + math.exp(-x))
+
 # env = gym.make('MountainCar-v0')
 # env = gym.make('forex-v0')
 # env = env.unwrapped
@@ -232,6 +236,7 @@ for epi in tqdm_e:
         s_, r, done, info = env.step(a)
         # logging.warning(info)
         # Display score
+        r = sigmoid(r)
         tqdm_e.set_description("Profit: " + str(info['total_profit']))
         tqdm_e.refresh()
         s_ = s_[:, 0]
