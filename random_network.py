@@ -21,9 +21,11 @@ class CuriosityNet:
             self,
             n_a,
             n_s,
-            lr=0.01,
+            lr=0.001,
             gamma=0.95,
-            epsilon=0.8,
+            epsilon=1,
+            min_epsilon=0.2,
+            epsilon_decay=0.99,
             replace_target_iter=300,
             memory_size=10000,
             batch_size=128,
@@ -34,6 +36,8 @@ class CuriosityNet:
         self.lr = lr
         self.gamma = gamma
         self.epsilon = epsilon
+        self.min_epsilon = min_epsilon
+        self.epsilon_decay = epsilon_decay
         self.replace_target_iter = replace_target_iter
         self.memory_size = memory_size
         self.batch_size = batch_size
@@ -122,7 +126,7 @@ class CuriosityNet:
         # to have batch dimension when feed into tf placeholder
         s = observation[np.newaxis, :]
 
-        if np.random.uniform() < self.epsilon:
+        if np.random.uniform() > self.epsilon:
             # forward feed the observation and get q value for every actions
             actions_value = self.sess.run(self.q, feed_dict={self.tfs: s})
             action = np.argmax(actions_value)
@@ -146,6 +150,10 @@ class CuriosityNet:
         if self.learn_step_counter % 100 == 0:     # delay training in order to stay curious
             self.sess.run(self.pred_train, feed_dict={self.tfs_: bs_})
         self.learn_step_counter += 1
+
+        # minimum epsilon
+        if self.epsilon < self.min_epsilon:
+            self.epsilon = self.epsilon * self.epsilon_decay
 
     def save(self, export_path, step):
         self.saver.save(self.sess, export_path, global_step=step, write_meta_graph=True)
@@ -202,12 +210,6 @@ for epi in tqdm_e:
         # env.render()
         a = dqn.choose_action(s)
         s_, r, done, info = env.step(a)
-        if steps == 0:
-            current_profit = info['total_profit']
-        r = 10 if info['total_profit'] > current_profit else 0
-
-        current_profit = info['total_profit']
-
         logging.warning(info)
         # Display score
         tqdm_e.set_description("Profit: " + str(info['total_profit']))
