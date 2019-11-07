@@ -1,10 +1,11 @@
 """This is a simple implementation of [Exploration by Random Network Distillation](https://arxiv.org/abs/1810.12894)"""
 import os
-
+import pandas as pd
 import numpy as np
 import tensorflow as tf
 import gym
 import gym_anytrading
+from gym_anytrading.datasets import FOREX_EURUSD_1H_ASK, STOCKS_GOOGL
 import csv
 import smtplib
 import ssl
@@ -13,7 +14,6 @@ from tqdm import tqdm
 import logging
 
 logging.basicConfig(filename='log/app.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
-
 
 
 class CuriosityNet:
@@ -181,20 +181,30 @@ class CuriosityNet:
                         message.format(name=name, profit=profit),
                     )
 
+
 # env = gym.make('MountainCar-v0')
-
-
-env = gym.make('forex-v0')
+# env = gym.make('forex-v0')
 # env = env.unwrapped
-print("env information:")
-print("> shape:", env.shape)
-print("> df.shape:", env.df.shape)
-print("> prices.shape:", env.prices.shape)
-print("> signal_features.shape:", env.signal_features.shape)
-print("> max_possible_profit:", env.max_possible_profit())
+# print("env information:")
+# print("> shape:", env.shape)
+# print("> df.shape:", env.df.shape)
+# print("> prices.shape:", env.prices.shape)
+# print("> signal_features.shape:", env.signal_features.shape)
+# print("> max_possible_profit:", env.max_possible_profit())
 
 
-dqn = CuriosityNet(n_a=2, n_s=48, lr=0.01, output_graph=True)
+df = pd.read_csv("data/XAUUSD_Daily_Train.csv", index_col="Date")
+custom_env = gym.make('forex-v0', df=df, window_size=5, frame_bound=(10, 445))
+print()
+print("custom_env information:")
+print("> shape:", custom_env.shape)
+print("> df.shape:", df.shape)
+print("> prices.shape:", custom_env.prices.shape)
+print("> signal_features.shape:", custom_env.signal_features.shape)
+print("> max_possible_profit:", custom_env.max_possible_profit())
+env = custom_env
+
+dqn = CuriosityNet(n_a=2, n_s=10, lr=0.0001, output_graph=True)
 ep_steps = []
 number_episode = 500000
 max_profit = 0

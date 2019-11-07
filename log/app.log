@@ -1,3 +1,0 @@
-tensorflow - WARNING - From C:\Users\admin1\Miniconda3\envs\rl_learning\lib\site-packages\tensorflow\python\framework\op_def_library.py:263: colocate_with (from tensorflow.python.framework.ops) is deprecated and will be removed in a future version.
-Instructions for updating:
-Colocations handled automatically by placer.
