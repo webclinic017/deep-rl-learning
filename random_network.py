@@ -153,7 +153,7 @@ class CuriosityNet:
         self.learn_step_counter += 1
 
         # minimum epsilon
-        if self.epsilon < self.min_epsilon:
+        if self.epsilon > self.min_epsilon:
             logging.info("epsilon: {}".format(self.epsilon))
             self.epsilon = self.epsilon * self.epsilon_decay
 
