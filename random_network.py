@@ -194,7 +194,7 @@ class CuriosityNet:
 
 
 df = pd.read_csv("data/XAUUSD_Daily_Train.csv", index_col="Date")
-custom_env = gym.make('forex-v0', df=df, window_size=5, frame_bound=(10, 445))
+custom_env = gym.make('forex-v0', df=df, window_size=5, frame_bound=(10, 445), unit_side='left')
 print()
 print("custom_env information:")
 print("> shape:", custom_env.shape)
@@ -204,7 +204,7 @@ print("> signal_features.shape:", custom_env.signal_features.shape)
 print("> max_possible_profit:", custom_env.max_possible_profit())
 env = custom_env
 
-dqn = CuriosityNet(n_a=2, n_s=10, lr=0.0001, output_graph=True)
+dqn = CuriosityNet(n_a=2, n_s=10, lr=0.01, output_graph=True)
 ep_steps = []
 number_episode = 500000
 max_profit = 0
@@ -216,7 +216,7 @@ if not os.path.exists(save_models_path):
 tqdm_e = tqdm(range(number_episode), leave=True, unit=" episodes")
 for epi in tqdm_e:
     s = env.reset()
-    s = s.flatten()
+    s = s.flatten()/1000
     steps = 0
     while True:
         # env.render()
@@ -226,7 +226,7 @@ for epi in tqdm_e:
         # Display score
         tqdm_e.set_description("Profit: " + str(info['total_profit']))
         tqdm_e.refresh()
-        s_ = s_.flatten()
+        s_ = s_.flatten()/1000
         dqn.store_transition(s, a, r, s_)
         dqn.learn()
 
