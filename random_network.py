@@ -130,7 +130,7 @@ class CuriosityNet:
             # forward feed the observation and get q value for every actions
             actions_value = self.sess.run(self.q, feed_dict={self.tfs: s})
             action = np.argmax(actions_value)
-            logging.info(actions_value)
+            logging.warning(actions_value)
         else:
             action = np.random.randint(0, self.n_a)
         return action
@@ -154,7 +154,7 @@ class CuriosityNet:
 
         # minimum epsilon
         if self.epsilon > self.min_epsilon:
-            logging.info("epsilon: {}".format(self.epsilon))
+            logging.warning("epsilon: {}".format(self.epsilon))
             self.epsilon = self.epsilon * self.epsilon_decay
 
     def save(self, export_path, step):
