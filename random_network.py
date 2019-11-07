@@ -212,7 +212,7 @@ print("> signal_features.shape:", custom_env.signal_features.shape)
 print("> max_possible_profit:", custom_env.max_possible_profit())
 env = custom_env
 
-dqn = CuriosityNet(n_a=2, n_s=5, lr=0.01, output_graph=True)
+dqn = CuriosityNet(n_a=2, n_s=5, lr=0.0001, output_graph=True)
 ep_steps = []
 number_episode = 500000
 max_profit = 0
