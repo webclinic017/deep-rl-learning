@@ -219,7 +219,7 @@ for epi in tqdm_e:
     s = s.flatten()
     steps = 0
     while True:
-        env.render()
+        # env.render()
         a = dqn.choose_action(s)
         s_, r, done, info = env.step(a)
         # logging.warning(info)
