@@ -59,6 +59,7 @@ class Environment:
 
     def step(self, a):
         r = -1
+        done = False
         info = {'total_profit': self.budget, 'status': 'hold', 'profit': False}
         if a == 0:
             r = 0.01
@@ -82,10 +83,11 @@ class Environment:
                     r = 0.2
                 else:
                     r = -0.1
+                done = True if diff > 0 else False
             else:
                 r = -0.01
         self.t += 1
         state = self.getState()
         # r = 1
-        done = True if self.budget > 1100 or self.budget < 900 else False
+
         return state, r, done, info
