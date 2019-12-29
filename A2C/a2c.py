@@ -15,6 +15,7 @@ from .actor import Actor
 from utils.networks import tfSummary
 from utils.stats import gather_stats
 
+
 class A2C:
     """ Actor-Critic Main Algorithm
     """
@@ -87,7 +88,7 @@ class A2C:
             actions, states, rewards = [], [], []
 
             while not done:
-                if args.render: env.render()
+                # if args.render: env.render()
                 # Actor picks an action (following the policy)
                 a = self.policy_action(old_state)
                 # Retrieve new state, reward, and whether the state is terminal

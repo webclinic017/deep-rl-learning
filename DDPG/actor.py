@@ -31,12 +31,6 @@ class Actor:
         x = GaussianNoise(1.0)(x)
         #
         x = Flatten()(x)
-        x = Dense(256, activation='relu')(x)
-        x = GaussianNoise(1.0)(x)
-        #
-        x = Dense(256, activation='relu')(x)
-        x = GaussianNoise(1.0)(x)
-        #
         x = Dense(128, activation='relu')(x)
         x = GaussianNoise(1.0)(x)
         #

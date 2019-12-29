@@ -4,6 +4,7 @@ import numpy as np
 from collections import deque
 from .sumtree import SumTree
 
+
 class MemoryBuffer(object):
     """ Memory Buffer Helper class for Experience Replay
     using a double-ended queue or a Sum Tree (for PER)
@@ -11,14 +12,14 @@ class MemoryBuffer(object):
     def __init__(self, buffer_size, with_per = False):
         """ Initialization
         """
-        if(with_per):
-            # Prioritized Experience Replay
-            self.alpha = 0.5
-            self.epsilon = 0.01
-            self.buffer = SumTree(buffer_size)
-        else:
-            # Standard Buffer
-            self.buffer = deque()
+        # if(with_per):
+        # Prioritized Experience Replay
+        # self.alpha = 0.5
+        # self.epsilon = 0.01
+        # self.buffer = SumTree(buffer_size)
+        # else:
+        #     Standard Buffer
+        self.buffer = deque()
         self.count = 0
         self.with_per = with_per
         self.buffer_size = buffer_size
@@ -89,6 +90,6 @@ class MemoryBuffer(object):
     def clear(self):
         """ Clear buffer / Sum Tree
         """
-        if(self.with_per): self.buffer = SumTree(buffer_size)
+        if(self.with_per): self.buffer = SumTree(self.buffer_size)
         else: self.buffer = deque()
         self.count = 0
