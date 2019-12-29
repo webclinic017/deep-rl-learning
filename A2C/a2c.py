@@ -87,7 +87,7 @@ class A2C:
             old_state = env.reset()
             actions, states, rewards = [], [], []
 
-            while not done or len(actions) < 1000:
+            while not done or len(actions) < 500:
                 # if args.render: env.render()
                 # Actor picks an action (following the policy)
                 a = self.policy_action(old_state)
