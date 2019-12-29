@@ -38,7 +38,7 @@ def parse_args(args):
                         help="Use Prioritized Experience Replay (DDQN + PER)")
     parser.add_argument('--dueling', dest='dueling', action='store_true', help="Use a Dueling Architecture (DDQN)")
     #
-    parser.add_argument('--nb_episodes', type=int, default=500, help="Number of training episodes")
+    parser.add_argument('--nb_episodes', type=int, default=500000, help="Number of training episodes")
     parser.add_argument('--batch_size', type=int, default=64, help="Batch size (experience replay)")
     parser.add_argument('--consecutive_frames', type=int, default=30,
                         help="Number of consecutive frames (action repeat)")
