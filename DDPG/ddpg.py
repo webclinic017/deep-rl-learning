@@ -36,13 +36,7 @@ class DDPG:
     def policy_action(self, s):
         """ Use the actor to predict value
         """
-        # return self.actor.predict(s)[0]
-        logging.warning(self.actor.predict(s))
-        # return np.random.choice(np.arange(self.act_dim), 1, p=self.actor.predict(s).ravel())[0]
-        if random() <= self.epsilon:
-            return randrange(self.act_dim)
-        else:
-            return np.argmax(self.actor.predict(s)[0])
+        return np.random.choice(np.arange(self.act_dim), 1, p=self.actor.predict(s).ravel())[0]
 
     def bellman(self, rewards, q_values, dones):
         """ Use the Bellman Equation to compute the critic target

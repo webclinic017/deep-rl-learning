@@ -25,15 +25,14 @@ class DDQN:
         self.action_dim = action_dim
         self.state_dim = (args.consecutive_frames,) + state_dim
         #
-        self.lr = 2.5e-5
-        self.lr_decay = 1e-5
-        self.gamma = 0.8
+        self.lr = 2.5e-4
+        self.gamma = 0.95
         self.epsilon = 1
         self.epsilon_min = 0.2
         self.epsilon_decay = 0.99
         self.buffer_size = 20000
         #
-        if len(state_dim) < 3:
+        if(len(state_dim) < 3):
             self.tau = 1e-2
         else:
             self.tau = 1.0
@@ -41,6 +40,7 @@ class DDQN:
         self.agent = Agent(self.state_dim, action_dim, self.lr, self.tau, args.dueling)
         # Memory Buffer for Experience Replay
         self.buffer = MemoryBuffer(self.buffer_size, args.with_per)
+        self.temp_buffer = list()
 
     def policy_action(self, s):
         """ Apply an espilon-greedy policy to pick next action
@@ -48,7 +48,7 @@ class DDQN:
         if random() <= self.epsilon:
             return randrange(self.action_dim)
         else:
-            logging.warning(self.agent.predict(s)[0])
+            logging.warning(self.agent.predict(s))
             return np.argmax(self.agent.predict(s)[0])
 
     def train_agent(self, batch_size):
@@ -69,7 +69,7 @@ class DDQN:
             else:
                 next_best_action = np.argmax(next_q[i,:])
                 q[i, a[i]] = r[i] + self.gamma * q_targ[i, next_best_action]
-            if self.with_per:
+            if(self.with_per):
                 # Update PER Sum Tree
                 self.buffer.update(idx[i], abs(old_q - q[i, a[i]]))
         # Train on batch
@@ -96,9 +96,9 @@ class DDQN:
                 a = self.policy_action(old_state)
                 # Retrieve new state, reward, and whether the state is terminal
                 new_state, r, done, info = env.step(a)
-                logging.warning(info)
+                # logging.warning(info)
                 # Memorize for experience replay
-                self.memorize(old_state, a, r, True if r < 0 else False, new_state)
+                self.memorize(old_state, a, r, done, new_state)
                 # Update current state
                 old_state = new_state
                 cumul_reward += r
@@ -127,7 +127,7 @@ class DDQN:
         """ Store experience in memory buffer
         """
 
-        if self.with_per:
+        if(self.with_per):
             q_val = self.agent.predict(state)
             q_val_t = self.agent.target_predict(new_state)
             next_best_action = np.argmax(q_val)
@@ -139,7 +139,7 @@ class DDQN:
 
     def save_weights(self, path):
         path += '_LR_{}'.format(self.lr)
-        if self.with_per:
+        if(self.with_per):
             path += '_PER'
         self.agent.save(path)
 

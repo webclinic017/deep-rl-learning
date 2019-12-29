@@ -4,7 +4,6 @@ import pandas as pd
 import numpy as np
 import tensorflow as tf
 import gym
-import gym_anytrading
 from scipy.stats import logistic
 import csv
 import smtplib
@@ -12,6 +11,7 @@ import ssl
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import logging
+from utils.environment import Environment
 
 logging.basicConfig(filename='log/app.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
@@ -182,43 +182,15 @@ class CuriosityNet:
                     )
 
 
-def norm(state):
-    s_0 = state[0]
-    s_1 = state[1] - s_0
-    s_2 = state[2] - s_0
-    s_3 = state[3] - s_0
-    s_4 = state[4] - s_0
-    return np.array([0, s_1, s_2, s_3, s_4])
+env = Environment()
+env.reset()
+state_dim = (9,)
+action_dim = 3
 
 
-def sigmoid(x):
-    return logistic.cdf(x)
-
-# env = gym.make('MountainCar-v0')
-# env = gym.make('forex-v0')
-# env = env.unwrapped
-# print("env information:")
-# print("> shape:", env.shape)
-# print("> df.shape:", env.df.shape)
-# print("> prices.shape:", env.prices.shape)
-# print("> signal_features.shape:", env.signal_features.shape)
-# print("> max_possible_profit:", env.max_possible_profit())
-
-
-df = pd.read_csv("data/XAUUSD_Daily_Train.csv", index_col="Date")
-custom_env = gym.make('forex-v0', df=df, window_size=5, frame_bound=(10, 445), unit_side='left')
-print()
-print("custom_env information:")
-print("> shape:", custom_env.shape)
-print("> df.shape:", df.shape)
-print("> prices.shape:", custom_env.prices.shape)
-print("> signal_features.shape:", custom_env.signal_features.shape)
-print("> max_possible_profit:", custom_env.max_possible_profit())
-env = custom_env
-
-dqn = CuriosityNet(n_a=2, n_s=5, lr=0.0001, output_graph=True)
+dqn = CuriosityNet(n_a=action_dim, n_s=9, lr=0.001, output_graph=True)
 ep_steps = []
-number_episode = 500000
+number_episode = 500
 max_profit = 0
 current_profit = 10
 save_models_path = 'random_network'
@@ -227,20 +199,17 @@ if not os.path.exists(save_models_path):
 
 tqdm_e = tqdm(range(number_episode), leave=True, unit=" episodes")
 for epi in tqdm_e:
-    s = env.reset()[:, 0]
-    s = norm(s.tolist())
+    s = env.reset()
     steps = 0
     while True:
         # env.render()
         a = dqn.choose_action(s)
         s_, r, done, info = env.step(a)
+        r = -1
         # logging.warning(info)
         # Display score
-        r = sigmoid(r)
         tqdm_e.set_description("Profit: " + str(info['total_profit']))
         tqdm_e.refresh()
-        s_ = s_[:, 0]
-        s_ = norm(s_.tolist())
         dqn.store_transition(s, a, r, s_)
         dqn.learn()
 
@@ -250,16 +219,8 @@ for epi in tqdm_e:
             dqn.save("{}/profit_{}".format(save_models_path, round(info['total_profit'], 4)), steps)
             if max_profit < info['total_profit']:
                 max_profit = info['total_profit']
-                dqn.notification(max_profit)
+                # dqn.notification(max_profit)
             break
 
         s = s_
         steps += 1
-
-#plt.plot(ep_steps)
-#plt.ylabel("steps")
-#plt.xlabel("episode")
-#plt.show()
-plt.cla()
-env.render_all()
-plt.savefig("results.png")
