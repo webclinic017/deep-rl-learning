@@ -13,7 +13,7 @@ from pymongo import MongoClient
 import argparse
 import pandas as pd
 import tensorflow as tf
-
+print(tf.__version__)
 from A2C.a2c import A2C
 
 from keras.backend.tensorflow_backend import set_session
