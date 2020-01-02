@@ -38,7 +38,7 @@ def parse_args(args):
                         help="Use Prioritized Experience Replay (DDQN + PER)")
     parser.add_argument('--dueling', dest='dueling', action='store_true', help="Use a Dueling Architecture (DDQN)")
     #
-    parser.add_argument('--nb_episodes', type=int, default=500000, help="Number of training episodes")
+    parser.add_argument('--nb_episodes', type=int, default=50000, help="Number of training episodes")
     parser.add_argument('--batch_size', type=int, default=64, help="Batch size (experience replay)")
     parser.add_argument('--consecutive_frames', type=int, default=30,
                         help="Number of consecutive frames (action repeat)")
@@ -68,28 +68,6 @@ def main(args=None):
     set_session(get_session())
     summary_writer = tf.summary.FileWriter(args.type + "/tensorboard_" + args.env)
 
-    # Environment Initialization
-    # if args.is_atari:
-    #     # Atari Environment Wrapper
-    #     env = AtariEnvironment(args)
-    #     state_dim = env.get_state_size()
-    #     action_dim = env.get_action_size()
-    # elif args.type == "DDPG":
-    #     # Continuous Environments Wrapper
-    #
-    # else:
-    #     # Standard Environments
-    #     # env = Environment(gym.make(args.env), args.consecutive_frames)
-    #     env = gym.make('forex-v0')
-    #     print("env information:")
-    #     print("> shape:", env.shape)
-    #     print("> df.shape:", env.df.shape)
-    #     print("> prices.shape:", env.prices.shape)
-    #     print("> signal_features.shape:", env.signal_features.shape)
-    #     print("> max_possible_profit:", env.max_possible_profit())
-    #     env.reset()
-    #     state_dim = (2,)
-    #     action_dim = 2
     env = Environment()
     env.reset()
     state_dim = (1,)

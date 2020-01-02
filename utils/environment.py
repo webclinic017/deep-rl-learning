@@ -37,6 +37,7 @@ class Environment:
     def getState(self):
         if self.t == (len(self.data) - self.windows):
             self.t = 11
+            raise Exception("Done")
 
         d = self.t - self.windows + 1
         block = self.data[d:self.t + 1] if d >= 0 else -d * [self.data[0]] + self.data[0:self.t + 1]  # pad with t0
@@ -59,7 +60,7 @@ class Environment:
 
     def step(self, a):
         r = -1
-        info = {'total_profit': self.budget, 'status': 'hold', 'profit': False}
+        info = {'total_profit': self.budget, 'status': 'hold', 'profit': False, 'current': self.prices[self.t]}
         if a == 0:
             r = 0.01
         elif a == 1:
@@ -76,6 +77,7 @@ class Environment:
                 info['status'] = 'sell'
                 diff = (self.prices[self.t] - self.order)
                 self.budget += diff
+                info['total_profit'] = self.budget
                 self.order = None
                 if diff > 0:
                     info['profit'] = True
