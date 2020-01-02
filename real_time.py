@@ -105,7 +105,7 @@ def process_message(msg):
         if type(state) is np.ndarray:
             a = algo.policy_action(state)
             info = select_action(a, msg['k']['c'])
-            print(info)
+            # print(info)
         inset = db.btc_test.insert_one(msg['k']).inserted_id
 
 
