@@ -31,8 +31,8 @@ state_dim = (1,)
 action_dim = 3
 with graph.as_default():
     algo = A2C(action_dim, state_dim, 10)
-    actor_path = '/home/thinh/Desktop/deep-rl-learning/A2C/models/actor.h5'
-    critic_path = '/home/thinh/Desktop/deep-rl-learning/A2C/models/critic.h5'
+    actor_path = 'A2C/models/actor.h5'
+    critic_path = 'A2C/models/critic.h5'
     algo.load_weights(actor_path, critic_path)
 os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 api_key = "y9JKPpQ3B2zwIRD9GwlcoCXwvA3mwBLiNTriw6sCot13IuRvYKigigXYWCzCRiul"
