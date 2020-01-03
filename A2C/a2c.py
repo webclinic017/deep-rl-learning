@@ -41,10 +41,10 @@ class A2C:
         """
         inp = Input((self.env_dim))
         x = Flatten()(inp)
+        x = Dense(1024, activation='relu')(x)
+        x = Dense(512, activation='relu')(x)
+        x = Dense(512, activation='relu')(x)
         x = Dense(128, activation='relu')(x)
-        x = Dense(128, activation='relu')(x)
-        x = Dense(128, activation='relu')(x)
-        x = Dense(32, activation='relu')(x)
         return Model(inp, x)
 
     def policy_action(self, s):
@@ -87,7 +87,7 @@ class A2C:
             old_state = env.reset()
             actions, states, rewards = [], [], []
 
-            while not done and len(actions) < 1000:
+            while not done and len(actions) < 500:
                 # if args.render: env.render()
                 # Actor picks an action (following the policy)
                 a = self.policy_action(old_state)

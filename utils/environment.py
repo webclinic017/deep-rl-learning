@@ -4,7 +4,7 @@ import math
 
 class Environment:
     def __init__(self):
-        self.data, self.prices = self.getStockDataVec('crypto.btc_test')
+        self.data, self.prices = self.getStockDataVec('btc_test_1')
         self.t = 11
         self.windows = 11
         self.budget = 1000
@@ -62,13 +62,13 @@ class Environment:
         r = -1
         info = {'total_profit': self.budget, 'status': 'hold', 'profit': False, 'current': self.prices[self.t]}
         if a == 0:
-            r = 0.01
+            r = 0.03
         elif a == 1:
             # buy
             if self.order is None:
                 info['status'] = 'buy'
                 self.order = self.prices[self.t]
-                r = 0.16
+                r = 0.1
             else:
                 r = -0.01
         elif a == 2:
