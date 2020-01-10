@@ -51,6 +51,7 @@ def parse_args(args):
                         help="Render environment while training")
     parser.add_argument('--env', type=str, default='BreakoutNoFrameskip-v4', help="OpenAI Gym Environment")
     parser.add_argument('--gpu', type=int, default=0, help='GPU ID')
+    parser.add_argument('--test', type=bool, default=False, help='Train of test')
     #
     parser.set_defaults(render=False)
     return parser.parse_args(args)
@@ -80,7 +81,7 @@ def main(args=None):
     elif args.type == "A2C":
         algo = A2C(action_dim, state_dim, args.consecutive_frames)
     elif args.type == "A3C":
-        algo = A3C(action_dim, state_dim, args.consecutive_frames, is_atari=args.is_atari)
+        algo = A3C(action_dim, state_dim, args.consecutive_frames)
     elif args.type == "DDPG":
         algo = DDPG(action_dim, state_dim, act_range, args.consecutive_frames)
 
@@ -105,9 +106,6 @@ def main(args=None):
                                                          int(time.time()))
 
     algo.save_weights(export_path)
-    plt.cla()
-    env.render_all()
-    plt.savefig('results.png')
 
 
 if __name__ == "__main__":

@@ -44,6 +44,7 @@ def parse_args(args):
     #
     parser.add_argument('--env', type=str, default='BreakoutNoFrameskip-v4', help="OpenAI Gym Environment")
     parser.add_argument('--gpu', type=int, default=0, help='GPU ID')
+    parser.add_argument('--test', type=bool, default=False, help='Train of test')
     #
     parser.set_defaults(render=False)
     return parser.parse_args(args)

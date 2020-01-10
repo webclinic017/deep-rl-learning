@@ -41,10 +41,10 @@ class A2C:
         """
         inp = Input((self.env_dim))
         x = Flatten()(inp)
-        x = Dense(1024, activation='relu')(x)
-        x = Dense(512, activation='relu')(x)
-        x = Dense(512, activation='relu')(x)
-        x = Dense(128, activation='relu')(x)
+        x = Dense(256, activation='relu')(x)
+        x = Dense(256, activation='relu')(x)
+        x = Dense(256, activation='relu')(x)
+        x = Dense(32, activation='relu')(x)
         return Model(inp, x)
 
     def policy_action(self, s):
@@ -87,7 +87,7 @@ class A2C:
             old_state = env.reset()
             actions, states, rewards = [], [], []
 
-            while not done and len(actions) < 500:
+            while not done and len(actions) < 512:
                 # if args.render: env.render()
                 # Actor picks an action (following the policy)
                 a = self.policy_action(old_state)
@@ -103,8 +103,6 @@ class A2C:
                 cumul_reward += r
                 time += 1
                 # Display score
-                tqdm_e.set_description("Profit: " + str(info['total_profit']))
-                tqdm_e.refresh()
 
             # Train using discounted rewards ie. compute updates
             self.train_models(states, actions, rewards, done)
@@ -113,10 +111,13 @@ class A2C:
             # if(args.gather_stats):
             #     mean, stdev = gather_stats(self, env)
             #     results.append([e, mean, stdev])
-
+            tqdm_e.set_description("Profit: " + str(info['total_profit']))
+            tqdm_e.refresh()
             # Export results for Tensorboard
             score = tfSummary('score', cumul_reward)
+            budget = tfSummary('budget', info['total_profit'])
             summary_writer.add_summary(score, global_step=e)
+            summary_writer.add_summary(budget, global_step=e)
             summary_writer.flush()
 
         return results

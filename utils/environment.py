@@ -81,7 +81,7 @@ class Environment:
                 self.order = None
                 if diff > 0:
                     info['profit'] = True
-                    r = 0.2
+                    r = 0.1 * diff
                 else:
                     r = -0.1
             else:
