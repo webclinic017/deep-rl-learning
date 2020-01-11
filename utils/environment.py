@@ -27,7 +27,11 @@ class Environment:
             prev_time = float(lines[_index - 1].split(delimiter)[1])
             prev_price = float(lines[_index - 1].split(delimiter)[0])
             diff = current_time - prev_time
-            delta = (current_price - prev_price) / diff
+            if diff != 0:
+                delta = (current_price - prev_price) / diff
+            else:
+                delta = current_price - prev_price
+
             vec.append([delta])  # normalize
             prices.append(float(line.split(delimiter)[0]))
 
