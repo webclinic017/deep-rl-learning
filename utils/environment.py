@@ -4,7 +4,7 @@ import math
 
 class Environment:
     def __init__(self):
-        self.data, self.prices = self.getStockDataVec('btc_test_1')
+        self.data, self.prices = self.getStockDataVec('train')
         self.t = 11
         self.windows = 11
         self.budget = 1000

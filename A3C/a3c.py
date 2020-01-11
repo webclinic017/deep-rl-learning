@@ -17,6 +17,7 @@ from utils.continuous_environments import Environment
 from utils.networks import conv_block
 from utils.stats import gather_stats
 
+
 class A3C:
     """ Asynchronous Actor-Critic Main Algorithm
     """
@@ -26,10 +27,7 @@ class A3C:
         """
         # Environment and A3C parameters
         self.act_dim = act_dim
-        if(is_atari):
-            self.env_dim = env_dim
-        else:
-            self.env_dim = (k,) + env_dim
+        self.env_dim = (k,) + env_dim
         self.gamma = gamma
         self.lr = lr
         # Create actor and critic networks
@@ -65,10 +63,10 @@ class A3C:
         """
         inp = Input((self.env_dim))
         x = Flatten()(inp)
+        x = Dense(1024, activation='relu')(x)
+        x = Dense(512, activation='relu')(x)
+        x = Dense(256, activation='relu')(x)
         x = Dense(128, activation='relu')(x)
-        x = Dense(128, activation='relu')(x)
-        x = Dense(128, activation='relu')(x)
-        x = Dense(32, activation='relu')(x)
         return Model(inp, x)
 
     def policy_action(self, s):
@@ -76,7 +74,7 @@ class A3C:
         """
         return np.random.choice(np.arange(self.act_dim), 1, p=self.actor.predict(s).ravel())[0]
 
-    def discount(self, r, done, s):
+    def discount(self, r):
         """ Compute the gamma-discounted rewards over an episode
         """
         discounted_r, cumul_r = np.zeros_like(r), 0
@@ -89,7 +87,7 @@ class A3C:
         """ Update actor and critic networks from experience
         """
         # Compute discounted rewards and Advantage (TD. Error)
-        discounted_rewards = self.discount(rewards, done, states[-1])
+        discounted_rewards = self.discount(rewards)
         state_values = self.critic.predict(np.array(states))
         advantages = discounted_rewards - np.reshape(state_values, len(state_values))
         # Networks optimization
@@ -98,18 +96,8 @@ class A3C:
 
     def train(self, env, args, summary_writer):
         envs = [env for i in range(args.n_threads)]
-        state_dim = (24, 2)
-        action_dim = 2
-        # Instantiate one environment per thread
-        # if(args.is_atari):
-        #     envs = [AtariEnvironment(args) for i in range(args.n_threads)]
-        #     state_dim = envs[0].get_state_size()
-        #     action_dim = envs[0].get_action_size()
-        # else:
-        #     envs = [Environment(gym.make(args.env), args.consecutive_frames) for i in range(args.n_threads)]
-        #     [e.reset() for e in envs]
-        #     state_dim = envs[0].get_state_size()
-        #     action_dim = gym.make(args.env).action_space.n
+        state_dim = (10, 1)
+        action_dim = 3
 
         # Create threads
         tqdm_e = tqdm(range(int(args.nb_episodes)), desc='Score', leave=True, unit=" episodes")
