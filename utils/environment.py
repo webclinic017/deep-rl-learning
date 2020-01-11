@@ -8,7 +8,7 @@ class Environment:
         self.t = 11
         self.windows = 11
         self.budget = 1000
-        self.order = None
+        self.order = 0
 
     # prints formatted price
     def formatPrice(self, n):
@@ -41,9 +41,9 @@ class Environment:
 
         d = self.t - self.windows + 1
         block = self.data[d:self.t + 1] if d >= 0 else -d * [self.data[0]] + self.data[0:self.t + 1]  # pad with t0
-        res = []
-        for i in range(self.windows - 1):
-            res.append(block[i])
+        res = [[1 if self.order > 0 else 0]]
+        for i in block:
+            res.append(i)
 
         return np.array(res)
 
@@ -52,9 +52,9 @@ class Environment:
         self.budget = 1000
         d = self.t - self.windows + 1
         block = self.data[d:self.t + 1] if d >= 0 else -d * [self.data[0]] + self.data[0:self.t + 1]  # pad with t0
-        res = []
-        for i in range(self.windows - 1):
-            res.append(block[i])
+        res = [[1 if self.order > 0 else 0]]
+        for i in block:
+            res.append(i)
 
         return np.array(res)
 
@@ -65,7 +65,7 @@ class Environment:
             r = 0.03
         elif a == 1:
             # buy
-            if self.order is None:
+            if self.order == 0:
                 info['status'] = 'buy'
                 self.order = self.prices[self.t]
                 r = 0.1
@@ -73,12 +73,12 @@ class Environment:
                 r = -0.01
         elif a == 2:
             # close
-            if self.order:
+            if self.order > 0:
                 info['status'] = 'sell'
                 diff = (self.prices[self.t] - self.order)
                 self.budget += diff
                 info['total_profit'] = self.budget
-                self.order = None
+                self.order = 0
                 if diff > 0:
                     info['profit'] = True
                     r = 0.1 * diff

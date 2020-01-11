@@ -30,9 +30,9 @@ graph = tf.get_default_graph()
 state_dim = (1,)
 action_dim = 3
 with graph.as_default():
-    algo = A2C(action_dim, state_dim, 10)
-    actor_path = 'A2C/models/actor.h5'
-    critic_path = 'A2C/models/critic.h5'
+    algo = A2C(action_dim, state_dim, 12)
+    actor_path = 'A2C/models/actor_final.h5'
+    critic_path = 'A2C/models/critic_final.h5'
     algo.load_weights(actor_path, critic_path)
 os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 api_key = "y9JKPpQ3B2zwIRD9GwlcoCXwvA3mwBLiNTriw6sCot13IuRvYKigigXYWCzCRiul"
@@ -41,7 +41,7 @@ binace_client = Client(api_key, api_secret)
 bm = BinanceSocketManager(binace_client)
 
 
-order = None
+order = 0
 budget = 1000
 
 # mongodb
@@ -65,7 +65,7 @@ def select_action(a, current_price):
         pass
     elif a == 1:
         # buy
-        if order is None:
+        if order == 0:
             info['status'] = 'buy'
             order = current_price
     elif a == 2:
@@ -74,7 +74,7 @@ def select_action(a, current_price):
             info['status'] = 'sell'
             diff = (current_price - order)
             budget += diff
-            order = None
+            order = 0
             if diff > 0:
                 info['profit'] = True
     info['budget'] = budget
@@ -83,16 +83,17 @@ def select_action(a, current_price):
 
 
 def get_state(current_price, current_time):
-    global prev_time, prev_price, vec
+    global prev_time, prev_price, vec, order
     current_price = float(current_price)
     diff = current_time - prev_time
     delta = (current_price - prev_price) / diff
     vec.append([delta])  # normalize
     prev_price = current_price
     prev_time = current_time
-    if len(vec) > 10:
+    if len(vec) > 12:
         vec.pop(0)
-        # print(vec)
+        vec[0] = [1] if order > 0 else [0]
+        print(vec)
         return np.array(vec)
     return False
 
@@ -106,7 +107,7 @@ def process_message(msg):
             a = algo.policy_action(state)
             info = select_action(a, msg['k']['c'])
             # print(info)
-        inset = db.btc_test.insert_one(msg['k']).inserted_id
+        inset = db.btc_test_1.insert_one(msg['k']).inserted_id
 
 
 def start_socket():
