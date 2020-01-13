@@ -2,7 +2,7 @@ import random
 import numpy as np
 import logging
 
-logging.basicConfig(filename='log/app.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename='log/a2c.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
 from tqdm import tqdm
 from keras.models import Model
@@ -87,7 +87,7 @@ class A2C:
             old_state = env.reset()
             actions, states, rewards = [], [], []
 
-            while not done and len(actions) < 512:
+            while not done and len(actions) <= 1024:
                 # if args.render: env.render()
                 # Actor picks an action (following the policy)
                 a = self.policy_action(old_state)
