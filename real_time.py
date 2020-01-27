@@ -31,8 +31,8 @@ state_dim = (1,)
 action_dim = 3
 with graph.as_default():
     algo = A2C(action_dim, state_dim, 12)
-    actor_path = 'A2C/models/actor_final.h5'
-    critic_path = 'A2C/models/critic_final.h5'
+    actor_path = 'A2C/models/A2C_1578996563_LR_0.0001_actor.h5'
+    critic_path = 'A2C/models/A2C_578996563_LR_0.0001_critic.h5'
     algo.load_weights(actor_path, critic_path)
 os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 api_key = "y9JKPpQ3B2zwIRD9GwlcoCXwvA3mwBLiNTriw6sCot13IuRvYKigigXYWCzCRiul"

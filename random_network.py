@@ -23,8 +23,8 @@ class CuriosityNet:
             n_s,
             lr=0.001,
             gamma=0.95,
-            epsilon=1,
-            min_epsilon=0.2,
+            epsilon=0,
+            min_epsilon=0,
             epsilon_decay=0.99,
             replace_target_iter=300,
             memory_size=10000,
@@ -56,9 +56,9 @@ class CuriosityNet:
         e_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='eval_net')
 
         with tf.variable_scope('hard_replacement'):
-            self.target_replace_op = [tf.assign(t, e) for t, e in zip(t_params, e_params)]
+            self.target_replace_op = [tf.compat.v1.assign(t, e) for t, e in zip(t_params, e_params)]
 
-        self.saver = tf.train.Saver(max_to_keep=50, keep_checkpoint_every_n_hours=24)
+        self.saver = tf.compat.v1.train.Saver(max_to_keep=4, keep_checkpoint_every_n_hours=24)
         self.sess = tf.Session()
 
         if output_graph:
@@ -160,6 +160,9 @@ class CuriosityNet:
     def save(self, export_path, step):
         self.saver.save(self.sess, export_path, global_step=step, write_meta_graph=True)
 
+    def load_weight(self):
+        self.saver.restore(self.sess, tf.train.latest_checkpoint('./random_network/latest'))
+
     def notification(self, profit):
         message = """Subject: Your profit
 
@@ -182,20 +185,26 @@ class CuriosityNet:
                     )
 
 
-env = Environment()
+windows = 10
+start_step = 4096
+env = Environment(windows, start_step)
 env.reset()
-state_dim = (9,)
+state_dim = (windows,)
 action_dim = 3
 
 
-dqn = CuriosityNet(n_a=action_dim, n_s=9, lr=0.001, output_graph=True)
+dqn = CuriosityNet(n_a=action_dim, n_s=windows, lr=0.000001, output_graph=True)
 ep_steps = []
-number_episode = 500
+number_episode = 2
 max_profit = 0
 current_profit = 10
 save_models_path = 'random_network'
+train = False
 if not os.path.exists(save_models_path):
     os.makedirs(save_models_path)
+
+# load weight
+dqn.load_weight()
 
 tqdm_e = tqdm(range(number_episode), leave=True, unit=" episodes")
 for epi in tqdm_e:
@@ -205,22 +214,24 @@ for epi in tqdm_e:
         # env.render()
         a = dqn.choose_action(s)
         s_, r, done, info = env.step(a)
-        r = -1
         # logging.warning(info)
         # Display score
-        tqdm_e.set_description("Profit: " + str(info['total_profit']))
-        tqdm_e.refresh()
-        dqn.store_transition(s, a, r, s_)
-        dqn.learn()
+        if train:
+            dqn.store_transition(s, a, r, s_)
+            dqn.learn()
 
         if done:
             # print('Epi: ', epi, "| total_profit: ", info['total_profit'])
             # ep_steps.append(steps)
-            dqn.save("{}/profit_{}".format(save_models_path, round(info['total_profit'], 4)), steps)
             if max_profit < info['total_profit']:
                 max_profit = info['total_profit']
                 # dqn.notification(max_profit)
+                # dqn.save("{}/profit_{}".format(save_models_path, round(info['total_profit'], 4)), steps)
             break
 
         s = s_
         steps += 1
+
+    print(info['total_profit'])
+    # tqdm_e.set_description("Profit: " + str(info['total_profit']))
+    # tqdm_e.refresh()
