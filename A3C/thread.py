@@ -23,7 +23,7 @@ def training_thread(agent, Nmax, env, action_dim, f, summary_writer, tqdm, rende
         time, cumul_reward, done = 0, 0, False
         old_state = env.reset()
         actions, states, rewards = [], [], []
-        while time < 1000 and not done and episode < Nmax:
+        while time <= 1024 and episode < Nmax:
             # Actor picks an action (following the policy)
             a = agent.policy_action(old_state)
             # Retrieve new state, reward, and whether the state is terminal
@@ -43,11 +43,13 @@ def training_thread(agent, Nmax, env, action_dim, f, summary_writer, tqdm, rende
         lock.acquire()
         agent.train_models(states, actions, rewards, done)
         lock.release()
-        actions, states, rewards = [], [], []
+
         logging.warning(info)
         # Export results for Tensorboard
-        score = tfSummary('score', cumul_reward)
+        score = tfSummary('cumul_reward', cumul_reward)
         summary_writer.add_summary(score, global_step=episode)
+        total_profit = tfSummary('total_profit', info['total_profit'])
+        summary_writer.add_summary(total_profit, global_step=episode)
         summary_writer.flush()
         # Update episode count
         with lock:

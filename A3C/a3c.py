@@ -63,10 +63,10 @@ class A3C:
         """
         inp = Input((self.env_dim))
         x = Flatten()(inp)
-        x = Dense(1024, activation='relu')(x)
-        x = Dense(512, activation='relu')(x)
-        x = Dense(256, activation='relu')(x)
         x = Dense(128, activation='relu')(x)
+        x = Dense(128, activation='relu')(x)
+        x = Dense(128, activation='relu')(x)
+        x = Dense(32, activation='relu')(x)
         return Model(inp, x)
 
     def policy_action(self, s):
