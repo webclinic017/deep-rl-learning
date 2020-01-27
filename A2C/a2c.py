@@ -2,13 +2,13 @@ import random
 import numpy as np
 import logging
 
-logging.basicConfig(filename='log/app.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename='log/a2c.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
 from tqdm import tqdm
 from keras.models import Model
 from keras import regularizers
 from keras.utils import to_categorical
-from keras.layers import Input, Dense, Flatten
+from keras.layers import Input, Dense, Flatten, LSTM
 
 from .critic import Critic
 from .actor import Actor
@@ -40,24 +40,30 @@ class A2C:
         """ Assemble shared layers
         """
         inp = Input((self.env_dim))
-        x = Flatten()(inp)
-        x = Dense(256, activation='relu')(x)
-        x = Dense(256, activation='relu')(x)
-        x = Dense(256, activation='relu')(x)
+        # x = Flatten()(inp)
+        x = LSTM(128, dropout=0.1, recurrent_dropout=0.3)(inp)
+        # x = LSTM(128, dropout=0.1, recurrent_dropout=0.3)(inp)
+        # x = LSTM(128, dropout=0.1, recurrent_dropout=0.3)(inp)
+        # x = Dense(64, activation='relu')(x)
+        # x = Dense(64, activation='relu')(x)
+        # x = Dense(64, activation='relu')(x)
         x = Dense(32, activation='relu')(x)
         return Model(inp, x)
 
     def policy_action(self, s):
         """ Use the actor to predict the next action to take, using the policy
         """
-        return np.random.choice(np.arange(self.act_dim), 1, p=self.actor.predict(s).ravel())[0]
+        p = self.actor.predict(s)
+        # logging.warning(p.ravel())
+        return np.random.choice(np.arange(self.act_dim), 1, p=p.ravel())[0]
 
-    def discount(self, r):
+    def discount(self, r, done):
         """ Compute the gamma-discounted rewards over an episode
         """
         discounted_r, cumul_r = np.zeros_like(r), 0
         for t in reversed(range(0, len(r))):
-            cumul_r = r[t] + cumul_r * self.gamma
+            reward = r[t]
+            cumul_r = reward + cumul_r * self.gamma
             discounted_r[t] = cumul_r
         return discounted_r
 
@@ -65,9 +71,10 @@ class A2C:
         """ Update actor and critic networks from experience
         """
         # Compute discounted rewards and Advantage (TD. Error)
-        discounted_rewards = self.discount(rewards)
+        discounted_rewards = self.discount(rewards, done)
         state_values = self.critic.predict(np.array(states))
         advantages = discounted_rewards - np.reshape(state_values, len(state_values))
+        print(advantages)
         # Networks optimization
         self.a_opt([states, actions, advantages])
         self.c_opt([states, discounted_rewards])
@@ -87,13 +94,13 @@ class A2C:
             old_state = env.reset()
             actions, states, rewards = [], [], []
 
-            while not done and len(actions) < 512:
+            while not done and len(actions) <= 1024:
                 # if args.render: env.render()
                 # Actor picks an action (following the policy)
                 a = self.policy_action(old_state)
                 # Retrieve new state, reward, and whether the state is terminal
                 new_state, r, done, info = env.step(a)
-                logging.warning(info)
+                # logging.warning(info)
                 # Memorize (s, a, r) for training
                 actions.append(to_categorical(a, self.act_dim))
                 rewards.append(r)
@@ -104,6 +111,7 @@ class A2C:
                 time += 1
                 # Display score
 
+            done = True if info['total_profit'] > 1000 else False
             # Train using discounted rewards ie. compute updates
             self.train_models(states, actions, rewards, done)
 

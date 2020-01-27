@@ -40,16 +40,16 @@ def parse_args(args):
     #
     parser.add_argument('--nb_episodes', type=int, default=50000, help="Number of training episodes")
     parser.add_argument('--batch_size', type=int, default=64, help="Batch size (experience replay)")
-    parser.add_argument('--consecutive_frames', type=int, default=30,
+    parser.add_argument('--consecutive_frames', type=int, default=11,
                         help="Number of consecutive frames (action repeat)")
     parser.add_argument('--training_interval', type=int, default=30, help="Network training frequency")
-    parser.add_argument('--n_threads', type=int, default=8, help="Number of threads (A3C)")
+    parser.add_argument('--n_threads', type=int, default=32, help="Number of threads (A3C)")
     #
     parser.add_argument('--gather_stats', dest='gather_stats', action='store_true',
                         help="Compute Average reward per episode (slower)")
     parser.add_argument('--render', dest='render', default=False, action='store_true',
                         help="Render environment while training")
-    parser.add_argument('--env', type=str, default='BreakoutNoFrameskip-v4', help="OpenAI Gym Environment")
+    parser.add_argument('--env', type=str, default='BTCUSDT', help="OpenAI Gym Environment")
     parser.add_argument('--gpu', type=int, default=0, help='GPU ID')
     parser.add_argument('--test', type=bool, default=False, help='Train of test')
     #
