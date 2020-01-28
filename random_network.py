@@ -160,8 +160,9 @@ class CuriosityNet:
     def save(self, export_path, step):
         self.saver.save(self.sess, export_path, global_step=step, write_meta_graph=True)
 
-    def load_weight(self):
-        self.saver.restore(self.sess, tf.train.latest_checkpoint('./random_network/latest'))
+    def load_weight(self, filename):
+        print('Load save checkpoint: {}'.format(filename))
+        self.saver.restore(self.sess, tf.train.latest_checkpoint(checkpoint_dir='./random_network'))
 
     def notification(self, profit):
         message = """Subject: Your profit
@@ -186,7 +187,7 @@ class CuriosityNet:
 
 
 windows = 10
-start_step = 4096
+start_step = 11
 env = Environment(windows, start_step)
 env.reset()
 state_dim = (windows,)
@@ -204,7 +205,8 @@ if not os.path.exists(save_models_path):
     os.makedirs(save_models_path)
 
 # load weight
-dqn.load_weight()
+latest_filename = 'profit_3379.9-499663'
+dqn.load_weight(latest_filename)
 
 tqdm_e = tqdm(range(number_episode), leave=True, unit=" episodes")
 for epi in tqdm_e:
@@ -226,12 +228,12 @@ for epi in tqdm_e:
             if max_profit < info['total_profit']:
                 max_profit = info['total_profit']
                 # dqn.notification(max_profit)
-                # dqn.save("{}/profit_{}".format(save_models_path, round(info['total_profit'], 4)), steps)
+                dqn.save("{}/profit_{}".format(save_models_path, round(info['total_profit'], 4)), steps)
             break
 
         s = s_
         steps += 1
 
     print(info['total_profit'])
-    # tqdm_e.set_description("Profit: " + str(info['total_profit']))
-    # tqdm_e.refresh()
+    tqdm_e.set_description("Profit: " + str(info['total_profit']))
+    tqdm_e.refresh()
