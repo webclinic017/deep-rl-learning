@@ -25,8 +25,8 @@ def getStockDataVec(key):
         else:
             delta = 0
 
-        vec.append(round(delta, 1)/100 if abs(delta)/100 > 0.2 else 0)  # normalize
-        prices.append(float(line.split(delimiter)[0])/10000)
+        vec.append(delta)  # normalize
+        prices.append(float(line.split(delimiter)[0]))
 
     return vec, prices
 
@@ -41,7 +41,7 @@ ax1 = fig.add_subplot(111)
 # ax1.set_xlabel('x')
 # ax1.set_ylabel('y')
 # ax1.set_xticklabels(x)
-ax1.plot(index, x, c='r', label='the data x')
+# ax1.plot(index, x, c='r', label='the data x')
 ax1.plot(index, y, c='b', label='the data y')
 # leg = ax1.legend()
 # plt.locator_params(nbins=len(index) - 1)
