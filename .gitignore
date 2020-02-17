@@ -7,5 +7,4 @@ __pycache__
 /DDQN/tensorboard_BreakoutNoFrameskip-v4/
 /logs/
 /random_network/
-/A2C/models/
 /A3C/models/
