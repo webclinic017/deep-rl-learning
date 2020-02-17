@@ -99,8 +99,8 @@ def get_state(current_price, current_time):
 def process_message(msg):
     with graph.as_default():
         if msg['k']['x']:
-            # current_time = time.time()
-            # msg['k']['timestamp'] = current_time
+            current_time = time.time()
+            msg['k']['timestamp'] = current_time
             # state = get_state(msg['k']['c'], current_time)
             # if type(state) is np.ndarray:
             #     a = algo.policy_action(state)
