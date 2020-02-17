@@ -61,10 +61,10 @@ def main(args=None):
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     set_session(get_session())
 
-    env = Environment()
+    env = Environment(start_step=11, windows=args.consecutive_frames)
     env.reset()
     state_dim = (1,)
-    action_dim = 3
+    action_dim = 2
     act_range = 1
 
     # Pick algorithm to train
@@ -88,6 +88,8 @@ def main(args=None):
         old_state, r, done, info = env.step(a)
         time += 1
         print(info)
+        if done:
+            break
 
 
 if __name__ == "__main__":
