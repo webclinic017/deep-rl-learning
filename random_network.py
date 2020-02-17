@@ -23,9 +23,9 @@ class CuriosityNet:
             n_s,
             lr=0.001,
             gamma=0.95,
-            epsilon=0,
+            epsilon=1,
             min_epsilon=0,
-            epsilon_decay=0.99,
+            epsilon_decay=0.999,
             replace_target_iter=300,
             memory_size=10000,
             batch_size=128,
@@ -130,7 +130,7 @@ class CuriosityNet:
             # forward feed the observation and get q value for every actions
             actions_value = self.sess.run(self.q, feed_dict={self.tfs: s})
             action = np.argmax(actions_value)
-            logging.warning(actions_value)
+            logging.warning("action: {} values: {}".format(action, actions_value))
         else:
             action = np.random.randint(0, self.n_a)
         return action
@@ -154,7 +154,7 @@ class CuriosityNet:
 
         # minimum epsilon
         if self.epsilon > self.min_epsilon:
-            logging.warning("epsilon: {}".format(self.epsilon))
+            # logging.warning("epsilon: {}".format(self.epsilon))
             self.epsilon = self.epsilon * self.epsilon_decay
 
     def save(self, export_path, step):
@@ -162,7 +162,7 @@ class CuriosityNet:
 
     def load_weight(self, filename):
         print('Load save checkpoint: {}'.format(filename))
-        self.saver.restore(self.sess, tf.train.latest_checkpoint(checkpoint_dir='./random_network'))
+        self.saver.restore(self.sess, tf.train.latest_checkpoint(checkpoint_dir='./random_network/latest'))
 
     def notification(self, profit):
         message = """Subject: Your profit
@@ -194,46 +194,54 @@ state_dim = (windows,)
 action_dim = 3
 
 
-dqn = CuriosityNet(n_a=action_dim, n_s=windows, lr=0.000001, output_graph=True)
+dqn = CuriosityNet(n_a=action_dim, n_s=windows, lr=0.0001, output_graph=True)
 ep_steps = []
-number_episode = 2
+number_episode = 1000000
 max_profit = 0
 current_profit = 10
 save_models_path = 'random_network'
-train = False
+train = True
+number_lower_than_1000 = 0
+number_greater_than_1000 = 0
+
 if not os.path.exists(save_models_path):
     os.makedirs(save_models_path)
 
 # load weight
 latest_filename = 'profit_3379.9-499663'
-dqn.load_weight(latest_filename)
+# dqn.load_weight(latest_filename)
 
 tqdm_e = tqdm(range(number_episode), leave=True, unit=" episodes")
 for epi in tqdm_e:
     s = env.reset()
     steps = 0
+    actions, states, rewards, new_states = [], [], [], []
     while True:
         # env.render()
+        states.append(s)
         a = dqn.choose_action(s)
         s_, r, done, info = env.step(a)
-        # logging.warning(info)
+        logging.warning(info)
         # Display score
-        if train:
-            dqn.store_transition(s, a, r, s_)
-            dqn.learn()
-
+        dqn.store_transition(s, a, r, s_)
         if done:
-            # print('Epi: ', epi, "| total_profit: ", info['total_profit'])
+            if info['profit']:
+                number_greater_than_1000 += 1
+            else:
+                number_lower_than_1000 += 1
+            tqdm_e.set_description("number_lower_than_1000: {}, number_greater_than_1000: {}".format(number_lower_than_1000, number_greater_than_1000))
+            tqdm_e.refresh()
+            dqn.learn()
             # ep_steps.append(steps)
-            if max_profit < info['total_profit']:
-                max_profit = info['total_profit']
-                # dqn.notification(max_profit)
-                dqn.save("{}/profit_{}".format(save_models_path, round(info['total_profit'], 4)), steps)
+            # if max_profit < info['total_profit']:
+            #     max_profit = info['total_profit']
+            #     # dqn.notification(max_profit)
+            #
             break
 
         s = s_
         steps += 1
 
-    print(info['total_profit'])
-    tqdm_e.set_description("Profit: " + str(info['total_profit']))
-    tqdm_e.refresh()
+        # print(info['total_profit'])
+
+dqn.save("{}/profit_{}".format(save_models_path, 1000), 1)

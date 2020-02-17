@@ -6,7 +6,7 @@ import logging
 from time import strftime
 import numpy as np
 from binance.client import Client
-from binance.enums import KLINE_INTERVAL_1DAY, KLINE_INTERVAL_15MINUTE
+from binance.enums import KLINE_INTERVAL_1HOUR
 from binance.websockets import BinanceSocketManager
 from pymongo import MongoClient
 
@@ -28,11 +28,11 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 #
 graph = tf.get_default_graph()
 state_dim = (1,)
-action_dim = 3
+action_dim = 2
 with graph.as_default():
-    algo = A2C(action_dim, state_dim, 12)
-    actor_path = 'A2C/models/A2C_1578996563_LR_0.0001_actor.h5'
-    critic_path = 'A2C/models/A2C_578996563_LR_0.0001_critic.h5'
+    algo = A2C(action_dim, state_dim, 10)
+    actor_path = 'A2C/models/actor.h5'
+    critic_path = 'A2C/models/critic.h5'
     algo.load_weights(actor_path, critic_path)
 os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 api_key = "y9JKPpQ3B2zwIRD9GwlcoCXwvA3mwBLiNTriw6sCot13IuRvYKigigXYWCzCRiul"
@@ -61,22 +61,20 @@ def select_action(a, current_price):
     info['status'] = 'hold'
     info['current_price'] = current_price
 
+    # if a == 0:
+    #     pass
     if a == 0:
-        pass
-    elif a == 1:
         # buy
-        if order == 0:
-            info['status'] = 'buy'
-            order = current_price
-    elif a == 2:
+        info['status'] = 'buy'
+        order = current_price
+    elif a == 1:
         # close
-        if order:
-            info['status'] = 'sell'
-            diff = (current_price - order)
-            budget += diff
-            order = 0
-            if diff > 0:
-                info['profit'] = True
+        info['status'] = 'sell'
+        diff = (current_price - order)
+        budget += diff
+        order = 0
+        if diff > 0:
+            info['profit'] = True
     info['budget'] = budget
     logger.warning(json.dumps(info))
     return info
@@ -100,19 +98,20 @@ def get_state(current_price, current_time):
 
 def process_message(msg):
     with graph.as_default():
-        current_time = time.time()
-        msg['k']['timestamp'] = current_time
-        state = get_state(msg['k']['c'], current_time)
-        if type(state) is np.ndarray:
-            a = algo.policy_action(state)
-            info = select_action(a, msg['k']['c'])
+        if msg['k']['x']:
+            # current_time = time.time()
+            # msg['k']['timestamp'] = current_time
+            # state = get_state(msg['k']['c'], current_time)
+            # if type(state) is np.ndarray:
+            #     a = algo.policy_action(state)
+            #     info = select_action(a, msg['k']['c'])
             # print(info)
-        inset = db.btc_test_1.insert_one(msg['k']).inserted_id
+            inset = db.btc_test_1_hour.insert_one(msg['k']).inserted_id
 
 
 def start_socket():
     # start any sockets here, i.e a trade socket
-    conn_key = bm.start_kline_socket('BTCUSDT', process_message, interval=KLINE_INTERVAL_15MINUTE)
+    conn_key = bm.start_kline_socket('BTCUSDT', process_message, interval=KLINE_INTERVAL_1HOUR)
     # then start the socket manager
     bm.start()
 

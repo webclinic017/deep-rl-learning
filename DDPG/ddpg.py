@@ -22,7 +22,7 @@ class DDPG:
         # Environment and A2C parameters
         self.act_dim = act_dim
         self.act_range = act_range
-        self.env_dim = (k,) + env_dim
+        self.env_dim = (10, 1)
         self.gamma = gamma
         self.epsilon = 1
         self.epsilon_decay = 0.99
@@ -36,7 +36,7 @@ class DDPG:
     def policy_action(self, s):
         """ Use the actor to predict value
         """
-        return np.random.choice(np.arange(self.act_dim), 1, p=self.actor.predict(s).ravel())[0]
+        return self.actor.predict(s)[0]
 
     def bellman(self, rewards, q_values, dones):
         """ Use the Bellman Equation to compute the critic target
@@ -91,13 +91,12 @@ class DDPG:
                 # Actor picks an action (following the deterministic policy)
                 a = self.policy_action(old_state)
                 # Clip continuous values to be valid w.r.t. environment
-                # a = np.clip(a+noise.generate(time), -self.act_range, self.act_range)
+                a = np.clip(a+noise.generate(time), -1, 1)
                 # Retrieve new state, reward, and whether the state is terminal
-                new_state, r, done, info = env.step(a)
+                new_state, r, done, info = env.step(np.argmax(a))
                 # Display score
-                logging.warning(info)
-                tqdm_e.set_description("Profit: " + str(round(info['total_profit'], 3)))
-                tqdm_e.refresh()
+                logging.warning("{} {}".format(np.argmax(a), a))
+
                 # Add outputs to memory buffer
                 self.memorize(old_state, self.actor.predict(old_state)[0], r, done, new_state)
                 # Sample experience from buffer
@@ -113,6 +112,9 @@ class DDPG:
                 cumul_reward += r
                 time += 1
 
+            print(info['total_profit'])
+            # tqdm_e.set_description("Profit: " + str(round(info['total_profit'], 3)))
+            # tqdm_e.refresh()
             # Gather stats every episode for plotting
             # if(args.gather_stats):
             #     mean, stdev = gather_stats(self, env)
