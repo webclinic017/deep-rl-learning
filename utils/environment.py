@@ -6,7 +6,7 @@ plt.get_backend()
 
 class Environment:
     def __init__(self, windows, start_step):
-        self.data, self.prices = self.getStockDataVec('train')
+        self.data, self.prices = self.getStockDataVec('test_1hours')
         self.t = start_step
         self.start_step = start_step
         self.windows = windows
@@ -28,33 +28,35 @@ class Environment:
         lines = open("data/" + key + ".csv", "r").read().splitlines()
         prices = []
         delimiter = ','
-        for _index, line in enumerate(lines[2:]):
+        for _index, line in enumerate(lines[2:500]):
             _index = _index + 2
             current_time = float(line.split(delimiter)[1])
-            current_price = float(line.split(delimiter)[0])
+            current_price = float(line.split(delimiter)[5])
             prev_time = float(lines[_index - 1].split(delimiter)[1])
-            prev_price = float(lines[_index - 1].split(delimiter)[0])
+            prev_price = float(lines[_index - 1].split(delimiter)[5])
             diff = current_time - prev_time
             if diff != 0:
-                delta = (current_price - prev_price) / diff
+                delta = (current_price - prev_price)
             else:
-                delta = current_price - prev_price
+                delta = 0
 
-            vec.append(float(line.split(delimiter)[0])/1000)  # normalize
-            prices.append(float(line.split(delimiter)[0]))
+            vec.append([delta])  # normalize
+            prices.append(float(line.split(delimiter)[5]))
 
         return vec, prices
 
     # returns an an n-day state representation ending at time t
     def getState(self):
         done = False
-        if self.t == len(self.data) - 2049:
+        if self.t == len(self.data) - 20:
             self.t = self.start_step
             self.train_interval += 1
+            # plt.cla()
+            # plt.plot(self.data_index, self.prices, c='b')
             done = True
 
         d = self.t - self.windows + 1
-        block = self.data[d:self.t + 1] if d >= 0 else -d * [self.data[0]] + self.data[0:self.t + 1]  # pad with t0
+        block = self.data[d:self.t + 1]
         res = []
         for i in block:
             res.append(i)
@@ -77,43 +79,47 @@ class Environment:
         r = 0
         done = False
         info = {
-            'total_profit': self.budget, 'status': 'hold', 'profit': False,
+            'total_profit': self.budget, 'status': 'nothing', 'profit': False,
             'current': self.prices[self.t], 'order': self.order
         }
+        # if a == 0:
+        #     r = 0
         if a == 0:
-            r = 0
+            # buy btc
+            info['status'] = 'buy'
+            order = self.prices[self.t]
+            next_price = self.prices[self.t + 1]
+            diff = order - next_price
+            self.budget = self.budget - diff
+            if diff <= -0:
+                info['profit'] = True
+                r = 0.1
+            else:
+                r = -0.1
+                info['profit'] = False
+            # plt.scatter(self.t, self.prices[self.t], color="g")
+            # plt.draw()
+            # plt.pause(0.0001)
+            # r = 0.1
         elif a == 1:
-            # buy
-            if self.order == 0:
-                info['status'] = 'buy'
-                self.order = round(self.prices[self.t], 1)
-                # plt.scatter(self.t, self.prices[self.t], color="g")
-                # plt.draw()
-                # plt.pause(0.001)
-                # r = 0.1
-            # else:
-            #     r = -0.01
-        elif a == 2:
-            # close
-            if self.order > 0:
-                info['status'] = 'sell'
-                diff = (self.prices[self.t] - self.order)
-                self.budget += round(diff, 1)
-                info['total_profit'] = self.budget
-                self.order = 0
-                # plt.scatter(self.t, self.prices[self.t], color="r")
-                # plt.draw()
-                # plt.pause(0.001)
+            # sell btc
+            info['status'] = 'sell'
+            order = self.prices[self.t]
+            next_price = self.prices[self.t + 1]
+            diff = order - next_price
+            self.budget += diff
+            # plt.scatter(self.t, self.prices[self.t], color="r")
+            # plt.draw()
+            # plt.pause(0.0001)
+            if diff >= 0:
+                info['profit'] = True
+                r = 0.1
+            else:
+                r = -0.1
+                info['profit'] = False
 
-                if diff > 0:
-                    info['profit'] = True
-                    # done = True
-                    r = 0.5
-                # else:
-                #     r = -0.1
-            # else:
-            #     r = -0.01
+        info['total_profit'] = self.budget
+        # done = True if self.t % 100 == 0 else False
         self.t += 1
-        state, _ = self.getState()
-        done = True if self.t % 128 == 0 else False
+        state, done = self.getState()
         return state, r, done, info

@@ -24,7 +24,7 @@ class CuriosityNet:
             lr=0.001,
             gamma=0.95,
             epsilon=1,
-            min_epsilon=0.1,
+            min_epsilon=0,
             epsilon_decay=0.999,
             replace_target_iter=300,
             memory_size=10000,
@@ -130,7 +130,7 @@ class CuriosityNet:
             # forward feed the observation and get q value for every actions
             actions_value = self.sess.run(self.q, feed_dict={self.tfs: s})
             action = np.argmax(actions_value)
-            logging.warning(actions_value)
+            logging.warning("action: {} values: {}".format(action, actions_value))
         else:
             action = np.random.randint(0, self.n_a)
         return action
@@ -154,7 +154,7 @@ class CuriosityNet:
 
         # minimum epsilon
         if self.epsilon > self.min_epsilon:
-            logging.warning("epsilon: {}".format(self.epsilon))
+            # logging.warning("epsilon: {}".format(self.epsilon))
             self.epsilon = self.epsilon * self.epsilon_decay
 
     def save(self, export_path, step):
@@ -194,9 +194,9 @@ state_dim = (windows,)
 action_dim = 3
 
 
-dqn = CuriosityNet(n_a=action_dim, n_s=windows, lr=0.001, output_graph=True)
+dqn = CuriosityNet(n_a=action_dim, n_s=windows, lr=0.0001, output_graph=True)
 ep_steps = []
-number_episode = 500000
+number_episode = 1000000
 max_profit = 0
 current_profit = 10
 save_models_path = 'random_network'
@@ -221,44 +221,27 @@ for epi in tqdm_e:
         states.append(s)
         a = dqn.choose_action(s)
         s_, r, done, info = env.step(a)
-        # logging.warning(info)
+        logging.warning(info)
         # Display score
-        actions.append(a)
-        rewards.append(r)
-        new_states.append(s_)
+        dqn.store_transition(s, a, r, s_)
         if done:
-            if train:
-                for state, action, reward, new_state in zip(states, actions, rewards, new_states):
-                    if info['total_profit'] > 1000:
-                        real_reward = 0.1
-                    else:
-                        if action == 1:
-                            real_reward = -0.1
-                        elif action == 2:
-                            real_reward = -0.1
-                        else:
-                            real_reward = 0
-                    dqn.store_transition(state, action, real_reward, new_state)
-                    # print('Epi: ', epi, "| total_profit: ", info['total_profit'])
-                if info['total_profit'] > 1000:
-                    number_greater_than_1000 += 1
-                else:
-                    number_lower_than_1000 += 1
-                tqdm_e.set_description("number_lower_than_1000: {}, number_greater_than_1000: {}".format(number_lower_than_1000, number_greater_than_1000))
-                tqdm_e.refresh()
-                break
-        if dqn.memory_counter > 128:
+            if info['profit']:
+                number_greater_than_1000 += 1
+            else:
+                number_lower_than_1000 += 1
+            tqdm_e.set_description("number_lower_than_1000: {}, number_greater_than_1000: {}".format(number_lower_than_1000, number_greater_than_1000))
+            tqdm_e.refresh()
             dqn.learn()
-        # ep_steps.append(steps)
-        # if max_profit < info['total_profit']:
-        #     max_profit = info['total_profit']
-        #     # dqn.notification(max_profit)
-        #
-        # break
+            # ep_steps.append(steps)
+            # if max_profit < info['total_profit']:
+            #     max_profit = info['total_profit']
+            #     # dqn.notification(max_profit)
+            #
+            break
 
         s = s_
         steps += 1
 
         # print(info['total_profit'])
 
-    dqn.save("{}/profit_{}".format(save_models_path, 100), steps)
+dqn.save("{}/profit_{}".format(save_models_path, 1000), 1)
