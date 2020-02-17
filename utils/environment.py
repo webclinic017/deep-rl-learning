@@ -6,7 +6,7 @@ plt.get_backend()
 
 class Environment:
     def __init__(self, windows, start_step):
-        self.data, self.prices = self.getStockDataVec('test_1hours')
+        self.data, self.prices = self.getStockDataVec('new_test_1hours')
         self.t = start_step
         self.start_step = start_step
         self.windows = windows
@@ -28,7 +28,7 @@ class Environment:
         lines = open("data/" + key + ".csv", "r").read().splitlines()
         prices = []
         delimiter = ','
-        for _index, line in enumerate(lines[2:500]):
+        for _index, line in enumerate(lines[2:]):
             _index = _index + 2
             current_time = float(line.split(delimiter)[1])
             current_price = float(line.split(delimiter)[5])
@@ -93,7 +93,7 @@ class Environment:
             self.budget = self.budget - diff
             if diff <= -0:
                 info['profit'] = True
-                r = 0.1
+                r = 0.2
             else:
                 r = -0.1
                 info['profit'] = False
@@ -113,13 +113,13 @@ class Environment:
             # plt.pause(0.0001)
             if diff >= 0:
                 info['profit'] = True
-                r = 0.1
+                r = 0.2
             else:
                 r = -0.1
                 info['profit'] = False
 
         info['total_profit'] = self.budget
-        # done = True if self.t % 100 == 0 else False
+        done = True if self.t % 1024 == 0 else False
         self.t += 1
-        state, done = self.getState()
+        state, _ = self.getState()
         return state, r, done, info

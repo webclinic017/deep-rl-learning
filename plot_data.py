@@ -31,7 +31,7 @@ def getStockDataVec(key):
     return vec, prices
 
 
-x, y = getStockDataVec('train_1hours')
+x, y = getStockDataVec('new_test_1hours')
 
 index = [i for i, val in enumerate(x)]
 
