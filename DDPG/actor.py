@@ -27,10 +27,11 @@ class Actor:
         """
         inp = Input((self.env_dim))
         #
-        x = Dense(256, activation='relu')(inp)
+        x = LSTM(128, dropout=0.1, recurrent_dropout=0.3)(inp)
+        x = Dense(256, activation='relu')(x)
         x = GaussianNoise(1.0)(x)
         #
-        x = Flatten()(x)
+        # x = Flatten()(x)
         x = Dense(128, activation='relu')(x)
         x = GaussianNoise(1.0)(x)
         #
