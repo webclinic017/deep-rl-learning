@@ -20,7 +20,7 @@ class A2C:
     """ Actor-Critic Main Algorithm
     """
 
-    def __init__(self, act_dim, env_dim, k, gamma = 0.99, lr = 0.0001):
+    def __init__(self, act_dim, env_dim, k, gamma=0.99, lr=0.0001):
         """ Initialization
         """
         # Environment and A2C parameters
@@ -42,10 +42,12 @@ class A2C:
         """
         inp = Input((self.env_dim))
         # x = Flatten()(inp)
-        x = LSTM(128, dropout=0.1, recurrent_dropout=0.3)(inp)
-        x = Dense(128, activation='relu')(x)
-        x = Dense(128, activation='relu')(x)
-        x = Dense(64, activation='relu')(x)
+        x = LSTM(32, dropout=0.1, recurrent_dropout=0.3, return_sequences=True)(inp)
+        x = LSTM(32, dropout=0.1, recurrent_dropout=0.3, return_sequences=True)(x)
+        x = LSTM(32, dropout=0.1, recurrent_dropout=0.3)(x)
+        x = Dense(32, activation='relu')(x)
+        x = Dense(32, activation='relu')(x)
+        x = Dense(32, activation='relu')(x)
         x = Dense(32, activation='relu')(x)
         return Model(inp, x)
 

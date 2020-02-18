@@ -83,13 +83,12 @@ def main(args=None):
 
     # Display agent
     old_state, time = env.reset(), 0
-    while True:
+    done = False
+    while not done:
         a = algo.policy_action(old_state)
         old_state, r, done, info = env.step(a)
         time += 1
         print(info)
-        if done:
-            break
 
 
 if __name__ == "__main__":

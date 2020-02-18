@@ -6,7 +6,7 @@ plt.get_backend()
 
 class Environment:
     def __init__(self, windows, start_step):
-        self.data, self.prices = self.getStockDataVec('new_test_1hours')
+        self.data, self.prices = self.getStockDataVec('test1hour')
         self.t = start_step
         self.start_step = start_step
         self.windows = windows
@@ -91,9 +91,9 @@ class Environment:
             next_price = self.prices[self.t + 1]
             diff = order - next_price
             self.budget = self.budget - diff
-            if diff <= -0:
+            if diff <= -10:
                 info['profit'] = True
-                r = 0.2
+                r = 0.5
             else:
                 r = -0.1
                 info['profit'] = False
@@ -111,9 +111,9 @@ class Environment:
             # plt.scatter(self.t, self.prices[self.t], color="r")
             # plt.draw()
             # plt.pause(0.0001)
-            if diff >= 0:
+            if diff >= 10:
                 info['profit'] = True
-                r = 0.2
+                r = 0.5
             else:
                 r = -0.1
                 info['profit'] = False
