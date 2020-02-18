@@ -42,10 +42,10 @@ class A2C:
         """
         inp = Input((self.env_dim))
         # x = Flatten()(inp)
-        x = LSTM(128, dropout=0.1, recurrent_dropout=0.3, return_sequences=True)(inp)
-        x = LSTM(128, dropout=0.1, recurrent_dropout=0.3, return_sequences=True)(x)
-        x = LSTM(128, dropout=0.1, recurrent_dropout=0.3)(x)
+        x = LSTM(128, dropout=0.1, recurrent_dropout=0.3)(inp)
         x = Dense(128, activation='relu')(x)
+        x = Dense(128, activation='relu')(x)
+        x = Dense(64, activation='relu')(x)
         x = Dense(32, activation='relu')(x)
         return Model(inp, x)
 

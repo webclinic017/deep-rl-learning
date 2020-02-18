@@ -73,7 +73,7 @@ def main(args=None):
 
     env = Environment(start_step=11, windows=args.consecutive_frames)
     env.reset()
-    state_dim = (5,)
+    state_dim = (2,)
     action_dim = 2
     act_range = 2
 
