@@ -3,8 +3,9 @@ import json
 import os
 import time
 import logging
-from time import strftime
 import numpy as np
+from time import strftime
+from binance.enums import *
 from binance.client import Client
 from binance.enums import KLINE_INTERVAL_1HOUR
 from binance.websockets import BinanceSocketManager
@@ -33,7 +34,7 @@ with graph.as_default():
     algo = A2C(action_dim, state_dim, 10)
     actor_path = 'A2C/models/actor.h5'
     critic_path = 'A2C/models/critic.h5'
-    algo.load_weights(actor_path, critic_path)
+    # algo.load_weights(actor_path, critic_path)
 os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 api_key = "y9JKPpQ3B2zwIRD9GwlcoCXwvA3mwBLiNTriw6sCot13IuRvYKigigXYWCzCRiul"
 api_secret = "uUdxQdnVR48w5ypYxfsi7xK6e6W2v3GL8YrAZp5YeY1GicGbh3N5NI71Pss0crfJ"
@@ -109,6 +110,16 @@ def process_message(msg):
             inset = db.btc_test_1_hour.insert_one(msg['k']).inserted_id
 
 
+def test_order():
+    # buy order
+    order = binace_client.create_test_order(
+        symbol='BTCUSDT',
+        side=SIDE_BUY,
+        type=ORDER_TYPE_MARKET,
+        quantity=100
+    )
+
+
 def start_socket():
     # start any sockets here, i.e a trade socket
     conn_key = bm.start_kline_socket('BTCUSDT', process_message, interval=KLINE_INTERVAL_1HOUR)
@@ -117,4 +128,4 @@ def start_socket():
 
 
 if __name__ == '__main__':
-    start_socket()
+    test_order()
