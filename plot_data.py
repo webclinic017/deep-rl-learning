@@ -26,7 +26,7 @@ def getStockDataVec(key):
             delta = 0
 
         vec.append(delta)  # normalize
-        prices.append(float(line.split(delimiter)[5]))
+        prices.append(float(line.split(delimiter)[5])/10000)
 
     return vec, prices
 
