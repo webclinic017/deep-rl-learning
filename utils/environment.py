@@ -93,9 +93,9 @@ class Environment:
             self.budget = self.budget - diff
             if diff <= 0:
                 info['profit'] = True
-                r = 0.5
+                r = 0.1
             else:
-                r = -0.1
+                r = -0.5
                 info['profit'] = False
             # plt.scatter(self.t, self.prices[self.t], color="g")
             # plt.draw()
@@ -113,9 +113,9 @@ class Environment:
             # plt.pause(0.0001)
             if diff >= 0:
                 info['profit'] = True
-                r = 0.5
+                r = 0.1
             else:
-                r = -0.1
+                r = -0.5
                 info['profit'] = False
 
         info['total_profit'] = self.budget
