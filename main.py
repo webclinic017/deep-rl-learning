@@ -82,7 +82,6 @@ def main(args=None):
         algo = DDQN(action_dim, state_dim, args)
     elif args.type == "A2C":
         algo = A2C(action_dim, state_dim, args.consecutive_frames)
-        # algo.load_weights(args.actor_path, args.critic_path)
     elif args.type == "A3C":
         algo = A3C(action_dim, state_dim, args.consecutive_frames)
     elif args.type == "DDPG":
