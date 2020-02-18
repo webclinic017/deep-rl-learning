@@ -103,14 +103,15 @@ class DDQN:
                 old_state = new_state
                 cumul_reward += r
                 time += 1
-                # Display score
-                tqdm_e.set_description("Profit: " + str(round(info['total_profit'], 3)))
-                tqdm_e.refresh()
+
                 # Train DDQN and transfer weights to target network
                 if self.buffer.size() > args.batch_size:
                     self.train_agent(args.batch_size)
                     self.agent.transfer_weights()
 
+            # Display score
+            tqdm_e.set_description("Profit: " + str(round(info['total_profit'], 3)))
+            tqdm_e.refresh()
             # Gather stats every episode for plotting
             # if args.gather_stats:
             #     mean, stdev = gather_stats(self, env)
@@ -118,7 +119,9 @@ class DDQN:
 
             # Export results for Tensorboard
             score = tfSummary('score', cumul_reward)
+            budget = tfSummary('budget', info['total_profit'])
             summary_writer.add_summary(score, global_step=e)
+            summary_writer.add_summary(budget, global_step=e)
             summary_writer.flush()
 
         return results

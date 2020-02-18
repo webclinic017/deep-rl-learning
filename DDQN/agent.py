@@ -34,19 +34,13 @@ class Agent:
         inp = Input((self.state_dim))
 
         # Determine whether we are dealing with an image input (Atari) or not
-        if(len(self.state_dim) > 2):
-            inp = Input((self.state_dim[1:]))
-            x = conv_block(inp, 32, (2, 2), 8)
-            x = conv_block(x, 64, (2, 2), 4)
-            x = conv_block(x, 64, (2, 2), 3)
-            x = Flatten()(x)
-            x = Dense(256, activation='relu')(x)
-        else:
-            x = Flatten()(inp)
-            x = Dense(64, activation='relu')(x)
-            x = Dense(64, activation='relu')(x)
+        x = LSTM(128, dropout=0.1, recurrent_dropout=0.3)(inp)
+        x = Dense(128, activation='relu')(x)
+        x = Dense(128, activation='relu')(x)
+        x = Dense(64, activation='relu')(x)
+        x = Dense(32, activation='relu')(x)
 
-        if(dueling):
+        if dueling:
             # Have the network estimate the Advantage function as an intermediate layer
             x = Dense(self.action_dim + 1, activation='linear')(x)
             x = Lambda(lambda i: K.expand_dims(i[:,0],-1) + i[:,1:] - K.mean(i[:,1:], keepdims=True), output_shape=(self.action_dim,))(x)

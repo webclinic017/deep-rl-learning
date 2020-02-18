@@ -44,9 +44,9 @@ class Environment:
             _high = float(line.split(delimiter)[3]) / 10000
             _low = float(line.split(delimiter)[4]) / 10000
             _close = float(line.split(delimiter)[5]) / 10000
-            _volume = float(line.split(delimiter)[6]) / 10000
+            _volume = float(line.split(delimiter)[6])
 
-            vec.append([_open, _high, _low, _close, _volume])  # normalize
+            vec.append([delta, _volume])  # normalize
             prices.append(float(line.split(delimiter)[5]))
 
         return vec, prices
@@ -63,11 +63,8 @@ class Environment:
 
         d = self.t - self.windows + 1
         block = self.data[d:self.t + 1]
-        res = []
-        for i in block:
-            res.append(i)
 
-        return np.array(res), done
+        return np.array(block), done
 
     def reset(self):
         # self.t = random.randint(11, len(self.data) - 2048)
@@ -75,11 +72,7 @@ class Environment:
         self.budget = 1000
         d = self.t - self.windows + 1
         block = self.data[d:self.t + 1] if d >= 0 else -d * [self.data[0]] + self.data[0:self.t + 1]  # pad with t0
-        res = []
-        for i in block:
-            res.append(i)
-
-        return np.array(res)
+        return np.array(block)
 
     def step(self, a):
         r = 0
@@ -99,9 +92,9 @@ class Environment:
             self.budget = self.budget - diff
             if diff <= 0:
                 info['profit'] = True
-                r = 0.1
+                r = 1
             else:
-                r = -0.5
+                r = -1
                 info['profit'] = False
             # plt.scatter(self.t, self.prices[self.t], color="g")
             # plt.draw()
@@ -119,13 +112,12 @@ class Environment:
             # plt.pause(0.0001)
             if diff >= 0:
                 info['profit'] = True
-                r = 0.1
+                r = 1
             else:
-                r = -0.5
+                r = -1
                 info['profit'] = False
 
         info['total_profit'] = self.budget
-        done = True if self.t % 128 == 0 else False
         self.t += 1
-        state, _ = self.getState()
+        state, done = self.getState()
         return state, r, done, info
