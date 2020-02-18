@@ -91,7 +91,7 @@ class Environment:
             next_price = self.prices[self.t + 1]
             diff = order - next_price
             self.budget = self.budget - diff
-            if diff <= -10:
+            if diff <= 0:
                 info['profit'] = True
                 r = 0.5
             else:
@@ -111,7 +111,7 @@ class Environment:
             # plt.scatter(self.t, self.prices[self.t], color="r")
             # plt.draw()
             # plt.pause(0.0001)
-            if diff >= 10:
+            if diff >= 0:
                 info['profit'] = True
                 r = 0.5
             else:
@@ -119,7 +119,7 @@ class Environment:
                 info['profit'] = False
 
         info['total_profit'] = self.budget
-        done = True if self.t % 1024 == 0 else False
+        done = True if self.t % 128 == 0 else False
         self.t += 1
         state, _ = self.getState()
         return state, r, done, info
