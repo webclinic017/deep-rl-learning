@@ -40,7 +40,13 @@ class Environment:
             else:
                 delta = 0
 
-            vec.append([delta])  # normalize
+            _open = float(line.split(delimiter)[2])/10000
+            _high = float(line.split(delimiter)[3]) / 10000
+            _low = float(line.split(delimiter)[4]) / 10000
+            _close = float(line.split(delimiter)[5]) / 10000
+            _volume = float(line.split(delimiter)[6]) / 10000
+
+            vec.append([_open, _high, _low, _close, _volume])  # normalize
             prices.append(float(line.split(delimiter)[5]))
 
         return vec, prices
