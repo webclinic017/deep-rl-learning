@@ -13,12 +13,12 @@ def getStockDataVec(key):
     lines = open("data/" + key + ".csv", "r").read().splitlines()
     prices = []
     delimiter = ','
-    for _index, line in enumerate(lines[2:]):
+    for _index, line in enumerate(reversed(lines[2:])):
         _index = _index + 2
         current_time = float(line.split(delimiter)[1])
-        current_price = float(line.split(delimiter)[0])
+        current_price = float(line.split(delimiter)[5])
         prev_time = float(lines[_index - 1].split(delimiter)[1])
-        prev_price = float(lines[_index - 1].split(delimiter)[0])
+        prev_price = float(lines[_index - 1].split(delimiter)[5])
         diff = 1
         if diff != 0:
             delta = (current_price - prev_price) / diff
@@ -26,12 +26,12 @@ def getStockDataVec(key):
             delta = 0
 
         vec.append(delta)  # normalize
-        prices.append(float(line.split(delimiter)[0]))
+        prices.append(float(line.split(delimiter)[5]))
 
     return vec, prices
 
 
-x, y = getStockDataVec('btc_test_1_hour')
+x, y = getStockDataVec('test_1hours')
 
 index = [i for i, val in enumerate(x)]
 

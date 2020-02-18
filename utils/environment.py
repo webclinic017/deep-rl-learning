@@ -28,7 +28,7 @@ class Environment:
         lines = open("data/" + key + ".csv", "r").read().splitlines()
         prices = []
         delimiter = ','
-        for _index, line in enumerate(lines[2:]):
+        for _index, line in enumerate(reversed(lines[2:])):
             _index = _index + 2
             current_time = float(line.split(delimiter)[1])
             current_price = float(line.split(delimiter)[5])
