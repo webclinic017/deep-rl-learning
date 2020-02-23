@@ -6,7 +6,7 @@ plt.get_backend()
 
 class Environment:
     def __init__(self, windows, start_step):
-        self.data, self.prices = self.getStockDataVec('test1hour')
+        self.data, self.prices = self.getStockDataVec('train1hour')
         self.t = start_step
         self.start_step = start_step
         self.windows = windows
@@ -14,9 +14,9 @@ class Environment:
         self.btc_amount = 0
         self.order = 0
         self.train_interval = 0
-        # self.data_index = [i for i, val in enumerate(self.prices)]
-        # plt.plot(self.data_index, self.prices, c='b')
-        # plt.show(block=False)
+        self.data_index = [i for i, val in enumerate(self.prices)]
+        plt.plot(self.data_index, self.prices, c='b')
+        plt.show(block=False)
 
     # prints formatted price
     def formatPrice(self, n):
@@ -28,7 +28,7 @@ class Environment:
         lines = open("data/" + key + ".csv", "r").read().splitlines()
         prices = []
         delimiter = ','
-        for _index, line in enumerate(reversed(lines[2:])):
+        for _index, line in enumerate(lines[2:]):
             _index = _index + 2
             current_time = float(line.split(delimiter)[1])
             current_price = float(line.split(delimiter)[5])
@@ -44,9 +44,9 @@ class Environment:
             _high = float(line.split(delimiter)[3]) / 10000
             _low = float(line.split(delimiter)[4]) / 10000
             _close = float(line.split(delimiter)[5]) / 10000
-            _volume = float(line.split(delimiter)[6])
+            _volume = float(line.split(delimiter)[6]) / 1000
 
-            vec.append([delta, _volume])  # normalize
+            vec.append([_close, _volume])  # normalize
             prices.append(float(line.split(delimiter)[5]))
 
         return vec, prices
@@ -57,8 +57,8 @@ class Environment:
         if self.t == len(self.data) - 20:
             self.t = self.start_step
             self.train_interval += 1
-            # plt.cla()
-            # plt.plot(self.data_index, self.prices, c='b')
+            plt.cla()
+            plt.plot(self.data_index, self.prices, c='b')
             done = True
 
         d = self.t - self.windows + 1
@@ -93,12 +93,15 @@ class Environment:
             if diff <= 0:
                 info['profit'] = True
                 r = 1
+                plt.scatter(self.t, self.prices[self.t], color="g")
+                plt.draw()
+                plt.pause(0.0001)
             else:
                 r = -1
                 info['profit'] = False
-            # plt.scatter(self.t, self.prices[self.t], color="g")
-            # plt.draw()
-            # plt.pause(0.0001)
+                plt.scatter(self.t, self.prices[self.t], color="r")
+                plt.draw()
+                plt.pause(0.0001)
             # r = 0.1
         elif a == 1:
             # sell btc
@@ -107,14 +110,18 @@ class Environment:
             next_price = self.prices[self.t + 1]
             diff = order - next_price
             self.budget += diff
-            # plt.scatter(self.t, self.prices[self.t], color="r")
-            # plt.draw()
-            # plt.pause(0.0001)
+
             if diff >= 0:
+                plt.scatter(self.t, self.prices[self.t], color="g")
+                plt.draw()
+                plt.pause(0.0001)
                 info['profit'] = True
                 r = 1
             else:
                 r = -1
+                plt.scatter(self.t, self.prices[self.t], color="r")
+                plt.draw()
+                plt.pause(0.0001)
                 info['profit'] = False
 
         info['total_profit'] = self.budget
