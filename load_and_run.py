@@ -63,9 +63,9 @@ def main(args=None):
 
     env = Environment(start_step=11, windows=args.consecutive_frames)
     env.reset()
-    state_dim = (1,)
+    state_dim = (2,)
     action_dim = 2
-    act_range = 1
+    act_range = 2
 
     # Pick algorithm to train
     if (args.type == "DDQN"):
