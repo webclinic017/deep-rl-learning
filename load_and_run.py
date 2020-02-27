@@ -61,7 +61,7 @@ def main(args=None):
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     set_session(get_session())
 
-    env = Environment(start_step=11, windows=args.consecutive_frames)
+    env = Environment(start_step=11, windows=args.consecutive_frames, dataset='train1hour')
     env.reset()
     state_dim = (2,)
     action_dim = 2

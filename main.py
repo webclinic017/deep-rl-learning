@@ -71,10 +71,10 @@ def main(args=None):
     set_session(get_session())
     summary_writer = tf.summary.FileWriter(args.type + "/tensorboard_" + args.env)
 
-    env = Environment(start_step=11, windows=args.consecutive_frames)
+    env = Environment(start_step=11, windows=args.consecutive_frames, dataset='train1hour')
     env.reset()
     state_dim = (2,)
-    action_dim = 2
+    action_dim = 3
     act_range = 2
 
     # Pick algorithm to train
