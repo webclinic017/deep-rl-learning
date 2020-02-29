@@ -185,9 +185,9 @@ class AutoTrading(object):
             self.order_history.append(order_info)
             if self.order_type == 'buy':
                 diff = price - self.order
+                self.budget = self.budget + round(diff, 2)
                 logging.warning("Close order: {} => {} profit {} budget: {}".format(self.order, price,
                                                                                     round(diff, 2), self.budget))
-                self.budget = self.budget + round(diff, 2)
                 self.order_type = 'sell'
 
     def test_order(self):
