@@ -19,11 +19,11 @@ class AutoTrading(object):
     def __init__(self):
         self.api_key = "y9JKPpQ3B2zwIRD9GwlcoCXwvA3mwBLiNTriw6sCot13IuRvYKigigXYWCzCRiul"
         self.api_secret = "uUdxQdnVR48w5ypYxfsi7xK6e6W2v3GL8YrAZp5YeY1GicGbh3N5NI71Pss0crfJ"
-        # self.binace_client = Client(self.api_key, self.api_secret)
-        # self.bm = BinanceSocketManager(self.binace_client)
+        self.binace_client = Client(self.api_key, self.api_secret)
+        self.bm = BinanceSocketManager(self.binace_client)
         # mongodb
-        # self.client = MongoClient()
-        # self.db = self.client.crypto
+        self.client = MongoClient()
+        self.db = self.client.crypto
         self.order = 0
         self.budget = 1000
         self.order_type = 'sell'
@@ -44,7 +44,8 @@ class AutoTrading(object):
     def process_message(self, msg):
         current_time = time.time()
         msg['k']['timestamp'] = current_time
-        # insert = self.db.btc_data.insert_one(msg['k']).inserted_id
+        # print(msg)
+        insert = self.db.btc_data.insert_one(msg['k']).inserted_id
 
         if len(self.trading_data) > self.queue_size:
             self.trading_data.pop(0)
@@ -52,7 +53,7 @@ class AutoTrading(object):
             self.norm_data.pop(0)
 
         self.trading_data.append(float(msg['k']['c']))
-        self.indexes.append(float(msg['k']['indexes']))
+        # self.indexes.append(float(msg['k']['indexes']))
 
         # calculate norm data used for plot
         min_x = min(self.trading_data)
@@ -123,16 +124,18 @@ class AutoTrading(object):
             if block[-1] - block[self.windows//2] < 0:
                 # trend down
                 angel_degree_2 = -angel_degree_2
-[]
+
             # print(angel_degree_1, angel_degree_2)
 
             if 0 < angel_degree_1 < 5:
                 # bắt đầu ngừng tăng hoặc giảm.
                 # sell
-                self.sell_order(self.trading_data[chunk_idx])
-                exp6.append(chunk_idx + (self.windows // 2))
-                exp7.append(exp3_cp[chunk_idx + (self.windows // 2)])
-                self.waiting_for_order = True
+                if not self.waiting_for_order:
+                    self.sell_order(self.trading_data[-1])
+
+                    # exp6.append(chunk_idx)
+                    # exp7.append(exp3_cp[chunk_idx])
+                    self.waiting_for_order = True
 
             if angel_degree_2 < -15:
                 # tín hiệu bắt đầu giảm
@@ -141,35 +144,24 @@ class AutoTrading(object):
             if angel_degree_2 > 15:
                 # tín hiệu bắt đầu tăng
                 if self.waiting_for_order:
-                    self.buy_order(self.trading_data[chunk_idx])
-                    exp4.append(chunk_idx + (self.windows // 2))
-                    exp5.append(exp3_cp[chunk_idx + (self.windows // 2)])
+                    self.buy_order(self.trading_data[-1])
+                    # exp4.append(chunk_idx)
+                    # exp5.append(exp3_cp[chunk_idx])
                     self.waiting_for_order = False
 
-            self.prev_d += 1
-            # """Sell Order"""
-            # for chunk_idx, chunk in enumerate(exp3_cp):
-            #     d = chunk_idx + self.windows
-            #     block = exp3_cp[chunk_idx:d]
-            #     mean = np.median(block)
-            #     angel_degree = self.angle_of_vectors(block[0], mean, mean, block[-1])
-            # if angel_degree and 5 < angel_degree < 10 and block[-1] < mean:
-            #     # vector dao chieu
-            #     # gia se tang len
-            #     exp4.append(chunk_idx)
-            #     exp5.append(self.norm_data[chunk_idx])
-            #     self.buy_order(self.trading_data[chunk_idx])
+            if len(self.trading_data) < self.queue_size:
+                self.prev_d += 1
 
             # plt.cla()
             # plt.plot(df.ds, self.norm_data, label='Budget: {}, {}'.format(angel_degree_1, angel_degree_2))
             # # plt.plot(df.ds, macd, label='AMD MACD', color='#EBD2BE')
-            # plt.plot(df.ds, exp3_cp, label='Signal Line', color='#E5A4CB')
+            # plt.plot(df.ds, exp3_cp, label='Signal Line {}'.format(self.budget), color='#E5A4CB')
             # plt.legend(loc='upper left')
             # plt.plot(exp4, exp5, 'ro', color='blue')
             # plt.plot(exp6, exp7, 'ro', color='red')
             # plt.pause(0.00001)
-            self.tqdm_e.set_description("Profit: " + str(self.budget))
-            self.tqdm_e.refresh()
+            # self.tqdm_e.set_description("Profit: " + str(self.budget))
+            # self.tqdm_e.refresh()
 
     def buy_order(self, price):
         order_info = {
@@ -193,7 +185,9 @@ class AutoTrading(object):
             self.order_history.append(order_info)
             if self.order_type == 'buy':
                 diff = price - self.order
-                self.budget += diff
+                logging.warning("Close order: {} => {} profit {} budget: {}".format(self.order, price,
+                                                                                    round(diff, 2), self.budget))
+                self.budget = self.budget + round(diff, 2)
                 self.order_type = 'sell'
 
     def test_order(self):
@@ -226,11 +220,10 @@ class AutoTrading(object):
     def start_mockup(self):
         indexes, price_data = trading_bot.getStockDataVec('train')
         self.tqdm_e = tqdm(price_data, desc='Steps', leave=True, unit=" episodes")
-        for item, index_item in zip(self.tqdm_e, indexes):
+        for item in self.tqdm_e:
             msg = {
                 'k': {
-                    'c': item,
-                    'indexes': index_item
+                    'c': item
                 }
             }
             trading_bot.process_message(msg)
@@ -238,5 +231,5 @@ class AutoTrading(object):
 
 if __name__ == '__main__':
     trading_bot = AutoTrading()
-    trading_bot.start_mockup()
-    # trading_bot.start_socket()
+    # trading_bot.start_mockup()
+    trading_bot.start_socket()
