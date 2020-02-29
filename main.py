@@ -52,6 +52,8 @@ def parse_args(args):
     parser.add_argument('--env', type=str, default='BTCUSDT', help="OpenAI Gym Environment")
     parser.add_argument('--gpu', type=int, default=0, help='GPU ID')
     parser.add_argument('--test', type=bool, default=False, help='Train of test')
+    parser.add_argument('--actor_path', type=str)
+    parser.add_argument('--critic_path', type=str)
     #
     parser.set_defaults(render=False)
     return parser.parse_args(args)
@@ -69,10 +71,10 @@ def main(args=None):
     set_session(get_session())
     summary_writer = tf.summary.FileWriter(args.type + "/tensorboard_" + args.env)
 
-    env = Environment(start_step=11, windows=args.consecutive_frames)
+    env = Environment(start_step=11, windows=args.consecutive_frames, dataset='train1hour')
     env.reset()
-    state_dim = (1,)
-    action_dim = 2
+    state_dim = (2,)
+    action_dim = 3
     act_range = 2
 
     # Pick algorithm to train
