@@ -61,11 +61,11 @@ def main(args=None):
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     set_session(get_session())
 
-    env = Environment(start_step=11, windows=args.consecutive_frames)
+    env = Environment(start_step=11, windows=args.consecutive_frames, dataset='train1hour')
     env.reset()
-    state_dim = (1,)
+    state_dim = (2,)
     action_dim = 2
-    act_range = 1
+    act_range = 2
 
     # Pick algorithm to train
     if (args.type == "DDQN"):
@@ -83,13 +83,12 @@ def main(args=None):
 
     # Display agent
     old_state, time = env.reset(), 0
-    while True:
+    done = False
+    while not done:
         a = algo.policy_action(old_state)
         old_state, r, done, info = env.step(a)
         time += 1
         print(info)
-        if done:
-            break
 
 
 if __name__ == "__main__":

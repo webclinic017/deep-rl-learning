@@ -9,8 +9,9 @@ from random import random, randrange
 
 from utils.memory_buffer import MemoryBuffer
 from utils.networks import tfSummary
+from utils.environment import Environment
 from utils.stats import gather_stats
-logging.basicConfig(filename='log/ddpg.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
+# logging.basicConfig(filename='log/ddpg.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
 
 class DDQN:
@@ -28,7 +29,7 @@ class DDQN:
         self.lr = 2.5e-4
         self.gamma = 0.95
         self.epsilon = 1
-        self.epsilon_min = 0.2
+        self.epsilon_min = 0.5
         self.epsilon_decay = 0.99
         self.buffer_size = 20000
         #
@@ -78,6 +79,22 @@ class DDQN:
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
+    def test(self, summary_writer, e):
+        test_env = Environment(start_step=11, windows=10, dataset='test1hour')
+        time, cumul_reward, done = 0, 0, False
+        old_state = test_env.reset()
+        while not done:
+            # Actor picks an action (following the policy)
+            a = self.policy_action(old_state)
+            # Retrieve new state, reward, and whether the state is terminal
+            new_state, r, done, info = test_env.step(a)
+            logging.warning(info)
+            # Update current state
+            old_state = new_state
+            cumul_reward += r
+            time += 1
+        return info['total_profit']
+
     def train(self, env, args, summary_writer):
         """ Main DDQN Training Algorithm
         """
@@ -96,29 +113,29 @@ class DDQN:
                 a = self.policy_action(old_state)
                 # Retrieve new state, reward, and whether the state is terminal
                 new_state, r, done, info = env.step(a)
-                # logging.warning(info)
+                logging.warning(info)
                 # Memorize for experience replay
                 self.memorize(old_state, a, r, done, new_state)
                 # Update current state
                 old_state = new_state
                 cumul_reward += r
                 time += 1
-                # Display score
-                tqdm_e.set_description("Profit: " + str(round(info['total_profit'], 3)))
-                tqdm_e.refresh()
+
                 # Train DDQN and transfer weights to target network
                 if self.buffer.size() > args.batch_size:
                     self.train_agent(args.batch_size)
                     self.agent.transfer_weights()
 
-            # Gather stats every episode for plotting
-            # if args.gather_stats:
-            #     mean, stdev = gather_stats(self, env)
-            #     results.append([e, mean, stdev])
+            # Display score
+            total_profit = self.test(summary_writer, e)
+            tqdm_e.set_description("Profit: " + str(round(total_profit, 3)))
+            tqdm_e.refresh()
 
             # Export results for Tensorboard
             score = tfSummary('score', cumul_reward)
             summary_writer.add_summary(score, global_step=e)
+            budget = tfSummary('budget', total_profit)
+            summary_writer.add_summary(budget, global_step=e)
             summary_writer.flush()
 
         return results

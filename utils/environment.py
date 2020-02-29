@@ -5,8 +5,8 @@ plt.get_backend()
 
 
 class Environment:
-    def __init__(self, windows, start_step):
-        self.data, self.prices = self.getStockDataVec('test_1hours')
+    def __init__(self, windows, start_step, dataset):
+        self.data, self.prices = self.getStockDataVec(dataset)
         self.t = start_step
         self.start_step = start_step
         self.windows = windows
@@ -28,7 +28,7 @@ class Environment:
         lines = open("data/" + key + ".csv", "r").read().splitlines()
         prices = []
         delimiter = ','
-        for _index, line in enumerate(lines[2:500]):
+        for _index, line in enumerate(lines[2:]):
             _index = _index + 2
             current_time = float(line.split(delimiter)[1])
             current_price = float(line.split(delimiter)[5])
@@ -39,6 +39,12 @@ class Environment:
                 delta = (current_price - prev_price)
             else:
                 delta = 0
+
+            _open = float(line.split(delimiter)[2])/10000
+            _high = float(line.split(delimiter)[3]) / 10000
+            _low = float(line.split(delimiter)[4]) / 10000
+            _close = float(line.split(delimiter)[5]) / 10000
+            _volume = float(line.split(delimiter)[6]) / 1000
 
             vec.append([delta])  # normalize
             prices.append(float(line.split(delimiter)[5]))
@@ -57,11 +63,8 @@ class Environment:
 
         d = self.t - self.windows + 1
         block = self.data[d:self.t + 1]
-        res = []
-        for i in block:
-            res.append(i)
 
-        return np.array(res), done
+        return np.array(block), done
 
     def reset(self):
         # self.t = random.randint(11, len(self.data) - 2048)
@@ -69,11 +72,7 @@ class Environment:
         self.budget = 1000
         d = self.t - self.windows + 1
         block = self.data[d:self.t + 1] if d >= 0 else -d * [self.data[0]] + self.data[0:self.t + 1]  # pad with t0
-        res = []
-        for i in block:
-            res.append(i)
-
-        return np.array(res)
+        return np.array(block)
 
     def step(self, a):
         r = 0
@@ -82,44 +81,50 @@ class Environment:
             'total_profit': self.budget, 'status': 'nothing', 'profit': False,
             'current': self.prices[self.t], 'order': self.order
         }
-        # if a == 0:
-        #     r = 0
         if a == 0:
+            r = 0
+        elif a == 1:
             # buy btc
             info['status'] = 'buy'
             order = self.prices[self.t]
             next_price = self.prices[self.t + 1]
             diff = order - next_price
             self.budget = self.budget - diff
-            if diff <= -0:
+            if diff <= 0:
                 info['profit'] = True
-                r = 0.1
+                r = 1
+                # plt.scatter(self.t, self.prices[self.t], color="g")
+                # plt.draw()
+                # plt.pause(0.0001)
             else:
-                r = -0.1
+                r = -0.5
                 info['profit'] = False
-            # plt.scatter(self.t, self.prices[self.t], color="g")
-            # plt.draw()
-            # plt.pause(0.0001)
+                # plt.scatter(self.t, self.prices[self.t], color="r")
+                # plt.draw()
+                # plt.pause(0.0001)
             # r = 0.1
-        elif a == 1:
+        elif a == 2:
             # sell btc
             info['status'] = 'sell'
             order = self.prices[self.t]
             next_price = self.prices[self.t + 1]
             diff = order - next_price
             self.budget += diff
-            # plt.scatter(self.t, self.prices[self.t], color="r")
-            # plt.draw()
-            # plt.pause(0.0001)
+
             if diff >= 0:
+                # plt.scatter(self.t, self.prices[self.t], color="g")
+                # plt.draw()
+                # plt.pause(0.0001)
                 info['profit'] = True
-                r = 0.1
+                r = 1
             else:
-                r = -0.1
+                r = -0.5
+                # plt.scatter(self.t, self.prices[self.t], color="r")
+                # plt.draw()
+                # plt.pause(0.0001)
                 info['profit'] = False
 
         info['total_profit'] = self.budget
-        # done = True if self.t % 100 == 0 else False
         self.t += 1
         state, done = self.getState()
         return state, r, done, info
