@@ -365,7 +365,7 @@ class AutoTrading(object):
         self.bm.start()
 
     def start_mockup(self, kind_of_run):
-        indexes, price_data = trading_bot.getStockDataVec('train(1)')
+        indexes, price_data = trading_bot.getStockDataVec('train')
         total_sample = len(price_data)
         train_data = total_sample*4//5
         self.tqdm_e = tqdm(price_data, desc='Steps', leave=True, unit=" episodes")
