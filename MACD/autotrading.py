@@ -8,20 +8,11 @@ from binance.enums import *
 from binance.client import Client
 from binance.enums import KLINE_INTERVAL_1HOUR
 from binance.websockets import BinanceSocketManager
-from keras import Model
 from pymongo import MongoClient
 from tqdm import tqdm
 import numpy as np
-from MACD.agent import Agent
-from MACD.actor import Actor
-from MACD.critic import Critic
 
-from utils.memory_buffer import MemoryBuffer
-from random import random, randrange
-from keras.utils import to_categorical
-from keras.layers import Input, Dense, Flatten, LSTM
-
-logging.basicConfig(filename='log/autotrade.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename='../log/autotrade.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
 
 class AutoTrading(object):
@@ -35,37 +26,22 @@ class AutoTrading(object):
         self.client = MongoClient()
         self.db = self.client.crypto
         self.order = 0
-        self.budget = 1000
+        self.budget = 0
         self.order_type = 'sell'
         self.trading_data = []
         self.indexes = []
         self.norm_data = []
-        self.windows = 20
+        self.windows = 10
         self.threshold = 0.05
         self.vec_threshold = 0.15
         self.trade_threshold = 90
-        self.queue_size = 500
-        plt.show(block=False)
+        self.queue_size = 100
         self.order_history = []
         self.tqdm_e = None
         self.prev_d = 0
         self.waiting_for_order = True
         self.stop_loss = 0
-
-        # DDQN
-        # Environment and DDQN parameters
-        self.act_dim = 3
-        self.env_dim = (2,)
-        self.gamma = 0.99
-        self.lr = 0.0001
-        self.epsilon = 0.7
-        # Create actor and critic networks
-        self.shared = self.buildNetwork()
-        self.actor = Actor(self.env_dim, self.act_dim, self.shared, self.lr)
-        self.critic = Critic(self.env_dim, self.act_dim, self.shared, self.lr)
-        # Build optimizers
-        self.a_opt = self.actor.optimizer()
-        self.c_opt = self.critic.optimizer()
+        self.waiting_time = 0
 
         # Environment
         self.time = 0
@@ -79,66 +55,17 @@ class AutoTrading(object):
         self.exp6 = []
         self.exp7 = []
 
-    def buildNetwork(self):
-        """ Assemble shared layers
-        """
-        inp = Input((self.env_dim))
-        # x = Flatten()(inp)
-        x = Dense(32, activation='relu')(inp)
-        x = Dense(32, activation='relu')(x)
-        x = Dense(32, activation='relu')(x)
-        return Model(inp, x)
-
     def reset(self):
         self.time = 0
         self.cumul_reward = 0
         self.done = False
         self.budget = 1000
 
-    def policy_action(self, s):
-        """ Use the actor to predict the next action to take, using the policy
-        """
-        p = self.actor.predict(s)
-        action = np.random.choice(np.arange(self.act_dim), 1, p=p.ravel())[0]
-        logging.warning("a: {}, p: {}".format(action, p))
-        return action
-
-    def discount(self, r, done):
-        """ Compute the gamma-discounted rewards over an episode
-        """
-        discounted_r, cumul_r = np.zeros_like(r), 0
-        for t in reversed(range(0, len(r))):
-            reward = r[t]
-            cumul_r = reward + cumul_r * self.gamma
-            discounted_r[t] = cumul_r
-        return discounted_r
-
-    def train_models(self, states, actions, rewards, done):
-        """ Update actor and critic networks from experience
-        """
-        # Compute discounted rewards and Advantage (TD. Error)
-        discounted_rewards = self.discount(rewards, done)
-        state_values = self.critic.predict(np.array(states))
-        advantages = discounted_rewards - np.reshape(state_values, len(state_values))
-        # print(advantages)
-        # Networks optimization
-        self.a_opt([states, actions, advantages])
-        self.c_opt([states, discounted_rewards])
-
-    def save_weights(self, path):
-        path += '_LR_{}'.format(self.lr)
-        self.actor.save(path)
-        self.critic.save(path)
-
-    def load_weights(self, path_actor, path_critic):
-        self.critic.load_weights(path_critic)
-        self.actor.load_weights(path_actor)
-
     def process_message(self, msg):
         current_time = time.time()
         msg['k']['timestamp'] = current_time
         # print(msg)
-        insert = self.db.btc_data.insert_one(msg['k']).inserted_id
+        # insert = self.db.btc_data.insert_one(msg['k']).inserted_id
 
         if len(self.trading_data) > self.queue_size:
             self.trading_data.pop(0)
@@ -199,7 +126,7 @@ class AutoTrading(object):
         df = df[['close']]
         df.reset_index(level=0, inplace=True)
         df.columns = ['ds', 'y']
-        # plt.plot(df.ds, self.norm_data, label='Price')
+        plt.plot(df.ds, self.norm_data, label='Price')
         # plt.show()
 
         exp1 = df.y.ewm(span=12, adjust=False).mean()
@@ -208,17 +135,25 @@ class AutoTrading(object):
         exp3 = macd.ewm(span=9, adjust=False).mean()
 
         # calculate break point
-        if len(self.exp4) > 1:
-            self.exp4.pop(0)
-        if len(self.exp5) > 1:
-            self.exp5.pop(0)
-        if len(self.exp6) > 1:
-            self.exp6.pop(0)
-        if len(self.exp7) > 1:
-            self.exp7.pop(0)
+        # if len(self.exp5) > 1:
+        #     self.exp5.pop(0)
+        # if len(self.exp7) > 1:
+        #     self.exp7.pop(0)
 
         if len(self.trading_data) == self.queue_size + 1:
-            self.exp4 = [x - 1 for x in self.exp4]
+            exp4 = self.exp4.copy()
+            for x4 in exp4:
+                if x4 < 10:
+                    self.exp4.pop(0)
+                    self.exp5.pop(0)
+
+            exp6 = self.exp6.copy()
+            for x6 in exp6:
+                if x6 < 10:
+                    self.exp6.pop(0)
+                    self.exp7.pop(0)
+
+            self.exp4 = [x1 - 1 for x1 in self.exp4]
             self.exp6 = [x - 1 for x in self.exp6]
 
         exp3_cp = self.norm_list(list(exp3.copy()))
@@ -238,67 +173,71 @@ class AutoTrading(object):
             # trend down
             angel_degree_2 = -angel_degree_2
 
-        # print(angel_degree_1, angel_degree_2)
-
-        # state = np.array([angel_degree_1, angel_degree_2])
-        # a = self.policy_action(state)
-        # done = False
-        # r = 0
-
-        # if a == 0:
-        #     pass
         total_angel = angel_degree_1 + angel_degree_2
-        if not self.check_lost(self.trading_data[-1]):
-            if total_angel < 0.5:
-                if exp3_cp[chunk_idx] > 13:
-                    # bắt đầu ngừng tăng hoặc giảm.
-                    # sell
-                    if not self.waiting_for_order:
-                        diff = self.sell_order(self.trading_data[-1])
-                        # r = 0.01
-                        if diff > 0:
-                            r = 0.01
-                        self.exp6.append(len(exp3_cp))
-                        self.exp7.append(self.norm_data[-1])
-                        self.waiting_for_order = True
-
-                if exp3_cp[chunk_idx] < 5:
-                    # tín hiệu bắt đầu tăng
-                    if self.waiting_for_order:
-                        self.buy_order(self.trading_data[-1])
+        if not self.check_profit(self.trading_data[-1]):
+            if not self.check_lost(self.trading_data[-1]):
+                if total_angel < 0.3:
+                    if angel_degree_1 < 0 < angel_degree_2 and exp3_cp[chunk_idx] < 3:
                         self.exp4.append(len(exp3_cp))
                         self.exp5.append(self.norm_data[-1])
-                        self.waiting_for_order = False
-                        # r = -0.01
+                    if angel_degree_1 > 0 > angel_degree_2 and exp3_cp[chunk_idx] > 17:
+                        self.exp6.append(len(exp3_cp))
+                        self.exp7.append(self.norm_data[-1])
 
-        # self.actions.append(to_categorical(a, self.act_dim))
-        # self.rewards.append(r)
-        # self.states.append(self.old_state)
-        # self.old_state = state
+                    # if exp3_cp[chunk_idx] > 10:
+                    #     # bắt đầu ngừng tăng hoặc giảm.
+                    #     # sell
+                    #     if not self.waiting_for_order:
+                    #         diff = self.sell_order(self.trading_data[-1])
+                    #         # r = 0.01
+                    #         if diff > 0:
+                    #             r = 0.01
+                    #         self.exp6.append(len(exp3_cp))
+                    #         self.exp7.append(self.norm_data[-1])
+                    #         self.waiting_for_order = True
+                    #
+                    # if exp3_cp[chunk_idx] < 5:
+                    #     # tín hiệu bắt đầu tăng
+                    #     if self.waiting_for_order:
+                    #         self.buy_order(self.trading_data[-1])
+                    #         self.exp4.append(len(exp3_cp))
+                    #         self.exp5.append(self.norm_data[-1])
+                    #         self.waiting_for_order = False
+                    #         # r = -0.01
 
-        # if len(self.actions) == 128:
-        #     # clear actions states and rewards go to the next step
-        #     self.train_models(self.states, self.actions, self.rewards, done)
-        #     self.actions, self.states, self.rewards = [], [], []
-        #     self.tqdm_e.set_description("Profit: " + str(self.budget))
-        #     self.tqdm_e.refresh()
+                self.waiting_time += 1
 
-        # plt.cla()
-        # plt.plot(df.ds, self.norm_data, label='Budget: {}, {}'.format(angel_degree_1, angel_degree_2))
-        # # plt.plot(df.ds, macd, label='AMD MACD', color='#EBD2BE')
-        # plt.plot(df.ds, exp3_cp, label='Signal Line {}'.format(self.budget), color='#E5A4CB')
-        # plt.legend(loc='upper left')
-        # plt.plot(self.exp4, self.exp5, 'ro', color='blue')
-        # plt.plot(self.exp6, self.exp7, 'ro', color='red')
-        # plt.pause(0.00001)
+        plt.cla()
+        plt.plot(df.ds, self.norm_data, label='Budget: {}, {}'.format(angel_degree_1, angel_degree_2))
+        # plt.plot(df.ds, macd, label='AMD MACD', color='#EBD2BE')
+        plt.plot(df.ds, exp3_cp, label='Signal Line {}'.format(self.budget), color='#E5A4CB')
+        plt.legend(loc='upper left')
+        plt.plot(self.exp4, self.exp5, 'ro', color='blue')
+        plt.plot(self.exp6, self.exp7, 'ro', color='red')
+        plt.pause(0.00001)
+
+        self.tqdm_e.set_description("Profit: " + str(self.budget))
+        self.tqdm_e.refresh()
 
     def check_lost(self, price):
-        """Close order when loss """
+        """Close order when loss $5"""
         if not self.waiting_for_order:
-            if price <= self.stop_loss:
-                self.sell_order(self.trading_data[-1])
+            if price <= self.stop_loss or self.waiting_time > 50:
+                self.sell_order(price)
                 self.waiting_for_order = True
+                logging.warning("Stop loss: {} => {} profit {} budget: {}".format(self.order, price,
+                                                                                  round(price - self.order, 2),
+                                                                                  self.budget))
                 return True
+        return False
+
+    def check_profit(self, price):
+        """Close order when take $5 profit"""
+        #         if not self.waiting_for_order:
+        #             if self.order - price > 10:
+        #                 self.sell_order(price)
+        #                 self.waiting_for_order = True
+        #                 return True
         return False
 
     def buy_order(self, price):
@@ -330,11 +269,10 @@ class AutoTrading(object):
                 if diff > 0:
                     logging.warning("Take Profit: {} => {} profit {} budget: {}".format(self.order, price,
                                                                                         round(diff, 2), self.budget))
-                else:
-                    logging.warning("Stop loss: {} => {} profit {} budget: {}".format(self.order, price,
-                                                                                      round(diff, 2),
-                                                                                      self.budget))
+                # clear status
                 self.order_type = 'sell'
+                self.waiting_time = 0
+
         return diff
 
     def test_order(self):
@@ -348,7 +286,7 @@ class AutoTrading(object):
 
     def getStockDataVec(self, key):
         indexes = []
-        lines = open("data/" + key + ".csv", "r").read().splitlines()
+        lines = open("../data/" + key + ".csv", "r").read().splitlines()
         prices = []
         delimiter = ','
         first_index = float(lines[2].split(delimiter)[1])
@@ -365,10 +303,12 @@ class AutoTrading(object):
         self.bm.start()
 
     def start_mockup(self, kind_of_run):
-        indexes, price_data = trading_bot.getStockDataVec('train')
+        indexes, price_data = trading_bot.getStockDataVec('train(1)')
         total_sample = len(price_data)
-        train_data = total_sample*4//5
-        self.tqdm_e = tqdm(price_data, desc='Steps', leave=True, unit=" episodes")
+        start_idx = 250000
+        end_idx = start_idx + 50000
+        print("Max profit: {}".format(price_data[start_idx] - price_data[end_idx]))
+        self.tqdm_e = tqdm(price_data[start_idx: end_idx], desc='Steps', leave=True, unit=" episodes")
         for item in self.tqdm_e:
             msg = {
                 'k': {
