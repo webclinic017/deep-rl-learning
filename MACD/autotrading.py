@@ -76,12 +76,12 @@ class AutoTrading(object):
         # self.indexes.append(float(msg['k']['indexes']))
 
         # calculate norm data used for plot
-        min_x = min(self.trading_data)
-        max_x = max(self.trading_data)
-        normalized = 0
-        if max_x - min_x != 0:
-            normalized = 20 * (float(msg['k']['c']) - min_x) / (max_x - min_x)
-        self.norm_data.append(normalized)
+        # min_x = min(self.trading_data)
+        # max_x = max(self.trading_data)
+        # normalized = 0
+        # if max_x - min_x != 0:
+        #     normalized = 20 * (float(msg['k']['c']) - min_x) / (max_x - min_x)
+        # self.norm_data.append(normalized)
 
         if len(self.trading_data) > self.windows:
             self.calculate_macd()
@@ -126,7 +126,7 @@ class AutoTrading(object):
         df = df[['close']]
         df.reset_index(level=0, inplace=True)
         df.columns = ['ds', 'y']
-        plt.plot(df.ds, self.norm_data, label='Price')
+        # plt.plot(df.ds, self.norm_data, label='Price')
         # plt.show()
 
         exp1 = df.y.ewm(span=12, adjust=False).mean()
@@ -134,23 +134,23 @@ class AutoTrading(object):
         macd = exp1 - exp2
         exp3 = macd.ewm(span=9, adjust=False).mean()
 
-        if len(self.trading_data) == self.queue_size + 1:
-            exp4 = self.exp4.copy()
-            for x4 in exp4:
-                if x4 < 0:
-                    self.exp4.pop(0)
-                    self.exp5.pop(0)
+        # if len(self.trading_data) == self.queue_size + 1:
+        #     exp4 = self.exp4.copy()
+        #     for x4 in exp4:
+        #         if x4 < 0:
+        #             self.exp4.pop(0)
+        #             self.exp5.pop(0)
+        #
+        #     exp6 = self.exp6.copy()
+        #     for x6 in exp6:
+        #         if x6 < 0:
+        #             self.exp6.pop(0)
+        #             self.exp7.pop(0)
+        #
+        #     self.exp4 = [x1 - 1 for x1 in self.exp4]
+        #     self.exp6 = [x - 1 for x in self.exp6]
 
-            exp6 = self.exp6.copy()
-            for x6 in exp6:
-                if x6 < 0:
-                    self.exp6.pop(0)
-                    self.exp7.pop(0)
-
-            self.exp4 = [x1 - 1 for x1 in self.exp4]
-            self.exp6 = [x - 1 for x in self.exp6]
-
-        exp3_cp = self.norm_list(list(exp3.copy()))
+        exp3_cp = self.norm_list(exp3)
         start_point = len(exp3_cp) - self.windows - 1
         end_point = len(exp3_cp) - 1
         block = exp3_cp[start_point:]
@@ -174,38 +174,17 @@ class AutoTrading(object):
                     if abs(total_angel) < 5:
                         if angel_degree_1 < 0 < angel_degree_2 and exp3_cp[chunk_idx] < 5:
                             if self.waiting_for_order:
-                                self.exp4.append(len(exp3_cp))
-                                self.exp5.append(self.norm_data[-1])
+                                # self.exp4.append(len(exp3_cp))
+                                # self.exp5.append(self.norm_data[-1])
                                 self.buy_order(self.trading_data[-1])
                                 self.waiting_for_order = False
 
                         if angel_degree_1 > 0 > angel_degree_2 and exp3_cp[chunk_idx] > 15:
                             if not self.waiting_for_order:
-                                self.exp6.append(len(exp3_cp))
-                                self.exp7.append(self.norm_data[-1])
+                                # self.exp6.append(len(exp3_cp))
+                                # self.exp7.append(self.norm_data[-1])
                                 self.sell_order(self.trading_data[-1])
                                 self.waiting_for_order = True
-
-                    # if exp3_cp[chunk_idx] > 10:
-                    #     # bắt đầu ngừng tăng hoặc giảm.
-                    #     # sell
-                    #     if not self.waiting_for_order:
-                    #         diff = self.sell_order(self.trading_data[-1])
-                    #         # r = 0.01
-                    #         if diff > 0:
-                    #             r = 0.01
-                    #         self.exp6.append(len(exp3_cp))
-                    #         self.exp7.append(self.norm_data[-1])
-                    #         self.waiting_for_order = True
-                    #
-                    # if exp3_cp[chunk_idx] < 5:
-                    #     # tín hiệu bắt đầu tăng
-                    #     if self.waiting_for_order:
-                    #         self.buy_order(self.trading_data[-1])
-                    #         self.exp4.append(len(exp3_cp))
-                    #         self.exp5.append(self.norm_data[-1])
-                    #         self.waiting_for_order = False
-                    #         # r = -0.01
 
                 self.waiting_time += 1
 
@@ -305,10 +284,10 @@ class AutoTrading(object):
         self.bm.start()
 
     def start_mockup(self, kind_of_run):
-        indexes, price_data = trading_bot.getStockDataVec('train(1)')
+        indexes, price_data = trading_bot.getStockDataVec('train')
         total_sample = len(price_data)
-        start_idx = 250000
-        end_idx = start_idx + 50000
+        start_idx = 0
+        end_idx = -1
         print("Max profit: {}".format(price_data[start_idx] - price_data[end_idx]))
         self.tqdm_e = tqdm(price_data[start_idx: end_idx], desc='Steps', leave=True, unit=" episodes")
         for item in self.tqdm_e:
