@@ -150,7 +150,7 @@ class AutoTrading(object):
         #     self.exp4 = [x1 - 1 for x1 in self.exp4]
         #     self.exp6 = [x - 1 for x in self.exp6]
 
-        exp3_cp = self.norm_list(exp3)
+        exp3_cp = self.norm_list(list(exp3))
         start_point = len(exp3_cp) - self.windows - 1
         end_point = len(exp3_cp) - 1
         block = exp3_cp[start_point:]
@@ -198,7 +198,7 @@ class AutoTrading(object):
         # plt.plot([len(self.norm_data) - self.windows//2], [exp3_cp[len(self.norm_data) - self.windows//2]], 'ro', color='k')
         # plt.pause(0.000001)
 
-        self.tqdm_e.set_description("Profit: " + str(self.budget))
+        self.tqdm_e.set_description("Profit: " + str(round(self.budget, 2)))
         self.tqdm_e.refresh()
 
     def check_lost(self, price):
@@ -232,7 +232,7 @@ class AutoTrading(object):
             if self.order_type == 'sell':
                 self.order_history.append(order_info)
                 self.order = price
-                self.stop_loss = price - 3
+                self.stop_loss = price - 5
                 self.order_type = 'buy'
 
     def sell_order(self, price):
@@ -284,11 +284,12 @@ class AutoTrading(object):
         self.bm.start()
 
     def start_mockup(self, kind_of_run):
-        indexes, price_data = trading_bot.getStockDataVec('train')
+        indexes, price_data = trading_bot.getStockDataVec('data')
+        price_data = list(reversed(price_data))
         total_sample = len(price_data)
         start_idx = 0
         end_idx = -1
-        print("Max profit: {}".format(price_data[start_idx] - price_data[end_idx]))
+        print("Max profit: {}".format(price_data[end_idx] - price_data[start_idx]))
         self.tqdm_e = tqdm(price_data[start_idx: end_idx], desc='Steps', leave=True, unit=" episodes")
         for item in self.tqdm_e:
             msg = {
