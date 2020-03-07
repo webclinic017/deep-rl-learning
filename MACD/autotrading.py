@@ -31,11 +31,11 @@ class AutoTrading(object):
         self.trading_data = []
         self.indexes = []
         self.norm_data = []
-        self.windows = 10
+        self.windows = 12
         self.threshold = 0.05
         self.vec_threshold = 0.15
         self.trade_threshold = 90
-        self.queue_size = 100
+        self.queue_size = 500
         self.order_history = []
         self.tqdm_e = None
         self.prev_d = 0
@@ -134,22 +134,16 @@ class AutoTrading(object):
         macd = exp1 - exp2
         exp3 = macd.ewm(span=9, adjust=False).mean()
 
-        # calculate break point
-        # if len(self.exp5) > 1:
-        #     self.exp5.pop(0)
-        # if len(self.exp7) > 1:
-        #     self.exp7.pop(0)
-
         if len(self.trading_data) == self.queue_size + 1:
             exp4 = self.exp4.copy()
             for x4 in exp4:
-                if x4 < 10:
+                if x4 < 0:
                     self.exp4.pop(0)
                     self.exp5.pop(0)
 
             exp6 = self.exp6.copy()
             for x6 in exp6:
-                if x6 < 10:
+                if x6 < 0:
                     self.exp6.pop(0)
                     self.exp7.pop(0)
 
@@ -174,15 +168,23 @@ class AutoTrading(object):
             angel_degree_2 = -angel_degree_2
 
         total_angel = angel_degree_1 + angel_degree_2
-        if not self.check_profit(self.trading_data[-1]):
-            if not self.check_lost(self.trading_data[-1]):
-                if total_angel < 0.3:
-                    if angel_degree_1 < 0 < angel_degree_2 and exp3_cp[chunk_idx] < 3:
-                        self.exp4.append(len(exp3_cp))
-                        self.exp5.append(self.norm_data[-1])
-                    if angel_degree_1 > 0 > angel_degree_2 and exp3_cp[chunk_idx] > 17:
-                        self.exp6.append(len(exp3_cp))
-                        self.exp7.append(self.norm_data[-1])
+        if len(self.trading_data) > self.queue_size:
+            if not self.check_profit(self.trading_data[-1]):
+                if not self.check_lost(self.trading_data[-1]):
+                    if abs(total_angel) < 5:
+                        if angel_degree_1 < 0 < angel_degree_2 and exp3_cp[chunk_idx] < 5:
+                            if self.waiting_for_order:
+                                self.exp4.append(len(exp3_cp))
+                                self.exp5.append(self.norm_data[-1])
+                                self.buy_order(self.trading_data[-1])
+                                self.waiting_for_order = False
+
+                        if angel_degree_1 > 0 > angel_degree_2 and exp3_cp[chunk_idx] > 15:
+                            if not self.waiting_for_order:
+                                self.exp6.append(len(exp3_cp))
+                                self.exp7.append(self.norm_data[-1])
+                                self.sell_order(self.trading_data[-1])
+                                self.waiting_for_order = True
 
                     # if exp3_cp[chunk_idx] > 10:
                     #     # bắt đầu ngừng tăng hoặc giảm.
@@ -207,28 +209,28 @@ class AutoTrading(object):
 
                 self.waiting_time += 1
 
-        plt.cla()
-        plt.plot(df.ds, self.norm_data, label='Budget: {}, {}'.format(angel_degree_1, angel_degree_2))
-        # plt.plot(df.ds, macd, label='AMD MACD', color='#EBD2BE')
-        plt.plot(df.ds, exp3_cp, label='Signal Line {}'.format(self.budget), color='#E5A4CB')
-        plt.legend(loc='upper left')
-        plt.plot(self.exp4, self.exp5, 'ro', color='blue')
-        plt.plot(self.exp6, self.exp7, 'ro', color='red')
-        plt.pause(0.00001)
+        # plt.cla()
+        # plt.plot(df.ds, self.norm_data, label='Budget: {}, {}'.format(angel_degree_1, angel_degree_2))
+        # # plt.plot(df.ds, macd, label='AMD MACD', color='#EBD2BE')
+        # plt.plot(df.ds, exp3_cp, label='Signal Line {}'.format(self.budget), color='#E5A4CB')
+        # plt.legend(loc='upper left')
+        # plt.plot(self.exp4, self.exp5, 'ro', color='g')
+        # plt.plot(self.exp6, self.exp7, 'ro', color='red')
+        # plt.plot([len(self.norm_data) - self.windows//2], [exp3_cp[len(self.norm_data) - self.windows//2]], 'ro', color='k')
+        # plt.pause(0.000001)
 
         self.tqdm_e.set_description("Profit: " + str(self.budget))
         self.tqdm_e.refresh()
 
     def check_lost(self, price):
         """Close order when loss $5"""
-        if not self.waiting_for_order:
-            if price <= self.stop_loss or self.waiting_time > 50:
-                self.sell_order(price)
-                self.waiting_for_order = True
-                logging.warning("Stop loss: {} => {} profit {} budget: {}".format(self.order, price,
-                                                                                  round(price - self.order, 2),
-                                                                                  self.budget))
-                return True
+        if not self.waiting_for_order and price <= self.stop_loss:
+            self.sell_order(price)
+            self.waiting_for_order = True
+            logging.warning("Stop loss: {} => {} profit {} budget: {}".format(self.order, price,
+                                                                              round(price - self.order, 2),
+                                                                              self.budget))
+            return True
         return False
 
     def check_profit(self, price):
