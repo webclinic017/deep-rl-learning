@@ -65,7 +65,7 @@ class AutoTrading(object):
         current_time = time.time()
         msg['k']['timestamp'] = current_time
         # print(msg)
-        # insert = self.db.btc_data.insert_one(msg['k']).inserted_id
+        insert = self.db.btc_data.insert_one(msg['k']).inserted_id
 
         if len(self.trading_data) > self.queue_size:
             self.trading_data.pop(0)
@@ -302,5 +302,5 @@ class AutoTrading(object):
 
 if __name__ == '__main__':
     trading_bot = AutoTrading()
-    trading_bot.start_mockup("train")
-    # trading_bot.start_socket()
+    # trading_bot.start_mockup("train")
+    trading_bot.start_socket()
