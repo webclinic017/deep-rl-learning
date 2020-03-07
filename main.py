@@ -73,7 +73,7 @@ def main(args=None):
 
     env = Environment(start_step=11, windows=args.consecutive_frames, dataset='train1hour')
     env.reset()
-    state_dim = (2,)
+    state_dim = (1,)
     action_dim = 3
     act_range = 2
 
