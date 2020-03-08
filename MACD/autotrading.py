@@ -255,7 +255,7 @@ class AutoTrading(object):
             'type': 'buy',
             'stop_loss': price
         }
-        custom_range = self.trading_data[-300:]
+        custom_range = self.trading_data[350:]
         min_price = min(custom_range)
         max_price = max(custom_range)
         take_profit, stop_loss = self.fibonacci(price_max=max_price, price_min=min_price)
@@ -328,13 +328,22 @@ class AutoTrading(object):
         self.bm.start()
 
     def start_mockup(self, kind_of_run):
-        indexes, price_data = trading_bot.getStockDataVec('train')
+        indexes, price_data = trading_bot.getStockDataVec('train(1)')
+        start_idx = 0
+        end_idx = 100000
+        price_data = price_data[start_idx: end_idx]
         # price_data = list(reversed(price_data))
         total_sample = len(price_data)
-        start_idx = 0
-        end_idx = -1
-        print("Max profit: {}".format(price_data[end_idx] - price_data[start_idx]))
-        self.tqdm_e = tqdm(price_data[start_idx: end_idx], desc='Steps', leave=True, unit=" episodes")
+        index = [i for i, val in enumerate(price_data)]
+        df = pd.DataFrame({'index': index, 'close': price_data})
+        df = df[['close']]
+        df.reset_index(level=0, inplace=True)
+        df.columns = ['ds', 'y']
+        plt.plot(df.ds, price_data, label='Price')
+        plt.show()
+
+        print("Max profit: {}".format(price_data[-1] - price_data[0]))
+        self.tqdm_e = tqdm(price_data, desc='Steps', leave=True, unit=" episodes")
         for item in self.tqdm_e:
             msg = {
                 'k': {
