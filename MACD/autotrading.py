@@ -41,7 +41,10 @@ class AutoTrading(object):
         self.prev_d = 0
         self.waiting_for_order = True
         self.stop_loss = 0
+        self.take_profit = 0
         self.waiting_time = 0
+        self.price_max = 0
+        self.price_min = 0
 
         # Environment
         self.time = 0
@@ -65,7 +68,7 @@ class AutoTrading(object):
         current_time = time.time()
         msg['k']['timestamp'] = current_time
         # print(msg)
-        insert = self.db.btc_data.insert_one(msg['k']).inserted_id
+        # insert = self.db.btc_data.insert_one(msg['k']).inserted_id
 
         if len(self.trading_data) > self.queue_size:
             self.trading_data.pop(0)
@@ -134,23 +137,23 @@ class AutoTrading(object):
         macd = exp1 - exp2
         exp3 = macd.ewm(span=9, adjust=False).mean()
 
-        # if len(self.trading_data) == self.queue_size + 1:
-        #     exp4 = self.exp4.copy()
-        #     for x4 in exp4:
-        #         if x4 < 0:
-        #             self.exp4.pop(0)
-        #             self.exp5.pop(0)
-        #
-        #     exp6 = self.exp6.copy()
-        #     for x6 in exp6:
-        #         if x6 < 0:
-        #             self.exp6.pop(0)
-        #             self.exp7.pop(0)
-        #
-        #     self.exp4 = [x1 - 1 for x1 in self.exp4]
-        #     self.exp6 = [x - 1 for x in self.exp6]
+        if len(self.trading_data) == self.queue_size + 1:
+            exp4 = self.exp4.copy()
+            for x4 in exp4:
+                if x4 < 0:
+                    self.exp4.pop(0)
+                    self.exp5.pop(0)
 
-        exp3_cp = self.norm_list(list(exp3))
+            exp6 = self.exp6.copy()
+            for x6 in exp6:
+                if x6 < 0:
+                    self.exp6.pop(0)
+                    self.exp7.pop(0)
+
+            self.exp4 = [x1 - 1 for x1 in self.exp4]
+            self.exp6 = [x - 1 for x in self.exp6]
+
+        exp3_cp = list(self.norm_list(exp3.copy()))
         start_point = len(exp3_cp) - self.windows - 1
         end_point = len(exp3_cp) - 1
         block = exp3_cp[start_point:]
@@ -172,15 +175,14 @@ class AutoTrading(object):
             if not self.check_profit(self.trading_data[-1]):
                 if not self.check_lost(self.trading_data[-1]):
                     if abs(total_angel) < 5:
-                        if angel_degree_1 < 0 < angel_degree_2 and exp3_cp[chunk_idx] < 5:
-                            if self.waiting_for_order:
+                        if angel_degree_1 < 0 < angel_degree_2:
+                            if exp3_cp[chunk_idx] < 5 and self.waiting_for_order:
                                 # self.exp4.append(len(exp3_cp))
                                 # self.exp5.append(self.norm_data[-1])
                                 self.buy_order(self.trading_data[-1])
                                 self.waiting_for_order = False
-
-                        if angel_degree_1 > 0 > angel_degree_2 and exp3_cp[chunk_idx] > 15:
-                            if not self.waiting_for_order:
+                        if angel_degree_1 > 0 > angel_degree_2:
+                            if not self.waiting_for_order and exp3_cp[chunk_idx] > 15:
                                 # self.exp6.append(len(exp3_cp))
                                 # self.exp7.append(self.norm_data[-1])
                                 self.sell_order(self.trading_data[-1])
@@ -188,14 +190,39 @@ class AutoTrading(object):
 
                 self.waiting_time += 1
 
+        # new ways
+        # macd_cp = list(macd.copy())
+        # exp3_cp = list(exp3.copy())
+        # signal_value = macd_cp[-1] - exp3_cp[-1]
+        # if abs(signal_value) <= 0.05:
+        #     if len(self.trading_data) > self.queue_size:
+        #         if not self.check_profit(self.trading_data[-1]):
+        #             if not self.check_lost(self.trading_data[-1]):
+        #                 if macd_cp[-2] < exp3_cp[-2]:
+        #                     # up trend
+        #                     if self.waiting_for_order:
+        #                         self.exp4.append(len(exp3_cp))
+        #                         self.exp5.append(exp3_cp[-1])
+        #                         self.buy_order(self.trading_data[-1])
+        #                         self.waiting_for_order = False
+        #                 if macd_cp[-2] > exp3_cp[-2]:
+        #                     # down trend
+        #                     if not self.waiting_for_order:
+        #                         self.exp6.append(len(exp3_cp))
+        #                         self.exp7.append(exp3_cp[-1])
+        #                         self.sell_order(self.trading_data[-1])
+        #                         self.waiting_for_order = True
+        #
+        #             self.waiting_time += 1
+
         # plt.cla()
-        # plt.plot(df.ds, self.norm_data, label='Budget: {}, {}'.format(angel_degree_1, angel_degree_2))
-        # # plt.plot(df.ds, macd, label='AMD MACD', color='#EBD2BE')
-        # plt.plot(df.ds, exp3_cp, label='Signal Line {}'.format(self.budget), color='#E5A4CB')
+        # # plt.plot(df.ds, self.norm_data, label='Budget: {}, {}'.format(angel_degree_1, angel_degree_2))
+        # plt.plot(df.ds, macd, label='AMD MACD', color='#EBD2BE')
+        # plt.plot(df.ds, exp3, label='Signal Line :{}'.format(signal_value), color='#E5A4CB')
         # plt.legend(loc='upper left')
         # plt.plot(self.exp4, self.exp5, 'ro', color='g')
-        # plt.plot(self.exp6, self.exp7, 'ro', color='red')
-        # plt.plot([len(self.norm_data) - self.windows//2], [exp3_cp[len(self.norm_data) - self.windows//2]], 'ro', color='k')
+        # plt.plot(self.exp6, self.exp7, 'ro', color='r')
+        # # plt.plot([len(self.norm_data) - self.windows//2], [exp3_cp[len(self.norm_data) - self.windows//2]], 'ro', color='k')
         # plt.pause(0.000001)
 
         self.tqdm_e.set_description("Profit: " + str(round(self.budget, 2)))
@@ -214,11 +241,11 @@ class AutoTrading(object):
 
     def check_profit(self, price):
         """Close order when take $5 profit"""
-        #         if not self.waiting_for_order:
-        #             if self.order - price > 10:
-        #                 self.sell_order(price)
-        #                 self.waiting_for_order = True
-        #                 return True
+        if not self.waiting_for_order:
+            if price - self.take_profit >= 0:
+                self.sell_order(price)
+                self.waiting_for_order = True
+                return True
         return False
 
     def buy_order(self, price):
@@ -228,11 +255,16 @@ class AutoTrading(object):
             'type': 'buy',
             'stop_loss': price
         }
+        custom_range = self.trading_data[-300:]
+        min_price = min(custom_range)
+        max_price = max(custom_range)
+        take_profit, stop_loss = self.fibonacci(price_max=max_price, price_min=min_price)
         if len(list(filter(lambda d: d['price'] == price, self.order_history))) == 0:
             if self.order_type == 'sell':
                 self.order_history.append(order_info)
                 self.order = price
-                self.stop_loss = price - 5
+                self.stop_loss = stop_loss
+                self.take_profit = take_profit
                 self.order_type = 'buy'
 
     def sell_order(self, price):
@@ -250,6 +282,9 @@ class AutoTrading(object):
                 if diff > 0:
                     logging.warning("Take Profit: {} => {} profit {} budget: {}".format(self.order, price,
                                                                                         round(diff, 2), self.budget))
+                else:
+                    logging.warning("Loss: {} => {} profit {} budget: {}".format(self.order, price,
+                                                                                        round(diff, 2), self.budget))
                 # clear status
                 self.order_type = 'sell'
                 self.waiting_time = 0
@@ -264,6 +299,15 @@ class AutoTrading(object):
             type=ORDER_TYPE_MARKET,
             quantity=100
         )
+
+    @classmethod
+    def fibonacci(cls, price_max, price_min):
+        diff = price_max - price_min
+        level1 = price_max - 0.236 * diff
+        level2 = price_max - 0.382 * diff
+        level3 = price_max - 0.618 * diff
+        stop_loss = price_max - 1.382 * diff
+        return level1, stop_loss
 
     def getStockDataVec(self, key):
         indexes = []
@@ -284,8 +328,8 @@ class AutoTrading(object):
         self.bm.start()
 
     def start_mockup(self, kind_of_run):
-        indexes, price_data = trading_bot.getStockDataVec('data')
-        price_data = list(reversed(price_data))
+        indexes, price_data = trading_bot.getStockDataVec('train')
+        # price_data = list(reversed(price_data))
         total_sample = len(price_data)
         start_idx = 0
         end_idx = -1
@@ -302,5 +346,5 @@ class AutoTrading(object):
 
 if __name__ == '__main__':
     trading_bot = AutoTrading()
-    # trading_bot.start_mockup("train")
-    trading_bot.start_socket()
+    trading_bot.start_mockup("train")
+    # trading_bot.start_socket()
