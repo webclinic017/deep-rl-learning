@@ -31,11 +31,11 @@ class AutoTrading(object):
         self.trading_data = []
         self.indexes = []
         self.norm_data = []
-        self.windows = 8
+        self.windows = 10
         self.threshold = 0.05
         self.vec_threshold = 0.15
         self.trade_threshold = 90
-        self.queue_size = 100
+        self.queue_size = 150
         self.order_history = []
         self.tqdm_e = None
         self.prev_d = 0
@@ -47,6 +47,10 @@ class AutoTrading(object):
         self.price_min = 0
         self.stop_loss_nb = 0
         self.take_profit_nb = 0
+        self.prev_max_price = 0
+        self.prev_min_price = 100000
+        self.total_lost = 0
+        self.total_profit = 0
 
         # Environment
         self.time = 0
@@ -78,8 +82,6 @@ class AutoTrading(object):
             self.norm_data.pop(0)
 
         self.trading_data.append(float(msg['k']['c']))
-        # self.indexes.append(float(msg['k']['indexes']))
-
         # calculate norm data used for plot
         # min_x = min(self.trading_data)
         # max_x = max(self.trading_data)
@@ -176,21 +178,22 @@ class AutoTrading(object):
 
         total_angel = angel_degree_1 + angel_degree_2
         if len(self.trading_data) > self.queue_size:
-            if not self.check_profit(self.trading_data[-1]):
-                if not self.check_lost(self.trading_data[-1]):
-                    if abs(total_angel) < 1:
-                        if angel_degree_2 > 5:
-                            if self.waiting_for_order:
-                                # self.exp4.append(len(exp3_cp))
-                                # self.exp5.append(exp3_cp[-1])
-                                self.buy_order(self.trading_data[-1])
-                                self.waiting_for_order = False
-                        if angel_degree_2 < 0:
-                            if not self.waiting_for_order:
-                                # self.exp6.append(len(exp3_cp))
-                                # self.exp7.append(exp3_cp[-1])
-                                self.sell_order(self.trading_data[-1])
-                                self.waiting_for_order = True
+            if not self.check_profit(self.trading_data[-1]) and \
+                not self.check_lost(self.trading_data[-1]) and \
+                    abs(total_angel) < 1:
+
+                if angel_degree_2 >= 9:
+                    if self.waiting_for_order:
+                        # self.exp4.append(len(exp3_cp))
+                        # self.exp5.append(exp3_cp[-1])
+                        self.buy_order(self.trading_data[-1])
+                        self.waiting_for_order = False
+                if angel_degree_2 <= 0:
+                    if not self.waiting_for_order:
+                        # self.exp6.append(len(exp3_cp))
+                        # self.exp7.append(exp3_cp[-1])
+                        self.sell_order(self.trading_data[-1])
+                        self.waiting_for_order = True
 
                 self.waiting_time += 1
 
@@ -229,9 +232,9 @@ class AutoTrading(object):
         # # plt.plot([len(self.norm_data) - self.windows//2], [exp3_cp[len(self.norm_data) - self.windows//2]], 'ro', color='k')
         # plt.pause(0.000001)
 
-        self.tqdm_e.set_description("Profit: {}, Stop Loss: {}, Take Profit: {}".format(str(round(self.budget, 2)),
-                                                                                        self.stop_loss_nb,
-                                                                                        self.take_profit_nb))
+        self.tqdm_e.set_description("Profit: {}, Stop Loss: {}, Take Profit: {}".format(round(self.budget, 2),
+                                                                                        round(self.total_lost, 2),
+                                                                                        round(self.total_profit, 2)))
         self.tqdm_e.refresh()
 
     def check_lost(self, price):
@@ -247,11 +250,10 @@ class AutoTrading(object):
 
     def check_profit(self, price):
         """Close order when take $5 profit"""
-        # if not self.waiting_for_order:
-        #     if price >= self.take_profit:
-        #         self.sell_order(price)
-        #         self.waiting_for_order = True
-        #         return True
+        if not self.waiting_for_order and price >= self.take_profit:
+            self.sell_order(price)
+            self.waiting_for_order = True
+            return True
         return False
 
     def buy_order(self, price):
@@ -289,10 +291,12 @@ class AutoTrading(object):
                     logging.warning("Take Profit: {} => {} profit {} budget: {}".format(self.order, price,
                                                                                         round(diff, 2), self.budget))
                     self.take_profit_nb += 1
+                    self.total_profit += diff
                 else:
                     logging.warning("Loss: {} => {} profit {} budget: {}".format(self.order, price,
                                                                                  round(diff, 2), self.budget))
                     self.stop_loss_nb += 1
+                    self.total_lost += diff
                 # clear status
                 self.order_type = 'sell'
                 self.waiting_time = 0
@@ -315,7 +319,7 @@ class AutoTrading(object):
         level2 = price_max - 0.382 * diff
         level3 = price_max - 0.618 * diff
         stop_loss = price_max - 1.382 * diff
-        return level2, stop_loss
+        return level1, stop_loss
 
     def getStockDataVec(self, key):
         indexes = []
@@ -336,10 +340,10 @@ class AutoTrading(object):
         self.bm.start()
 
     def start_mockup(self, kind_of_run):
-        indexes, price_data = trading_bot.getStockDataVec('train(1)')
+        indexes, price_data = trading_bot.getStockDataVec('train')
         start_idx = 0
         end_idx = -1
-        price_data = price_data[start_idx: end_idx]
+        price_data = list(reversed(price_data[start_idx: end_idx]))
         # price_data = list(reversed(price_data))
         total_sample = len(price_data)
         index = [i for i, val in enumerate(price_data)]
