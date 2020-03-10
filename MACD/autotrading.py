@@ -35,7 +35,7 @@ class AutoTrading(object):
         self.threshold = 0.05
         self.vec_threshold = 0.15
         self.trade_threshold = 90
-        self.queue_size = 150
+        self.queue_size = 500
         self.order_history = []
         self.tqdm_e = None
         self.prev_d = 0
@@ -141,33 +141,32 @@ class AutoTrading(object):
         macd = exp1 - exp2
         exp3 = macd.ewm(span=9, adjust=False).mean()
         histogram = macd - exp3
-        # macd = self.norm_list(list(macd.copy()))
-        # histogram = self.norm_list(list(histogram.copy()))
-        # if len(self.trading_data) == self.queue_size + 1:
-        #     exp4 = self.exp4.copy()
-        #     for x4 in exp4:
-        #         if x4 < 0:
-        #             self.exp4.pop(0)
-        #             self.exp5.pop(0)
-        #
-        #     exp6 = self.exp6.copy()
-        #     for x6 in exp6:
-        #         if x6 < 0:
-        #             self.exp6.pop(0)
-        #             self.exp7.pop(0)
-        #
-        #     self.exp4 = [x1 - 1 for x1 in self.exp4]
-        #     self.exp6 = [x - 1 for x in self.exp6]
+        macd = self.norm_list(list(macd.copy()))
+        if len(self.trading_data) == self.queue_size + 1:
+            exp4 = self.exp4.copy()
+            for x4 in exp4:
+                if x4 < 0:
+                    self.exp4.pop(0)
+                    self.exp5.pop(0)
+
+            exp6 = self.exp6.copy()
+            for x6 in exp6:
+                if x6 < 0:
+                    self.exp6.pop(0)
+                    self.exp7.pop(0)
+
+            self.exp4 = [x1 - 1 for x1 in self.exp4]
+            self.exp6 = [x - 1 for x in self.exp6]
 
         histogram_cp = list(histogram)
-        start_point = len(exp3_cp) - self.windows - 1
-        end_point = len(exp3_cp) - 1
-        block = exp3_cp[start_point:]
-        chunk_idx = len(exp3_cp) - self.windows // 2 - 1
+        start_point = len(histogram_cp) - self.windows - 1
+        end_point = len(histogram_cp) - 1
+        block = histogram_cp[start_point:]
+        chunk_idx = len(histogram_cp) - self.windows // 2 - 1
         angel_degree_1 = self.angle_of_vectors(x=chunk_idx, x0=start_point,
-                                               y=exp3_cp[chunk_idx], y0=exp3_cp[start_point])
+                                               y=histogram_cp[chunk_idx], y0=histogram_cp[start_point])
         angel_degree_2 = self.angle_of_vectors(x=end_point, x0=chunk_idx,
-                                               y=exp3_cp[end_point], y0=exp3_cp[chunk_idx])
+                                               y=histogram_cp[end_point], y0=histogram_cp[chunk_idx])
 
         if block[self.windows // 2] < block[0]:
             # trend down
@@ -176,22 +175,23 @@ class AutoTrading(object):
             # trend down
             angel_degree_2 = - angel_degree_2
 
-        total_angel = angel_degree_1 + angel_degree_2
+        anomaly_point = histogram_cp[-1]
+        total_angel = angel_degree_2 + angel_degree_1
         if len(self.trading_data) > self.queue_size:
             if not self.check_profit(self.trading_data[-1]) and \
                 not self.check_lost(self.trading_data[-1]) and \
-                    abs(total_angel) < 1:
+                    abs(anomaly_point) < 0.02:
 
-                if angel_degree_2 >= 9:
+                if total_angel > 0:
                     if self.waiting_for_order:
-                        # self.exp4.append(len(exp3_cp))
-                        # self.exp5.append(exp3_cp[-1])
+                        self.exp4.append(len(histogram_cp))
+                        self.exp5.append(histogram_cp[-1])
                         self.buy_order(self.trading_data[-1])
                         self.waiting_for_order = False
-                if angel_degree_2 <= 0:
+                if total_angel < 0:
                     if not self.waiting_for_order:
-                        # self.exp6.append(len(exp3_cp))
-                        # self.exp7.append(exp3_cp[-1])
+                        self.exp6.append(len(histogram_cp))
+                        self.exp7.append(histogram_cp[-1])
                         self.sell_order(self.trading_data[-1])
                         self.waiting_for_order = True
 
@@ -222,16 +222,16 @@ class AutoTrading(object):
         #
         #             self.waiting_time += 1
 
-        plt.cla()
+        # plt.cla()
         # plt.plot(df.ds, self.norm_data, label='Budget: {}, {}'.format(angel_degree_1, angel_degree_2))
         # plt.plot(df.ds, macd, label='AMD MACD: {}'.format(macd_cp[-2] - exp3_cp[-2]), color='#EBD2BE')
         # plt.plot(df.ds, exp3, label='Signal Line', color='#E5A4CB')
-        plt.plot(df.ds, histogram, label='Histogram', color='#EBD2BE')
-        plt.legend(loc='upper left')
+        # plt.plot(df.ds, histogram, label='Histogram {}'.format(total_angel), color='#EBD2BE')
+        # plt.legend(loc='upper left')
         # plt.plot(self.exp4, self.exp5, 'ro', color='g')
         # plt.plot(self.exp6, self.exp7, 'ro', color='r')
-        # plt.plot([len(self.norm_data) - self.windows//2], [exp3_cp[len(self.norm_data) - self.windows//2]], 'ro', color='k')
-        plt.pause(0.000001)
+        # plt.plot([len(self.trading_data) - self.windows//2], [histogram_cp[len(self.trading_data) - self.windows//2]], 'ro', color='k')
+        # plt.pause(0.000001)
 
         self.tqdm_e.set_description("Profit: {}, Stop Loss: {}, Take Profit: {}".format(round(self.budget, 2),
                                                                                         round(self.total_lost, 2),
@@ -344,7 +344,7 @@ class AutoTrading(object):
         indexes, price_data = trading_bot.getStockDataVec('train(1)')
         start_idx = 0
         end_idx = -1
-        price_data = list(reversed(price_data[start_idx: end_idx]))
+        # price_data = list(reversed(price_data[start_idx: end_idx]))
         # price_data = list(reversed(price_data))
         total_sample = len(price_data)
         index = [i for i, val in enumerate(price_data)]
