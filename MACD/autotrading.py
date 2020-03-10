@@ -100,7 +100,7 @@ class AutoTrading(object):
         if not min_x or not max_x:
             return list_needed
 
-        return_data = list(map(lambda x: 20 * (x - min_x) / (max_x - min_x), list_needed))
+        return_data = list(map(lambda x: (x - min_x) / (max_x - min_x), list_needed))
         return return_data
 
     @staticmethod
@@ -140,9 +140,9 @@ class AutoTrading(object):
         exp2 = df.y.ewm(span=26, adjust=False).mean()
         macd = exp1 - exp2
         exp3 = macd.ewm(span=9, adjust=False).mean()
-
+        histogram = macd - exp3
         # macd = self.norm_list(list(macd.copy()))
-        # exp3 = self.norm_list(list(exp3.copy()))
+        # histogram = self.norm_list(list(histogram.copy()))
         # if len(self.trading_data) == self.queue_size + 1:
         #     exp4 = self.exp4.copy()
         #     for x4 in exp4:
@@ -159,7 +159,7 @@ class AutoTrading(object):
         #     self.exp4 = [x1 - 1 for x1 in self.exp4]
         #     self.exp6 = [x - 1 for x in self.exp6]
 
-        exp3_cp = list(self.norm_list(exp3.copy()))
+        histogram_cp = list(histogram)
         start_point = len(exp3_cp) - self.windows - 1
         end_point = len(exp3_cp) - 1
         block = exp3_cp[start_point:]
@@ -222,15 +222,16 @@ class AutoTrading(object):
         #
         #             self.waiting_time += 1
 
-        # plt.cla()
-        # # plt.plot(df.ds, self.norm_data, label='Budget: {}, {}'.format(angel_degree_1, angel_degree_2))
-        # # plt.plot(df.ds, macd, label='AMD MACD: {}'.format(macd_cp[-2] - exp3_cp[-2]), color='#EBD2BE')
-        # plt.plot(df.ds, exp3, label='Signal Line :{}'.format(total_angel), color='#E5A4CB')
-        # plt.legend(loc='upper left')
+        plt.cla()
+        # plt.plot(df.ds, self.norm_data, label='Budget: {}, {}'.format(angel_degree_1, angel_degree_2))
+        # plt.plot(df.ds, macd, label='AMD MACD: {}'.format(macd_cp[-2] - exp3_cp[-2]), color='#EBD2BE')
+        # plt.plot(df.ds, exp3, label='Signal Line', color='#E5A4CB')
+        plt.plot(df.ds, histogram, label='Histogram', color='#EBD2BE')
+        plt.legend(loc='upper left')
         # plt.plot(self.exp4, self.exp5, 'ro', color='g')
         # plt.plot(self.exp6, self.exp7, 'ro', color='r')
-        # # plt.plot([len(self.norm_data) - self.windows//2], [exp3_cp[len(self.norm_data) - self.windows//2]], 'ro', color='k')
-        # plt.pause(0.000001)
+        # plt.plot([len(self.norm_data) - self.windows//2], [exp3_cp[len(self.norm_data) - self.windows//2]], 'ro', color='k')
+        plt.pause(0.000001)
 
         self.tqdm_e.set_description("Profit: {}, Stop Loss: {}, Take Profit: {}".format(round(self.budget, 2),
                                                                                         round(self.total_lost, 2),
@@ -239,21 +240,21 @@ class AutoTrading(object):
 
     def check_lost(self, price):
         """Close order when loss $5"""
-        if not self.waiting_for_order and price <= self.stop_loss:
-            self.sell_order(price)
-            self.waiting_for_order = True
-            logging.warning("Stop loss: {} => {} profit {} budget: {}".format(self.order, price,
-                                                                              round(price - self.order, 2),
-                                                                              self.budget))
-            return True
+        # if not self.waiting_for_order and price <= self.stop_loss:
+        #     self.sell_order(price)
+        #     self.waiting_for_order = True
+        #     logging.warning("Stop loss: {} => {} profit {} budget: {}".format(self.order, price,
+        #                                                                       round(price - self.order, 2),
+        #                                                                       self.budget))
+        #     return True
         return False
 
     def check_profit(self, price):
         """Close order when take $5 profit"""
-        if not self.waiting_for_order and price >= self.take_profit:
-            self.sell_order(price)
-            self.waiting_for_order = True
-            return True
+        # if not self.waiting_for_order and price >= self.take_profit:
+        #     self.sell_order(price)
+        #     self.waiting_for_order = True
+        #     return True
         return False
 
     def buy_order(self, price):
@@ -340,7 +341,7 @@ class AutoTrading(object):
         self.bm.start()
 
     def start_mockup(self, kind_of_run):
-        indexes, price_data = trading_bot.getStockDataVec('train')
+        indexes, price_data = trading_bot.getStockDataVec('train(1)')
         start_idx = 0
         end_idx = -1
         price_data = list(reversed(price_data[start_idx: end_idx]))
