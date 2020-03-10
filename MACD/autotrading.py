@@ -35,7 +35,7 @@ class AutoTrading(object):
         self.threshold = 0.05
         self.vec_threshold = 0.15
         self.trade_threshold = 90
-        self.queue_size = 500
+        self.queue_size = 32
         self.order_history = []
         self.tqdm_e = None
         self.prev_d = 0
@@ -51,6 +51,9 @@ class AutoTrading(object):
         self.prev_min_price = 100000
         self.total_lost = 0
         self.total_profit = 0
+        self.fig = plt.figure()
+        self.ax1 = self.fig.add_subplot(211, label='ax1')
+        self.ax2 = self.fig.add_subplot(212, label='ax2')
 
         # Environment
         self.time = 0
@@ -141,7 +144,7 @@ class AutoTrading(object):
         macd = exp1 - exp2
         exp3 = macd.ewm(span=9, adjust=False).mean()
         histogram = macd - exp3
-        macd = self.norm_list(list(macd.copy()))
+        # macd = self.norm_list(list(macd.copy()))
         if len(self.trading_data) == self.queue_size + 1:
             exp4 = self.exp4.copy()
             for x4 in exp4:
@@ -175,27 +178,36 @@ class AutoTrading(object):
             # trend down
             angel_degree_2 = - angel_degree_2
 
-        anomaly_point = histogram_cp[-1]
-        total_angel = angel_degree_2 + angel_degree_1
+        min_histogram = min(histogram_cp)
+        max_histogram = max(histogram_cp)
         if len(self.trading_data) > self.queue_size:
-            if not self.check_profit(self.trading_data[-1]) and \
-                not self.check_lost(self.trading_data[-1]) and \
-                    abs(anomaly_point) < 0.02:
+            # if not self.check_profit(self.trading_data[-1]) and not self.check_lost(self.trading_data[-1]):
+            #     if abs(histogram_cp[-1]) < max_histogram * 0.1 and histogram_cp[-3] < 0 and self.waiting_for_order:
+            #         if abs(max_histogram) > abs(min_histogram):
+            #             # buy order
+            #             # up trend
+            #             self.exp4.append(len(histogram_cp))
+            #             self.exp5.append(histogram_cp[-1])
+            #             self.buy_order(self.trading_data[-1])
+            #     elif abs(histogram_cp[-1]) < abs(min_histogram) * 0.1 and histogram_cp[-3] > 0 and not self.waiting_for_order:
+            #         # stop loss
+            #         self.exp6.append(len(histogram_cp))
+            #         self.exp7.append(histogram_cp[-1])
+            #         self.sell_order(self.trading_data[-1])
+            #     elif histogram_cp[-1] >= max_histogram*0.4 and not self.waiting_for_order:
+            #         # sell
+            #         self.exp6.append(len(histogram_cp))
+            #         self.exp7.append(histogram_cp[-1])
+            #         self.sell_order(self.trading_data[-1])
 
-                if total_angel > 0:
-                    if self.waiting_for_order:
-                        self.exp4.append(len(histogram_cp))
-                        self.exp5.append(histogram_cp[-1])
-                        self.buy_order(self.trading_data[-1])
-                        self.waiting_for_order = False
-                if total_angel < 0:
-                    if not self.waiting_for_order:
-                        self.exp6.append(len(histogram_cp))
-                        self.exp7.append(histogram_cp[-1])
-                        self.sell_order(self.trading_data[-1])
-                        self.waiting_for_order = True
+            # if not self.waiting_for_order:
+            #     self.waiting_time += 1
+            if histogram_cp[-1] > 0 and histogram_cp[-3] < 0:
+                self.buy_order(self.trading_data[-1])
+            elif histogram_cp[-1] < 0 and histogram_cp[-3] > 0:
+                self.sell_order(self.trading_data[-1])
 
-                self.waiting_time += 1
+        # print(avg_histogram, self.waiting_for_order)
 
         # # new ways
         # macd_cp = list(macd.copy())
@@ -221,17 +233,27 @@ class AutoTrading(object):
         #                         self.waiting_for_order = True
         #
         #             self.waiting_time += 1
+        # avg_histogram = sum([x for x in histogram[-5:]]) / 5
+        # if avg_histogram > 0.2:
+        #     self.exp4.append(len(histogram_cp))
+        #     self.exp5.append(histogram_cp[-1])
+        # if -0.2 > avg_histogram:
+        #     self.exp6.append(len(histogram_cp))
+        #     self.exp7.append(histogram_cp[-1])
 
-        # plt.cla()
-        # plt.plot(df.ds, self.norm_data, label='Budget: {}, {}'.format(angel_degree_1, angel_degree_2))
-        # plt.plot(df.ds, macd, label='AMD MACD: {}'.format(macd_cp[-2] - exp3_cp[-2]), color='#EBD2BE')
-        # plt.plot(df.ds, exp3, label='Signal Line', color='#E5A4CB')
-        # plt.plot(df.ds, histogram, label='Histogram {}'.format(total_angel), color='#EBD2BE')
-        # plt.legend(loc='upper left')
-        # plt.plot(self.exp4, self.exp5, 'ro', color='g')
-        # plt.plot(self.exp6, self.exp7, 'ro', color='r')
+        self.ax1.cla()
+        self.ax2.cla()
+        self.ax2.axhline(0.5, color='black')
+        self.ax1.plot(df.ds, self.trading_data, label='Raw data')
+        # self.ax2.plot(df.ds, macd, label='AMD MACD', color='#EBD2BE')
+        # self.ax2.plot(df.ds, exp3, label='Signal Line', color='#E5A4CB')
+        self.ax2.plot(df.ds, histogram_cp, label='Histogram', color='#ABD2BE')
+        self.ax2.legend(loc='upper left')
+        self.ax2.plot(self.exp4, self.exp5, 'ro', color='g')
+        self.ax2.plot(self.exp6, self.exp7, 'ro', color='r')
         # plt.plot([len(self.trading_data) - self.windows//2], [histogram_cp[len(self.trading_data) - self.windows//2]], 'ro', color='k')
-        # plt.pause(0.000001)
+        self.fig.canvas.draw()
+        plt.pause(0.0001)
 
         self.tqdm_e.set_description("Profit: {}, Stop Loss: {}, Take Profit: {}".format(round(self.budget, 2),
                                                                                         round(self.total_lost, 2),
@@ -240,9 +262,8 @@ class AutoTrading(object):
 
     def check_lost(self, price):
         """Close order when loss $5"""
-        # if not self.waiting_for_order and price <= self.stop_loss:
+        # if not self.waiting_for_order and price < self.stop_loss:
         #     self.sell_order(price)
-        #     self.waiting_for_order = True
         #     logging.warning("Stop loss: {} => {} profit {} budget: {}".format(self.order, price,
         #                                                                       round(price - self.order, 2),
         #                                                                       self.budget))
@@ -258,51 +279,53 @@ class AutoTrading(object):
         return False
 
     def buy_order(self, price):
-        order_info = {
-            'id': str(uuid.uuid4()),
-            'price': price,
-            'type': 'buy',
-            'stop_loss': price
-        }
-        custom_range = self.trading_data[self.queue_size*2//3:]
-        min_price = min(custom_range)
-        max_price = max(custom_range)
-        take_profit, stop_loss = self.fibonacci(price_max=max_price, price_min=min_price)
-        if len(list(filter(lambda d: d['price'] == price, self.order_history))) == 0:
-            if self.order_type == 'sell':
-                self.order_history.append(order_info)
-                self.order = price
-                self.stop_loss = stop_loss
-                self.take_profit = take_profit
-                self.order_type = 'buy'
+        if self.waiting_for_order:
+            order_info = {
+                'id': str(uuid.uuid4()),
+                'price': price,
+                'type': 'buy',
+                'stop_loss': price
+            }
+            custom_range = self.trading_data[self.queue_size*2//3:]
+            min_price = min(custom_range)
+            max_price = max(custom_range)
+            take_profit, stop_loss = self.fibonacci(price_max=max_price, price_min=min_price)
+            # if len(list(filter(lambda d: d['price'] == price, self.order_history))) == 0:
+            self.order_history.append(order_info)
+            self.order = price
+            self.stop_loss = price - 150
+            self.take_profit = take_profit
+            self.order_type = 'buy'
+            self.waiting_for_order = False
 
     def sell_order(self, price):
-        order_info = {
-            'id': str(uuid.uuid4()),
-            'price': price,
-            'type': 'sell'
-        }
-        diff = 0
-        if len(list(filter(lambda d: d['price'] == price, self.order_history))) == 0:
-            self.order_history.append(order_info)
-            if self.order_type == 'buy':
-                diff = price - self.order
-                self.budget = self.budget + round(diff, 2)
-                if diff > 0:
-                    logging.warning("Take Profit: {} => {} profit {} budget: {}".format(self.order, price,
-                                                                                        round(diff, 2), self.budget))
-                    self.take_profit_nb += 1
-                    self.total_profit += diff
-                else:
-                    logging.warning("Loss: {} => {} profit {} budget: {}".format(self.order, price,
-                                                                                 round(diff, 2), self.budget))
-                    self.stop_loss_nb += 1
-                    self.total_lost += diff
-                # clear status
-                self.order_type = 'sell'
-                self.waiting_time = 0
+        if not self.waiting_for_order:
+            order_info = {
+                'id': str(uuid.uuid4()),
+                'price': price,
+                'type': 'sell'
+            }
 
-        return diff
+            # if len(list(filter(lambda d: d['price'] == price, self.order_history))) == 0:
+            #     self.order_history.append(order_info)
+            self.waiting_for_order = True
+            diff = price - self.order
+            self.budget = self.budget + round(diff, 2)
+            if diff > 0:
+                logging.warning("Take Profit: {} => {} profit {} budget: {}".format(self.order, price,
+                                                                                    round(diff, 2), self.budget))
+                self.take_profit_nb += 1
+                self.total_profit += diff
+            else:
+                # logging.warning("Loss: {} => {} profit {} budget: {}".format(self.order, price,
+                #                                                              round(diff, 2), self.budget))
+                self.stop_loss_nb += 1
+                self.total_lost += diff
+            # clear status
+            self.order_type = 'sell'
+            self.waiting_time = 0
+
+            return diff
 
     def test_order(self):
         """Create a new test order"""
@@ -327,10 +350,8 @@ class AutoTrading(object):
         lines = open("../data/" + key + ".csv", "r").read().splitlines()
         prices = []
         delimiter = ','
-        first_index = float(lines[2].split(delimiter)[1])
         for _index, line in enumerate(lines[2:]):
-            prices.append(float(line.split(delimiter)[0]))
-            indexes.append(float(line.split(delimiter)[1]) - first_index)
+            prices.append(float(line.split(delimiter)[5]))
 
         return indexes, prices
 
@@ -341,7 +362,7 @@ class AutoTrading(object):
         self.bm.start()
 
     def start_mockup(self, kind_of_run):
-        indexes, price_data = trading_bot.getStockDataVec('train(1)')
+        indexes, price_data = trading_bot.getStockDataVec('1hours')
         start_idx = 0
         end_idx = -1
         # price_data = list(reversed(price_data[start_idx: end_idx]))
@@ -352,8 +373,11 @@ class AutoTrading(object):
         df = df[['close']]
         df.reset_index(level=0, inplace=True)
         df.columns = ['ds', 'y']
-        plt.plot(df.ds, price_data, label='Price')
-        plt.show()
+        # self.ax2.plot(df.ds, price_data, label='Price')
+        # plt.show()
+        # self.fig.show()
+        # self.fig.canvas.draw()
+        # time.sleep(0.1)
 
         print("Max profit: {}".format(price_data[-1] - price_data[0]))
         self.tqdm_e = tqdm(price_data, desc='Steps', leave=True, unit=" episodes")
