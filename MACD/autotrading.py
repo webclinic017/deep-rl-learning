@@ -2,21 +2,28 @@ import math
 import time
 import logging
 import uuid
+import random
+
 import pandas as pd
 import matplotlib.pyplot as plt
 from binance.enums import *
 from binance.client import Client
 from binance.enums import KLINE_INTERVAL_1HOUR
 from binance.websockets import BinanceSocketManager
+from keras import Model
+from keras.utils import to_categorical
 from pymongo import MongoClient
 from tqdm import tqdm
 import numpy as np
+from keras.layers import Input, Dense, Flatten, LSTM, concatenate
+from A2C.a2c import A2C
 
 logging.basicConfig(filename='../log/autotrade.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
 
-class AutoTrading(object):
-    def __init__(self):
+class AutoTrading(A2C):
+    def __init__(self, act_dim, env_dim, k):
+        super().__init__(act_dim, env_dim, k)
         self.actions, self.states, self.rewards = [], [], []
         self.api_key = "y9JKPpQ3B2zwIRD9GwlcoCXwvA3mwBLiNTriw6sCot13IuRvYKigigXYWCzCRiul"
         self.api_secret = "uUdxQdnVR48w5ypYxfsi7xK6e6W2v3GL8YrAZp5YeY1GicGbh3N5NI71Pss0crfJ"
@@ -59,7 +66,6 @@ class AutoTrading(object):
         self.time = 0
         self.cumul_reward = 0
         self.done = False
-        self.old_state = np.array([0, 0])
 
         # plot point data
         self.exp4 = []
@@ -71,30 +77,47 @@ class AutoTrading(object):
         self.time = 0
         self.cumul_reward = 0
         self.done = False
-        self.budget = 1000
+        self.budget = 0
 
-    def process_message(self, msg):
+    def buildNetwork(self):
+        """ Assemble shared layers"""
+        initial_input = Input(shape=(10, 10))
+        secondary_input = Input(shape=(1,))
+
+        lstm = LSTM(128, dropout=0.1, recurrent_dropout=0.3)(initial_input)
+        dense = Dense(128, activation='relu')(secondary_input)
+        merge = concatenate([lstm, dense])
+
+        first_dense = Dense(128, activation='relu')(merge)
+        second_dense = Dense(64, activation='relu')(first_dense)
+        output = Dense(32, activation='relu')(second_dense)
+        model = Model(inputs=[initial_input, secondary_input], outputs=output)
+        return model
+
+    def process_message(self, msg, a):
         current_time = time.time()
         msg['k']['timestamp'] = current_time
         # print(msg)
         # insert = self.db.btc_data.insert_one(msg['k']).inserted_id
+
+        self.trading_data.append(float(msg['k']['c']))
 
         if len(self.trading_data) > self.queue_size:
             self.trading_data.pop(0)
         if len(self.norm_data) > self.queue_size:
             self.norm_data.pop(0)
 
-        self.trading_data.append(float(msg['k']['c']))
-        # calculate norm data used for plot
-        # min_x = min(self.trading_data)
-        # max_x = max(self.trading_data)
-        # normalized = 0
-        # if max_x - min_x != 0:
-        #     normalized = 20 * (float(msg['k']['c']) - min_x) / (max_x - min_x)
-        # self.norm_data.append(normalized)
+        # return for a2c
+        new_state = None
+        r = -1
+        done = False
+        info = {}
 
-        if len(self.trading_data) > self.windows:
-            self.calculate_macd()
+        if len(self.trading_data) == self.queue_size:
+            self.norm_data = self.norm_list(self.trading_data)  # normally data
+            new_state, r, done, info = self.calculate_macd(a)
+
+        return new_state, r, done, info
 
     def norm_list(self, list_needed):
         """Scale feature to 0-20"""
@@ -126,7 +149,7 @@ class AutoTrading(object):
         # print("θ =", angleInDegree, "°")
         return angleInDegree
 
-    def calculate_macd(self):
+    def calculate_macd(self, action):
         """
         Simulation trading and RL learning
         :return:
@@ -136,88 +159,103 @@ class AutoTrading(object):
         df = df[['close']]
         df.reset_index(level=0, inplace=True)
         df.columns = ['ds', 'y']
-        # plt.plot(df.ds, self.norm_data, label='Price')
-        # plt.show()
 
         exp1 = df.y.ewm(span=12, adjust=False).mean()
         exp2 = df.y.ewm(span=26, adjust=False).mean()
         macd = exp1 - exp2
         exp3 = macd.ewm(span=9, adjust=False).mean()
         histogram = macd - exp3
-        # macd = self.norm_list(list(macd.copy()))
-        if len(self.trading_data) == self.queue_size + 1:
-            exp4 = self.exp4.copy()
-            for x4 in exp4:
-                if x4 < 0:
-                    self.exp4.pop(0)
-                    self.exp5.pop(0)
 
-            exp6 = self.exp6.copy()
-            for x6 in exp6:
-                if x6 < 0:
-                    self.exp6.pop(0)
-                    self.exp7.pop(0)
-
-            self.exp4 = [x1 - 1 for x1 in self.exp4]
-            self.exp6 = [x - 1 for x in self.exp6]
+        # if len(self.trading_data) == self.queue_size + 1:
+        #     exp4 = self.exp4.copy()
+        #     for x4 in exp4:
+        #         if x4 < 0:
+        #             self.exp4.pop(0)
+        #             self.exp5.pop(0)
+        #
+        #     exp6 = self.exp6.copy()
+        #     for x6 in exp6:
+        #         if x6 < 0:
+        #             self.exp6.pop(0)
+        #             self.exp7.pop(0)
+        #
+        #     self.exp4 = [x1 - 1 for x1 in self.exp4]
+        #     self.exp6 = [x - 1 for x in self.exp6]
 
         histogram_cp = list(histogram)
-        start_point = len(histogram_cp) - self.windows - 1
-        end_point = len(histogram_cp) - 1
-        block = histogram_cp[start_point:]
-        chunk_idx = len(histogram_cp) - self.windows // 2 - 1
-        angel_degree_1 = self.angle_of_vectors(x=chunk_idx, x0=start_point,
-                                               y=histogram_cp[chunk_idx], y0=histogram_cp[start_point])
-        angel_degree_2 = self.angle_of_vectors(x=end_point, x0=chunk_idx,
-                                               y=histogram_cp[end_point], y0=histogram_cp[chunk_idx])
+        # start_point = len(histogram_cp) - self.windows - 1
+        # end_point = len(histogram_cp) - 1
+        # block = histogram_cp[start_point:]
+        # chunk_idx = len(histogram_cp) - self.windows // 2 - 1
+        # angel_degree_1 = self.angle_of_vectors(x=chunk_idx, x0=start_point,
+        #                                        y=histogram_cp[chunk_idx], y0=histogram_cp[start_point])
+        # angel_degree_2 = self.angle_of_vectors(x=end_point, x0=chunk_idx,
+        #                                        y=histogram_cp[end_point], y0=histogram_cp[chunk_idx])
+        #
+        # if block[self.windows // 2] < block[0]:
+        #     # trend down
+        #     angel_degree_1 = - angel_degree_1
+        # if block[-1] < block[self.windows // 2]:
+        #     # trend down
+        #     angel_degree_2 = - angel_degree_2
+        #
+        # total_degree = angel_degree_1 + angel_degree_2
+        # compare_list = [x for x in histogram_cp[-5:]]
+        # avg_histogram = np.mean(compare_list)
+        # max_histogram = max(compare_list)
+        # min_histogram = min(compare_list)
+        # is_close = list(np.isclose([histogram_cp[-1]], [0.0], atol=0.07))[0]
+        # if is_close:
+        #     if histogram_cp[-1] > avg_histogram:
+        #         self.exp4.append(len(histogram_cp))
+        #         self.exp5.append(histogram_cp[-1])
+        #     elif histogram_cp[-1] < avg_histogram:
+        #         self.exp6.append(len(histogram_cp))
+        #         self.exp7.append(histogram_cp[-1])
 
-        if block[self.windows // 2] < block[0]:
-            # trend down
-            angel_degree_1 = - angel_degree_1
-        if block[-1] < block[self.windows // 2]:
-            # trend down
-            angel_degree_2 = - angel_degree_2
+        diff = self.trading_data[-1] - self.order
+        r = 0
+        if action == 0:
+            # hold
+            if self.order != 0:
+                r = 0.01 * diff if diff > 0 else 0
+        elif action == 1:
+            if self.order != 0:
+                r = 0.05 * diff if diff > 0 else 0
+                self.sell_order(self.trading_data[-1])
+        elif action == 2:
+            if self.order == 0:
+                r = 0.02
+                self.buy_order(self.trading_data[-1])
+            else:
+                r = 0
 
-        # min_histogram = min(histogram_cp)
-        # max_histogram = max(histogram_cp)
-        # if len(self.trading_data) > self.queue_size:
-        #     if histogram_cp[-1] > 0 > histogram_cp[-3]:
-        #         self.buy_order(self.trading_data[-1])
-        #     elif histogram_cp[-1] < 0 < histogram_cp[-3]:
-        #         self.sell_order(self.trading_data[-1])
+        # self.ax1.cla()
+        # self.ax2.cla()
+        # self.ax2.axhline(0.0, color='black')
+        # self.ax1.plot(df.ds, self.trading_data, label='Raw data')
+        # # self.ax2.plot(df.ds, macd, label='AMD MACD', color='#EBD2BE')
+        # # self.ax2.plot(df.ds, exp3, label='Signal Line', color='#E5A4CB')
+        # self.ax2.plot(df.ds, histogram_cp, label='Histogram: {}'.format(round(total_degree, 2)), color='#ABD2BE')
+        # self.ax2.legend(loc='upper left')
+        # self.ax2.plot(self.exp4, self.exp5, 'ro', color='g')
+        # self.ax2.plot(self.exp6, self.exp7, 'ro', color='r')
+        # self.ax2.plot([len(self.trading_data) - self.windows//2], [histogram_cp[len(self.trading_data) - self.windows//2]], 'ro', color='k')
+        # self.fig.canvas.draw()
+        # plt.pause(0.00001)
 
-        total_degree = angel_degree_1 + angel_degree_2
-        compare_list = [x for x in histogram_cp[-5:]]
-        avg_histogram = np.mean(compare_list)
-        max_histogram = max(compare_list)
-        min_histogram = min(compare_list)
-        is_close = list(np.isclose([histogram_cp[-1]], [0.0], atol=0.07))[0]
-        if is_close:
-            if histogram_cp[-1] > avg_histogram:
-                self.exp4.append(len(histogram_cp))
-                self.exp5.append(histogram_cp[-1])
-            elif histogram_cp[-1] < avg_histogram:
-                self.exp6.append(len(histogram_cp))
-                self.exp7.append(histogram_cp[-1])
+        d = 80
+        data = []
+        for i in range(10):
+            block = histogram_cp[d:d+10]
+            data.append(block)
+            d += 1
 
-        self.ax1.cla()
-        self.ax2.cla()
-        self.ax2.axhline(0.0, color='black')
-        self.ax1.plot(df.ds, self.trading_data, label='Raw data')
-        # self.ax2.plot(df.ds, macd, label='AMD MACD', color='#EBD2BE')
-        # self.ax2.plot(df.ds, exp3, label='Signal Line', color='#E5A4CB')
-        self.ax2.plot(df.ds, histogram_cp, label='Histogram: {}'.format(round(total_degree, 2)), color='#ABD2BE')
-        self.ax2.legend(loc='upper left')
-        self.ax2.plot(self.exp4, self.exp5, 'ro', color='g')
-        self.ax2.plot(self.exp6, self.exp7, 'ro', color='r')
-        self.ax2.plot([len(self.trading_data) - self.windows//2], [histogram_cp[len(self.trading_data) - self.windows//2]], 'ro', color='k')
-        self.fig.canvas.draw()
-        plt.pause(0.00001)
+        state = np.array(data)
+        done = True
+        info = {'order': self.order}
 
-        self.tqdm_e.set_description("Profit: {}, Stop Loss: {}, Take Profit: {}".format(round(self.budget, 2),
-                                                                                        round(self.total_lost, 2),
-                                                                                        round(self.total_profit, 2)))
-        self.tqdm_e.refresh()
+        return state, r, done, info
 
     def check_lost(self, price):
         """Close order when loss $5"""
@@ -281,6 +319,7 @@ class AutoTrading(object):
                 self.stop_loss_nb += 1
                 self.total_lost += diff
             # clear status
+            self.order = 0
             self.order_type = 'sell'
             self.waiting_time = 0
 
@@ -321,32 +360,57 @@ class AutoTrading(object):
         self.bm.start()
 
     def start_mockup(self, kind_of_run):
-        indexes, price_data = trading_bot.getStockDataVec('1minutes')
+        # self.fig.show()
+        indexes, raw_data = trading_bot.getStockDataVec('1minutes')
+        total_sample = len(raw_data)
+        episode = total_sample // 500
         start_idx = 0
-        end_idx = 10000
-        # price_data = list(reversed(price_data[start_idx: end_idx]))
-        # price_data = list(reversed(price_data))
-        index = [i for i, val in enumerate(price_data)]
-        df = pd.DataFrame({'index': index, 'close': price_data})
-        df = df[['close']]
-        df.reset_index(level=0, inplace=True)
-        df.columns = ['ds', 'y']
-        # self.ax2.plot(df.ds, price_data, label='Price')
-        # plt.show()
-        self.fig.show()
 
-        print("Max profit: {}".format(price_data[-1] - price_data[0]))
-        self.tqdm_e = tqdm(price_data, desc='Steps', leave=True, unit=" episodes")
-        for item in self.tqdm_e:
-            msg = {
-                'k': {
-                    'c': item
-                }
-            }
-            trading_bot.process_message(msg)
+        for e in range(10000):
+            # A2C parameters
+            time, cumul_reward, done = 0, 0, False
+            actions, states, rewards = [], [], []
+            start_idx = random.randint(0, len(raw_data) - 2000)
+            end_idx = start_idx + 1000
+            # price_data = list(reversed(price_data[start_idx: end_idx]))
+            price_data = raw_data[start_idx: end_idx]
+            inp1, inp2 = self.getState()
+
+            self.tqdm_e = tqdm(price_data, desc='Steps', leave=True, unit=" episodes")
+            for item in self.tqdm_e:
+                a = self.policy_action(inp1, inp2)
+                msg = {'k': {'c': item}}
+                new_state, r, ready, info = trading_bot.process_message(msg, a)
+                if ready:
+                    cumul_reward += r
+                    inp1 = new_state
+                    inp2 = np.array(1 if info['order'] else 0)
+                    actions.append(to_categorical(a, self.act_dim))
+                    rewards.append(r)
+                    states.append([inp1, inp2])
+                    self.tqdm_e.set_description("Profit: {}, Stop Loss: {}, Take Profit: {}, Cumul reward: {}".format(
+                        round(self.budget, 2),
+                        round(self.total_lost, 2),
+                        round(self.total_profit, 2),
+                        round(cumul_reward, 2)))
+                    self.tqdm_e.refresh()
+
+            self.train_models(states, actions, rewards, done)
+            start_idx = end_idx
+
+    def getState(self):
+        inp1 = np.random.randint(0, 10, (10, 10))
+        inp2 = np.random.randint(0, 10, (1,))
+        return inp1, inp2
 
 
 if __name__ == '__main__':
-    trading_bot = AutoTrading()
+    state_dim = (1,)
+    action_dim = 3
+    act_range = 2
+    consecutive_frames = 10
+    trading_bot = AutoTrading(action_dim, state_dim, consecutive_frames)
     trading_bot.start_mockup("train")
+
+    trading_bot.save_weights('models/new_way')
     # trading_bot.start_socket()
