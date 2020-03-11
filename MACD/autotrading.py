@@ -31,11 +31,11 @@ class AutoTrading(object):
         self.trading_data = []
         self.indexes = []
         self.norm_data = []
-        self.windows = 10
+        self.windows = 6
         self.threshold = 0.05
         self.vec_threshold = 0.15
         self.trade_threshold = 90
-        self.queue_size = 32
+        self.queue_size = 100
         self.order_history = []
         self.tqdm_e = None
         self.prev_d = 0
@@ -178,82 +178,41 @@ class AutoTrading(object):
             # trend down
             angel_degree_2 = - angel_degree_2
 
-        min_histogram = min(histogram_cp)
-        max_histogram = max(histogram_cp)
-        if len(self.trading_data) > self.queue_size:
-            # if not self.check_profit(self.trading_data[-1]) and not self.check_lost(self.trading_data[-1]):
-            #     if abs(histogram_cp[-1]) < max_histogram * 0.1 and histogram_cp[-3] < 0 and self.waiting_for_order:
-            #         if abs(max_histogram) > abs(min_histogram):
-            #             # buy order
-            #             # up trend
-            #             self.exp4.append(len(histogram_cp))
-            #             self.exp5.append(histogram_cp[-1])
-            #             self.buy_order(self.trading_data[-1])
-            #     elif abs(histogram_cp[-1]) < abs(min_histogram) * 0.1 and histogram_cp[-3] > 0 and not self.waiting_for_order:
-            #         # stop loss
-            #         self.exp6.append(len(histogram_cp))
-            #         self.exp7.append(histogram_cp[-1])
-            #         self.sell_order(self.trading_data[-1])
-            #     elif histogram_cp[-1] >= max_histogram*0.4 and not self.waiting_for_order:
-            #         # sell
-            #         self.exp6.append(len(histogram_cp))
-            #         self.exp7.append(histogram_cp[-1])
-            #         self.sell_order(self.trading_data[-1])
+        # min_histogram = min(histogram_cp)
+        # max_histogram = max(histogram_cp)
+        # if len(self.trading_data) > self.queue_size:
+        #     if histogram_cp[-1] > 0 > histogram_cp[-3]:
+        #         self.buy_order(self.trading_data[-1])
+        #     elif histogram_cp[-1] < 0 < histogram_cp[-3]:
+        #         self.sell_order(self.trading_data[-1])
 
-            # if not self.waiting_for_order:
-            #     self.waiting_time += 1
-            if histogram_cp[-1] > 0 and histogram_cp[-3] < 0:
-                self.buy_order(self.trading_data[-1])
-            elif histogram_cp[-1] < 0 and histogram_cp[-3] > 0:
-                self.sell_order(self.trading_data[-1])
-
-        # print(avg_histogram, self.waiting_for_order)
-
-        # # new ways
-        # macd_cp = list(macd.copy())
-        # exp3_cp = list(exp3.copy())
-        # signal_value = abs(macd_cp[-3]) - abs(exp3_cp[-3])
-        # if signal_value <= 0.02:
-        #     if len(self.trading_data) > self.queue_size:
-        #         if not self.check_profit(self.trading_data[-1]):
-        #             if not self.check_lost(self.trading_data[-1]):
-        #                 if macd_cp[-2] > exp3_cp[-2]:
-        #                     # up trend
-        #                     if self.waiting_for_order:
-        #                         self.exp4.append(len(exp3_cp))
-        #                         self.exp5.append(exp3_cp[-1])
-        #                         self.buy_order(self.trading_data[-1])
-        #                         self.waiting_for_order = False
-        #                 if macd_cp[-2] < exp3_cp[-2]:
-        #                     # down trend
-        #                     if not self.waiting_for_order:
-        #                         self.exp6.append(len(exp3_cp))
-        #                         self.exp7.append(exp3_cp[-1])
-        #                         self.sell_order(self.trading_data[-1])
-        #                         self.waiting_for_order = True
-        #
-        #             self.waiting_time += 1
-        # avg_histogram = sum([x for x in histogram[-5:]]) / 5
-        # if avg_histogram > 0.2:
-        #     self.exp4.append(len(histogram_cp))
-        #     self.exp5.append(histogram_cp[-1])
-        # if -0.2 > avg_histogram:
-        #     self.exp6.append(len(histogram_cp))
-        #     self.exp7.append(histogram_cp[-1])
+        total_degree = angel_degree_1 + angel_degree_2
+        compare_list = [x for x in histogram_cp[-5:]]
+        avg_histogram = np.mean(compare_list)
+        max_histogram = max(compare_list)
+        min_histogram = min(compare_list)
+        is_close = list(np.isclose([histogram_cp[-1]], [0.0], atol=0.07))[0]
+        if is_close:
+            if histogram_cp[-1] > avg_histogram:
+                self.exp4.append(len(histogram_cp))
+                self.exp5.append(histogram_cp[-1])
+            elif histogram_cp[-1] < avg_histogram:
+                self.exp6.append(len(histogram_cp))
+                self.exp7.append(histogram_cp[-1])
 
         self.ax1.cla()
         self.ax2.cla()
-        self.ax2.axhline(0.5, color='black')
+        self.ax2.axhline(0.0, color='black')
         self.ax1.plot(df.ds, self.trading_data, label='Raw data')
         # self.ax2.plot(df.ds, macd, label='AMD MACD', color='#EBD2BE')
         # self.ax2.plot(df.ds, exp3, label='Signal Line', color='#E5A4CB')
-        self.ax2.plot(df.ds, histogram_cp, label='Histogram', color='#ABD2BE')
+        self.ax2.plot(df.ds, histogram_cp, label='Histogram: {}'.format(round(total_degree, 2)), color='#ABD2BE')
         self.ax2.legend(loc='upper left')
         self.ax2.plot(self.exp4, self.exp5, 'ro', color='g')
         self.ax2.plot(self.exp6, self.exp7, 'ro', color='r')
-        # plt.plot([len(self.trading_data) - self.windows//2], [histogram_cp[len(self.trading_data) - self.windows//2]], 'ro', color='k')
+        self.ax2.plot([len(self.trading_data) - self.windows//2], [histogram_cp[len(self.trading_data) - self.windows//2]], 'ro', color='k')
         self.fig.canvas.draw()
-        plt.pause(0.0001)
+        plt.pause(0.00001)
 
         self.tqdm_e.set_description("Profit: {}, Stop Loss: {}, Take Profit: {}".format(round(self.budget, 2),
                                                                                         round(self.total_lost, 2),
@@ -357,17 +316,16 @@ class AutoTrading(object):
 
     def start_socket(self):
         # start any sockets here, i.e a trade socket
-        conn_key = self.bm.start_kline_socket('BTCUSDT', self.process_message, interval=KLINE_INTERVAL_1HOUR)
+        conn_key = self.bm.start_kline_socket('BTCUSDT', self.process_message, interval=KLINE_INTERVAL_1MINUTE)
         # then start the socket manager
         self.bm.start()
 
     def start_mockup(self, kind_of_run):
-        indexes, price_data = trading_bot.getStockDataVec('1hours')
+        indexes, price_data = trading_bot.getStockDataVec('1minutes')
         start_idx = 0
-        end_idx = -1
+        end_idx = 10000
         # price_data = list(reversed(price_data[start_idx: end_idx]))
         # price_data = list(reversed(price_data))
-        total_sample = len(price_data)
         index = [i for i, val in enumerate(price_data)]
         df = pd.DataFrame({'index': index, 'close': price_data})
         df = df[['close']]
@@ -375,9 +333,7 @@ class AutoTrading(object):
         df.columns = ['ds', 'y']
         # self.ax2.plot(df.ds, price_data, label='Price')
         # plt.show()
-        # self.fig.show()
-        # self.fig.canvas.draw()
-        # time.sleep(0.1)
+        self.fig.show()
 
         print("Max profit: {}".format(price_data[-1] - price_data[0]))
         self.tqdm_e = tqdm(price_data, desc='Steps', leave=True, unit=" episodes")
