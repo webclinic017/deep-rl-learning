@@ -33,6 +33,7 @@ class AutoTrading(A2C):
         self.client = MongoClient()
         self.db = self.client.crypto
         self.order = 0
+        self.norm_order = 0
         self.budget = 0
         self.order_type = 'sell'
         self.trading_data = []
@@ -74,15 +75,19 @@ class AutoTrading(A2C):
         self.exp7 = []
 
     def reset(self):
-        self.time = 0
-        self.cumul_reward = 0
-        self.done = False
+        self.order = 0
+        self.norm_order = 0
         self.budget = 0
+        self.order_type = 'sell'
+        self.trading_data = []
+        self.indexes = []
+        self.norm_data = []
+        self.waiting_for_order = True
 
     def buildNetwork(self):
         """ Assemble shared layers"""
         initial_input = Input(shape=(10, 10))
-        secondary_input = Input(shape=(1,))
+        secondary_input = Input(shape=(2,))
 
         lstm = LSTM(128, dropout=0.1, recurrent_dropout=0.3)(initial_input)
         dense = Dense(128, activation='relu')(secondary_input)
@@ -218,14 +223,20 @@ class AutoTrading(A2C):
         if action == 0:
             # hold
             if self.order != 0:
-                r = 0.01 * diff if diff > 0 else 0
+                r = 0.01 * diff
+            else:
+                r = 0
         elif action == 1:
+            # close
             if self.order != 0:
-                r = 0.05 * diff if diff > 0 else 0
+                r = 0.2 * diff
                 self.sell_order(self.trading_data[-1])
+            else:
+                r = 0
         elif action == 2:
+            # buy
             if self.order == 0:
-                r = 0.02
+                r = 0.01
                 self.buy_order(self.trading_data[-1])
             else:
                 r = 0
@@ -253,7 +264,7 @@ class AutoTrading(A2C):
 
         state = np.array(data)
         done = True
-        info = {'order': self.order}
+        info = {'order': self.order/10000, 'price': self.trading_data[-1]/10000}
 
         return state, r, done, info
 
@@ -290,6 +301,7 @@ class AutoTrading(A2C):
             # if len(list(filter(lambda d: d['price'] == price, self.order_history))) == 0:
             self.order_history.append(order_info)
             self.order = price
+            self.norm_order = self.norm_data[-1]
             self.stop_loss = price - 150
             self.take_profit = take_profit
             self.order_type = 'buy'
@@ -320,6 +332,7 @@ class AutoTrading(A2C):
                 self.total_lost += diff
             # clear status
             self.order = 0
+            self.norm_order = 0
             self.order_type = 'sell'
             self.waiting_time = 0
 
@@ -371,12 +384,12 @@ class AutoTrading(A2C):
             time, cumul_reward, done = 0, 0, False
             actions, states, rewards = [], [], []
             start_idx = random.randint(0, len(raw_data) - 2000)
-            end_idx = start_idx + 1000
+            end_idx = start_idx + 500
             # price_data = list(reversed(price_data[start_idx: end_idx]))
             price_data = raw_data[start_idx: end_idx]
             inp1, inp2 = self.getState()
 
-            self.tqdm_e = tqdm(price_data, desc='Steps', leave=True, unit=" episodes")
+            self.tqdm_e = tqdm(price_data, desc='Score', leave=True, unit=" budget")
             for item in self.tqdm_e:
                 a = self.policy_action(inp1, inp2)
                 msg = {'k': {'c': item}}
@@ -384,23 +397,25 @@ class AutoTrading(A2C):
                 if ready:
                     cumul_reward += r
                     inp1 = new_state
-                    inp2 = np.array(1 if info['order'] else 0)
+                    inp2 = np.array([info['order'], info['price']])
                     actions.append(to_categorical(a, self.act_dim))
                     rewards.append(r)
                     states.append([inp1, inp2])
-                    self.tqdm_e.set_description("Profit: {}, Stop Loss: {}, Take Profit: {}, Cumul reward: {}".format(
+                    self.tqdm_e.set_description("Profit: {}, Stop Loss: {}, Take Profit: {}, Cumul reward: {}, EP: {}".format(
                         round(self.budget, 2),
                         round(self.total_lost, 2),
                         round(self.total_profit, 2),
-                        round(cumul_reward, 2)))
+                        round(cumul_reward, 2),
+                        e)
+                    )
                     self.tqdm_e.refresh()
-
+            done = True if self.budget > 0 else False
             self.train_models(states, actions, rewards, done)
-            start_idx = end_idx
+            trading_bot.reset()
 
     def getState(self):
-        inp1 = np.random.randint(0, 10, (10, 10))
-        inp2 = np.random.randint(0, 10, (1,))
+        inp1 = np.random.randint(0, 1, (10, 10))
+        inp2 = np.random.randint(0, 1, (2,))
         return inp1, inp2
 
 

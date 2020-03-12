@@ -20,7 +20,7 @@ class A2C:
     """ Actor-Critic Main Algorithm
     """
 
-    def __init__(self, act_dim, env_dim, k, gamma=0.99, lr=0.001):
+    def __init__(self, act_dim, env_dim, k, gamma=0.99, lr=0.0001):
         """ Initialization
         """
         # Environment and A2C parameters
@@ -70,9 +70,10 @@ class A2C:
         """ Compute the gamma-discounted rewards over an episode
         """
         discounted_r, cumul_r = np.zeros_like(r), 0
+        discredit = -0.02 if not done else 0
         for t in reversed(range(0, len(r))):
             reward = r[t]
-            cumul_r = reward + cumul_r * self.gamma
+            cumul_r = reward + (cumul_r * self.gamma) + discredit
             discounted_r[t] = cumul_r
         return discounted_r
 
@@ -89,7 +90,7 @@ class A2C:
         # print(advantages)
         # Networks optimization
         s1 = np.array([x[0] for x in states])
-        s2 = np.expand_dims(np.array([x[1] for x in states]), axis=1)
+        s2 = np.array([x[1] for x in states])
         self.a_opt([s1, s2, actions, advantages])
         self.c_opt([s1, s2, discounted_rewards])
 

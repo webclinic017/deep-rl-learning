@@ -1,6 +1,6 @@
 matplotlib
 python-binance
-keras
+Keras==2.1.6
 tqdm
 tensorflow-gpu==1.14
 pymongo
