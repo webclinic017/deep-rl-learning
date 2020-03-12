@@ -19,7 +19,7 @@ class Agent:
     def predict(self, inp1, inp2):
         """ Critic Value Prediction
         """
-        return self.model.predict(x=[self.reshape(inp1), self.reshape(inp2)])
+        return self.model.predict(x=[inp1, inp2])
 
     def reshape(self, x):
         if len(x.shape) < 3: return np.expand_dims(x, axis=0)

@@ -87,7 +87,7 @@ class AutoTrading(A2C):
     def buildNetwork(self):
         """ Assemble shared layers"""
         initial_input = Input(shape=(10, 10))
-        secondary_input = Input(shape=(2,))
+        secondary_input = Input(shape=(1,))
 
         lstm = LSTM(128, dropout=0.1, recurrent_dropout=0.3)(initial_input)
         dense = Dense(128, activation='relu')(secondary_input)
@@ -223,20 +223,20 @@ class AutoTrading(A2C):
         if action == 0:
             # hold
             if self.order != 0:
-                r = 0.01 * diff
+                r = 0
             else:
                 r = 0
         elif action == 1:
             # close
             if self.order != 0:
-                r = 0.2 * diff
+                r = 0.05 * diff
                 self.sell_order(self.trading_data[-1])
             else:
                 r = 0
         elif action == 2:
             # buy
             if self.order == 0:
-                r = 0.01
+                # r = 0.01
                 self.buy_order(self.trading_data[-1])
             else:
                 r = 0
@@ -264,9 +264,13 @@ class AutoTrading(A2C):
 
         state = np.array(data)
         done = True
-        info = {'order': self.order/10000, 'price': self.trading_data[-1]/10000}
+        info = {'diff': self.sigmoid(diff)}
 
         return state, r, done, info
+
+    @staticmethod
+    def sigmoid(x):
+        return 1 / (1 + math.exp(-x))
 
     def check_lost(self, price):
         """Close order when loss $5"""
@@ -379,7 +383,7 @@ class AutoTrading(A2C):
         episode = total_sample // 500
         start_idx = 0
 
-        for e in range(10000):
+        for e in range(1000):
             # A2C parameters
             time, cumul_reward, done = 0, 0, False
             actions, states, rewards = [], [], []
@@ -396,8 +400,8 @@ class AutoTrading(A2C):
                 new_state, r, ready, info = trading_bot.process_message(msg, a)
                 if ready:
                     cumul_reward += r
-                    inp1 = new_state
-                    inp2 = np.array([info['order'], info['price']])
+                    inp1 = np.array([new_state])
+                    inp2 = np.array([info['diff']])
                     actions.append(to_categorical(a, self.act_dim))
                     rewards.append(r)
                     states.append([inp1, inp2])
@@ -414,8 +418,8 @@ class AutoTrading(A2C):
             trading_bot.reset()
 
     def getState(self):
-        inp1 = np.random.randint(0, 1, (10, 10))
-        inp2 = np.random.randint(0, 1, (2,))
+        inp1 = np.random.randint(0, 1, (1, 10, 10))
+        inp2 = np.random.randint(0, 1, (1, 1))
         return inp1, inp2
 
 
