@@ -1,0 +1,6 @@
+matplotlib
+python-binance
+keras
+tqdm
+tensorflow-gpu==1.14
+pymongo
