@@ -18,7 +18,7 @@ import numpy as np
 from keras.layers import Input, Dense, Flatten, LSTM, concatenate
 from A2C.a2c import A2C
 
-logging.basicConfig(filename='../log/autotrade.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename='log/autotrade.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
 
 class AutoTrading(A2C):

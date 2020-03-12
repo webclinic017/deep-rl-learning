@@ -2,7 +2,7 @@ import random
 import numpy as np
 import logging
 
-logging.basicConfig(filename='../log/a2c.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename='log/a2c.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
 from tqdm import tqdm
 from keras.models import Model
