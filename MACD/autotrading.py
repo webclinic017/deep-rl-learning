@@ -345,7 +345,7 @@ class AutoTrading(A2C):
 
     def getStockDataVec(self, key):
         indexes = []
-        lines = open("../data/" + key + ".csv", "r").read().splitlines()
+        lines = open("data/" + key + ".csv", "r").read().splitlines()
         prices = []
         delimiter = ','
         for _index, line in enumerate(lines[2:]):
