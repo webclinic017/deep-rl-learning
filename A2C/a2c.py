@@ -20,7 +20,7 @@ class A2C:
     """ Actor-Critic Main Algorithm
     """
 
-    def __init__(self, act_dim, env_dim, k, gamma=0.95, lr=0.0001):
+    def __init__(self, act_dim, env_dim, k, gamma=0.997, lr=0.001):
         """ Initialization
         """
         # Environment and A2C parameters
@@ -66,13 +66,15 @@ class A2C:
             action = np.random.randint(0, self.act_dim)
         return action
 
-    def discount(self, r, done):
+    def discount(self, r, done, a):
         """ Compute the gamma-discounted rewards over an episode
         """
         discounted_r, cumul_r = np.zeros_like(r), 0
-        discredit = -0.02 if not done else 0.1
+        discredit = 0
         for t in reversed(range(0, len(r))):
             reward = r[t]
+            if np.argmax(a[t]) == 2:
+                discredit = -0.02 if not done else 0.01
             cumul_r = reward + (cumul_r * self.gamma) + discredit
             discounted_r[t] = cumul_r
         return discounted_r
@@ -81,7 +83,7 @@ class A2C:
         """ Update actor and critic networks from experience
         """
         # Compute discounted rewards and Advantage (TD. Error)
-        discounted_rewards = self.discount(rewards, done)
+        discounted_rewards = self.discount(rewards, done, actions)
         s1 = np.array([x[0][0] for x in states])
         s2 = np.array([x[1] for x in states])
         state_values = self.critic.predict(s1, s2)

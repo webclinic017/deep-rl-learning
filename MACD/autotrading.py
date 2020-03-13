@@ -86,7 +86,7 @@ class AutoTrading(A2C):
 
     def buildNetwork(self):
         """ Assemble shared layers"""
-        initial_input = Input(shape=(10, 10))
+        initial_input = Input(shape=(2, 10))
         secondary_input = Input(shape=(1,))
 
         lstm = LSTM(128, dropout=0.1, recurrent_dropout=0.3)(initial_input)
@@ -223,7 +223,7 @@ class AutoTrading(A2C):
         if action == 0:
             # hold
             if self.order != 0:
-                r = 0
+                r = 0.01 * diff
             else:
                 r = 0
         elif action == 1:
@@ -255,16 +255,12 @@ class AutoTrading(A2C):
         # self.fig.canvas.draw()
         # plt.pause(0.00001)
 
-        d = 80
-        data = []
-        for i in range(10):
-            block = histogram_cp[d:d+10]
-            data.append(block)
-            d += 1
-
+        block1 = exp3[-10:]
+        block2 = macd[-10:]
+        data = [block1, block2]
         state = np.array(data)
         done = True
-        info = {'diff': self.sigmoid(diff)}
+        info = {'diff': 1 if self.order else 0}
 
         return state, r, done, info
 
@@ -383,7 +379,7 @@ class AutoTrading(A2C):
         episode = total_sample // 500
         start_idx = 0
 
-        for e in range(1000):
+        for e in range(10000):
             # A2C parameters
             time, cumul_reward, done = 0, 0, False
             actions, states, rewards = [], [], []
@@ -418,7 +414,7 @@ class AutoTrading(A2C):
             trading_bot.reset()
 
     def getState(self):
-        inp1 = np.random.randint(0, 1, (1, 10, 10))
+        inp1 = np.random.randint(0, 1, (1, 2, 10))
         inp2 = np.random.randint(0, 1, (1, 1))
         return inp1, inp2
 
@@ -431,5 +427,5 @@ if __name__ == '__main__':
     trading_bot = AutoTrading(action_dim, state_dim, consecutive_frames)
     trading_bot.start_mockup("train")
 
-    trading_bot.save_weights('models/new_way')
+    trading_bot.save_weights('MACD/models/new_way')
     # trading_bot.start_socket()
