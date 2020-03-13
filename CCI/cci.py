@@ -16,6 +16,7 @@ def CalculateCCI(dataRaw, ndays):
 # data = web.get_data_yahoo("^NSEI", start="2019-01-01", end="2019-03-13")
 order = 0
 budget = 0
+total_step = 0
 plt.show()
 fig = plt.figure(figsize=(7, 5))
 header_list = ["Open", "High", "Low", "Close"]
@@ -31,18 +32,23 @@ for x in range(len(data)):
     current_cci = round(list(CCI)[-1], 2)
     prev_cci = round(list(CCI)[-2], 2)
     # is_close_buy_signal = list(np.isclose([current_cci], [-200.0], atol=10))[0]
-    if order == 0 and current_cci < -200:
+    if order == 0 and current_cci < -180:
         if prev_cci < current_cci:
-            is_close_buy_signal = list(np.isclose([current_cci], [-200.0], atol=10))[0]
-            order = list(data1['Close'])[-1]
-            print("buy: {}".format(current_cci))
+            is_close_buy_signal = list(np.isclose([current_cci], [-200.0], atol=20))[0]
+            if is_close_buy_signal and current_cci > -200:
+                order = list(data1['Close'])[-1]
+                print("buy: {}".format(current_cci))
+                total_step = 0
 
     is_close_sell_signal = list(np.isclose([current_cci], [0.0], atol=20))[0]
     if is_close_sell_signal and order != 0 and current_cci > 0.0:
         budget += list(data1['Close'])[-1] - order
-        print("sell: {} budget: {}".format(current_cci, round(budget, 2)))
+        print("sell: {} budget: {} total step: {}".format(current_cci, round(budget, 2), total_step))
         order = 0
+        total_step = 0
 
+    if order != 0:
+        total_step += 1
     # if order != 0 and list(data1['Close'])[-1] - order > 10:
     #     budget += list(data1['Close'])[-1] - order
     #     print("take profit: {} budget: {}".format(current_cci, round(budget, 2)))
