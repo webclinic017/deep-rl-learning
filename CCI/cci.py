@@ -16,38 +16,42 @@ def CalculateCCI(dataRaw, ndays):
 # data = web.get_data_yahoo("^NSEI", start="2019-01-01", end="2019-03-13")
 order = 0
 budget = 0
-max_cci = 0
 plt.show()
 fig = plt.figure(figsize=(7, 5))
-header_list = ["Open", "High", "Low", "Close", "Volume", "Adj Close"]
-data = pd.read_csv("data/1hour.csv", sep=',')
+header_list = ["Open", "High", "Low", "Close"]
+data = pd.read_csv("data/15minute.csv", sep=',')
 for x in range(len(data)):
-    data1 = data.iloc[x:x+60, :]
+    data1 = data.iloc[x:x+200, :]
 
     # Compute the Commodity Channel Index(CCI) for NIFTY based on the 20-day Moving average
     n = 20
     NI = CalculateCCI(data1, n)
     CCI = NI['CCI']
-    current_cci = list(CCI)[-1]
-    is_close_buy_signal = list(np.isclose([current_cci], [100.0], atol=1))[0]
-    if is_close_buy_signal and order == 0:
-        max_cci = current_cci
-        order = list(data1['Close'])[-1]
-        # print("buy: {}".format(current_cci))
+    CCI = CCI.fillna(0)
+    current_cci = round(list(CCI)[-1], 2)
+    prev_cci = round(list(CCI)[-2], 2)
+    # is_close_buy_signal = list(np.isclose([current_cci], [-200.0], atol=10))[0]
+    if order == 0 and current_cci < -200:
+        if prev_cci < current_cci:
+            is_close_buy_signal = list(np.isclose([current_cci], [-200.0], atol=10))[0]
+            order = list(data1['Close'])[-1]
+            print("buy: {}".format(current_cci))
 
-    is_close_positive_120 = list(np.isclose([current_cci], [150.0], atol=2))[0]
-    if is_close_positive_120 and order != 0 and current_cci > 200:
+    is_close_sell_signal = list(np.isclose([current_cci], [0.0], atol=20))[0]
+    if is_close_sell_signal and order != 0 and current_cci > 0.0:
         budget += list(data1['Close'])[-1] - order
-        print("take profit: {} budget: {}".format(current_cci, budget))
-        max_cci = 0
+        print("sell: {} budget: {}".format(current_cci, round(budget, 2)))
         order = 0
 
-    is_close_positive_100 = list(np.isclose([current_cci], [100.0], atol=2))[0]
-    if is_close_positive_100 and order != 0 and current_cci < 100:
-        budget += list(data1['Close'])[-1] - order
-        print("stop loss: {} budget: {}".format(current_cci, budget))
-        max_cci = 0
-        order = 0
+    # if order != 0 and list(data1['Close'])[-1] - order > 10:
+    #     budget += list(data1['Close'])[-1] - order
+    #     print("take profit: {} budget: {}".format(current_cci, round(budget, 2)))
+    #     order = 0
+
+    # if order != 0 and list(data1['Close'])[-1] - order < -5:
+    #     budget += list(data1['Close'])[-1] - order
+    #     print("stop loss: {} budget: {}".format(current_cci, round(budget, 2)))
+    #     order = 0
 
     # Plotting the Price Series chart and the Commodity Channel index below
     # ax = fig.add_subplot(2, 1, 1)
