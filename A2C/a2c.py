@@ -74,7 +74,7 @@ class A2C:
         for t in reversed(range(0, len(r))):
             reward = r[t]
             if np.argmax(a[t]) == 2:
-                discredit = -0.02 if not done else 0.01
+                discredit = -0.05 if not done else 0.1
             cumul_r = reward + (cumul_r * self.gamma) + discredit
             discounted_r[t] = cumul_r
         return discounted_r

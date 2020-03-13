@@ -234,14 +234,14 @@ class AutoTrading(A2C):
                     r = 0.05 * diff
                 self.sell_order(self.trading_data[-1])
             else:
-                r = 0
+                r = -0.01
         elif action == 2:
             # buy
             if self.order == 0:
                 # r = 0.01
                 self.buy_order(self.trading_data[-1])
             else:
-                r = 0
+                r = -0.01
 
         # self.ax1.cla()
         # self.ax2.cla()
