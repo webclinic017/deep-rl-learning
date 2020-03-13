@@ -223,13 +223,15 @@ class AutoTrading(A2C):
         if action == 0:
             # hold
             if self.order != 0:
-                r = 0.01 * diff
+                if diff > 0:
+                    r = 0.01 * diff
             else:
                 r = 0
         elif action == 1:
             # close
             if self.order != 0:
-                r = 0.05 * diff
+                if diff > 0:
+                    r = 0.05 * diff
                 self.sell_order(self.trading_data[-1])
             else:
                 r = 0
