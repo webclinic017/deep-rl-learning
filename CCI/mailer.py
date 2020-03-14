@@ -19,7 +19,7 @@ class SendMail:
             <html>
                 <body>
                     <h1>Summary</h1>
-                    
+                    {}
                 </body>
             
             </html>
