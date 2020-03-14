@@ -20,7 +20,7 @@ class A2C:
     """ Actor-Critic Main Algorithm
     """
 
-    def __init__(self, act_dim, env_dim, k, gamma=0.99, lr=0.0001):
+    def __init__(self, act_dim, env_dim, k, gamma=0.997, lr=0.001):
         """ Initialization
         """
         # Environment and A2C parameters
@@ -41,7 +41,6 @@ class A2C:
         """ Assemble shared layers
         """
         inp = Input((self.env_dim))
-        # x = Flatten()(inp)
         x = LSTM(128, dropout=0.1, recurrent_dropout=0.3)(inp)
         x = Dense(128, activation='relu')(x)
         x = Dense(128, activation='relu')(x)
@@ -49,10 +48,10 @@ class A2C:
         x = Dense(32, activation='relu')(x)
         return Model(inp, x)
 
-    def policy_action(self, s):
+    def policy_action(self, inp1, inp2):
         """ Use the actor to predict the next action to take, using the policy
         """
-        p = self.actor.predict(s)
+        p = self.actor.predict(inp1, inp2)
         action = np.random.choice(np.arange(self.act_dim), 1, p=p.ravel())[0]
         logging.warning("a: {}, p: {}".format(action, p))
         return action
@@ -67,13 +66,16 @@ class A2C:
             action = np.random.randint(0, self.act_dim)
         return action
 
-    def discount(self, r, done):
+    def discount(self, r, done, a):
         """ Compute the gamma-discounted rewards over an episode
         """
         discounted_r, cumul_r = np.zeros_like(r), 0
+        discredit = 0
         for t in reversed(range(0, len(r))):
             reward = r[t]
-            cumul_r = reward + cumul_r * self.gamma
+            if np.argmax(a[t]) == 2:
+                discredit = -0.05 if not done else 0.1
+            cumul_r = reward + (cumul_r * self.gamma) + discredit
             discounted_r[t] = cumul_r
         return discounted_r
 
@@ -81,13 +83,17 @@ class A2C:
         """ Update actor and critic networks from experience
         """
         # Compute discounted rewards and Advantage (TD. Error)
-        discounted_rewards = self.discount(rewards, done)
-        state_values = self.critic.predict(np.array(states))
+        discounted_rewards = self.discount(rewards, done, actions)
+        s1 = np.array([x[0][0] for x in states])
+        s2 = np.array([x[1] for x in states])
+        state_values = self.critic.predict(s1, s2)
+
         advantages = discounted_rewards - np.reshape(state_values, len(state_values))
         # print(advantages)
         # Networks optimization
-        self.a_opt([states, actions, advantages])
-        self.c_opt([states, discounted_rewards])
+
+        self.a_opt([s1, s2, actions, advantages])
+        self.c_opt([s1, s2, discounted_rewards])
 
     def train(self, env, args, summary_writer):
         """ Main A2C Training Algorithm
