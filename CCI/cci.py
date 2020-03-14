@@ -15,6 +15,7 @@ from binance.enums import KLINE_INTERVAL_1HOUR
 from binance.websockets import BinanceSocketManager
 from pymongo import MongoClient
 from tqdm import tqdm
+from CCI.mailer import SendMail
 
 logging.basicConfig(filename='log/cci.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
@@ -110,23 +111,37 @@ class AutoTrading:
         info = self.binace_client.get_margin_account()
         current_btc = info['totalAssetOfBtc']
         symbol = 'BTCUSDT'
+        amount = float(current_btc) * 0.5
+        precision = 5
+        amt_str = "{:0.0{}f}".format(amount, precision)
+        mailer = SendMail()
         sell_order = self.binace_client.create_margin_order(
             symbol=symbol,
             side=SIDE_SELL,
             type=ORDER_TYPE_MARKET,
-            quantity=float(current_btc)*0.5)
-        print("Sell successfully: {} Amout: {}".format(sell_order['orderId'], current_btc*0.5))
+            quantity=amt_str)
+        txt = "Sell successfully: {} Amout: {}".format(sell_order['orderId'], amt_str)
+        print(txt)
+        mailer.notification(txt)
 
     def buy_margin(self):
         info = self.binace_client.get_margin_account()
         current_btc = info['totalAssetOfBtc']
         symbol = 'BTCUSDT'
+        amount = float(current_btc) * 0.5
+        precision = 5
+        amt_str = "{:0.0{}f}".format(amount, precision)
+        mailer = SendMail()
+
         buy_order = self.binace_client.create_margin_order(
             symbol=symbol,
             side=SIDE_BUY,
             type=ORDER_TYPE_MARKET,
-            quantity=float(current_btc)*0.5)
-        print("Buy successfully: {} Amout: {}".format(buy_order['orderId'], current_btc*0.5))
+            quantity=amt_str)
+
+        txt = "Buy successfully: {} Amout: {}".format(buy_order['orderId'], amt_str)
+        print(txt)
+        mailer.notification(txt)
 
     def start_socket(self):
         # start any sockets here, i.e a trade socket
