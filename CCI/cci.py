@@ -111,6 +111,17 @@ class AutoTrading:
             n = 20
             data1 = self.data.iloc[-200:, :]
             NI = self.calculate_cci(data1, n)
+
+            # calculate macd
+            df = data1[['Close']]
+            df.reset_index(level=0, inplace=True)
+            df.columns = ['ds', 'y']
+            exp1 = df.y.ewm(span=12, adjust=False).mean()
+            exp2 = df.y.ewm(span=26, adjust=False).mean()
+            macd = exp1 - exp2
+            exp3 = macd.ewm(span=9, adjust=False).mean()
+            histogram = macd - exp3
+
             CCI = NI['CCI']
             CCI = CCI.fillna(0)
             current_cci = round(list(CCI)[-1], 2)
