@@ -71,77 +71,69 @@ class AutoTrading:
 
     def test_order(self):
         info = self.binace_client.get_margin_account()
+        get_margin_asset = self.binace_client.get_margin_asset(asset='BTC')
+
+        usdt_amount = info['userAssets'][2]['free']
+        details = self.binace_client.get_max_margin_transfer(asset='BTC')
         print("Margin Lever: {}".format(info['marginLevel']))
         print("Amount in BTC: {}".format(info['totalAssetOfBtc']))
         print("Account Status: {}".format(info['tradeEnabled']))
 
         symbol = 'BTCUSDT'
-        info = self.binace_client.get_margin_price_index(symbol='BTCUSDT')
-        current_btc = info['totalAssetOfBtc']
-        amount = 0.002
-
-        buy_order = self.binace_client.create_margin_order(
-            symbol=symbol,
-            side=SIDE_SELL,
-            type=ORDER_TYPE_MARKET,
-            quantity=amount)
-
-        order_id = buy_order['orderId']
-        print("Test Order ID: {}".format(order_id))
-
-        order_status = self.binace_client.get_margin_order(
-            symbol=symbol,
-            orderId=order_id)
-
-        pprint(order_status)
-
-        open_orders = self.binace_client.get_open_margin_orders(symbol=symbol)
-
-        pprint(open_orders)
-
-        # result = self.binace_client.cancel_margin_order(
-        #     symbol=symbol,
-        #     orderId=order_id)
-
-        # pprint(result)
+        self.buy_margin()
+        time.sleep(5)
+        self.sell_margin()
 
         print("Test Done!!")
 
     def sell_margin(self):
         info = self.binace_client.get_margin_account()
-        current_btc = info['totalAssetOfBtc']
         symbol = 'BTCUSDT'
-        amount = float(current_btc) * 0.5
+        amount = self.binace_client.get_max_margin_transfer(asset='BTC')
         precision = 5
-        amt_str = "{:0.0{}f}".format(amount, precision)
+        amt_str = "{:0.0{}f}".format(float(amount['amount'])*0.95, precision)
         mailer = SendMail()
-        sell_order = self.binace_client.create_margin_order(
-            symbol=symbol,
-            side=SIDE_SELL,
-            type=ORDER_TYPE_MARKET,
-            quantity=amt_str)
-        txt = "Sell successfully: {} Amout: {}".format(sell_order['orderId'], amt_str)
-        print(txt)
-        mailer.notification(txt)
+        try:
+            sell_order = self.binace_client.create_margin_order(
+                symbol=symbol,
+                side=SIDE_SELL,
+                type=ORDER_TYPE_MARKET,
+                quantity=amt_str)
+
+            info = self.binace_client.get_margin_account()
+            current_btc = info['totalAssetOfBtc']
+            txt = "Sell successfully: {} Amout: {} Owned BTC: {}".format(sell_order['orderId'], amt_str, current_btc)
+            print(txt)
+            mailer.notification(txt)
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
 
     def buy_margin(self):
-        info = self.binace_client.get_margin_account()
-        current_btc = info['totalAssetOfBtc']
         symbol = 'BTCUSDT'
-        amount = float(current_btc) * 0.5
+        info = self.binace_client.get_margin_account()
+        usdt_amount = info['userAssets'][2]['free']
+        price_index = self.binace_client.get_margin_price_index(symbol=symbol)
+        amount = float(usdt_amount)/float(price_index['price'])
         precision = 5
-        amt_str = "{:0.0{}f}".format(amount, precision)
+        amt_str = "{:0.0{}f}".format(amount*0.95, precision)
         mailer = SendMail()
 
-        buy_order = self.binace_client.create_margin_order(
-            symbol=symbol,
-            side=SIDE_BUY,
-            type=ORDER_TYPE_MARKET,
-            quantity=amt_str)
+        try:
+            buy_order = self.binace_client.create_margin_order(
+                symbol=symbol,
+                side=SIDE_BUY,
+                type=ORDER_TYPE_MARKET,
+                quantity=amt_str)
 
-        txt = "Buy successfully: {} Amout: {}".format(buy_order['orderId'], amt_str)
-        print(txt)
-        mailer.notification(txt)
+            txt = "Buy successfully: {} Amout: {}".format(buy_order['orderId'], amt_str)
+            print(txt)
+            mailer.notification(txt)
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
 
     def start_socket(self):
         # start any sockets here, i.e a trade socket
@@ -178,46 +170,45 @@ class AutoTrading:
                 if prev_cci < current_cci:
                     is_close_buy_signal = list(np.isclose([anomaly_point], [-150.0], atol=20))[0]
                     if is_close_buy_signal and anomaly_point > -150:
-                        self.order = list(data1['Close'])[-1]
-                        print("buy: {}".format(current_price))
-                        self.buy_margin()
+                        if self.buy_margin():
+                            self.order = list(data1['Close'])[-1]
+                            print("buy: {}".format(current_price))
 
             elif self.order != 0 and list(np.isclose([anomaly_point], [0.0], atol=10))[0]:
                 # close order 50:50
                 if current_cci > 0.0:
-                    self.budget += current_price - self.order
-                    print(
-                        "sell: {} budget: {} total step: {}".format(current_price, round(self.budget, 2),
-                                                                    self.total_step))
-                    self.order = 0
-                    self.total_step = 0
-                    self.sell_margin()
+                    if self.sell_margin():
+                        self.budget += current_price - self.order
+                        print(
+                            "sell: {} budget: {} total step: {}".format(current_price, round(self.budget, 2),
+                                                                        self.total_step))
+                        self.order = 0
+                        self.total_step = 0
 
             elif self.order != 0 and list(np.isclose([anomaly_point], [100.0], atol=10))[0]:
                 # take profit
                 if current_cci > 100.0:
-                    self.budget += current_price - self.order
-                    print(
-                        "sell: {} budget: {} total step: {}".format(current_price, round(self.budget, 2),
-                                                                    self.total_step))
-                    self.order = 0
-                    self.total_step = 0
-                    self.sell_margin()
+                    if self.sell_margin():
+                        self.budget += current_price - self.order
+                        print(
+                            "sell: {} budget: {} total step: {}".format(current_price, round(self.budget, 2),
+                                                                        self.total_step))
+                        self.order = 0
+                        self.total_step = 0
 
             elif self.order != 0 and list(np.isclose([anomaly_point], [200.0], atol=20))[0]:
                 # Super take profit
                 if current_cci > 180.0:
-                    self.budget += current_price - self.order
-                    print(
-                        "sell: {} budget: {} total step: {}".format(current_price, round(self.budget, 2),
-                                                                    self.total_step))
-                    self.order = 0
-                    self.total_step = 0
-                    self.sell_margin()
+                    if self.sell_margin():
+                        self.budget += current_price - self.order
+                        print(
+                            "sell: {} budget: {} total step: {}".format(current_price, round(self.budget, 2),
+                                                                        self.total_step))
+                        self.order = 0
+                        self.total_step = 0
 
             if self.order != 0:
                 self.total_step += 1
-
 
     def mock_data(self):
         df = pd.read_csv("data/5minute.csv", sep=',')
