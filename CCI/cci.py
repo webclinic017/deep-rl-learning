@@ -18,9 +18,7 @@ logging.basicConfig(filename='log/cci.log', filemode='w', format='%(name)s - %(l
 
 
 class AutoTrading:
-    def __init__(self, act_dim, env_dim, k):
-        super().__init__(act_dim, env_dim, k)
-        self.actions, self.states, self.rewards = [], [], []
+    def __init__(self):
         self.api_key = "y9JKPpQ3B2zwIRD9GwlcoCXwvA3mwBLiNTriw6sCot13IuRvYKigigXYWCzCRiul"
         self.api_secret = "uUdxQdnVR48w5ypYxfsi7xK6e6W2v3GL8YrAZp5YeY1GicGbh3N5NI71Pss0crfJ"
         self.binace_client = Client(self.api_key, self.api_secret)
@@ -29,151 +27,151 @@ class AutoTrading:
         self.client = MongoClient()
         self.db = self.client.crypto
 
-    def CalculateCCI(dataRaw, ndays):
+        # env
+        self.order = 0
+        self.budget = 0
+        self.total_step = 0
+        self.header_list = ["Open", "High", "Low", "Close"]
+        # self.data = pd.read_csv("data/bnb5minute.csv", sep=',')
+        self.exp4 = []
+        self.exp5 = []
+        self.exp6 = []
+        self.exp7 = []
+        self.delta = []
+        self.budget_list = []
+        klines = self.binace_client.get_historical_klines("BTCUSDT", Client.KLINE_INTERVAL_5MINUTE, "13 Mar, 2020")
+        df = pd.DataFrame(klines, columns=['open_time', 'Open', 'High', 'Low', 'Close',
+                                                'Volume', 'close_time', 'quote_asset_volume', 'number_of_trades',
+                                                'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
+        df = df.drop(['open_time', 'Volume', 'close_time', 'quote_asset_volume', 'number_of_trades',
+                      'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'], axis=1)
+        df['Open'] = df['Open'].astype(float)
+        df['High'] = df['High'].astype(float)
+        df['Low'] = df['Low'].astype(float)
+        df['Close'] = df['Close'].astype(float)
+        self.data = df
+
+        # draw canvas
+        # self.fig = plt.figure()
+        # self.ax = self.fig.add_subplot(311, label='Price')
+        # self.bx = self.fig.add_subplot(312, label='CCI')
+        # self.cx = self.fig.add_subplot(313, label='Budget')
+        # plt.show()
+
+    @staticmethod
+    def calculate_cci(dataRaw, ndays):
         """Commodity Channel Index"""
         TP = (dataRaw['High'] + dataRaw['Low'] + dataRaw['Close']) / 3
         rawCCI = pd.Series((TP - pd.rolling_mean(TP, ndays)) / (0.015 * pd.rolling_std(TP, ndays)), name='CCI')
         return_data = dataRaw.join(rawCCI)
         return return_data
 
-
-# Retrieve the Nifty data from Yahoo finance:
-# data = web.get_data_yahoo("^NSEI", start="2019-01-01", end="2019-03-13")
-order = 0
-budget = 0
-total_step = 0
-fig = plt.figure(figsize=(7, 5))
-header_list = ["Open", "High", "Low", "Close"]
-data = pd.read_csv("data/bnb5minute.csv", sep=',')
-exp4 = []
-exp5 = []
-exp6 = []
-exp7 = []
-delta = []
-budget_list = []
-for x in range(0, len(data) - 200):
-    data1 = data.iloc[x:x+200, :]
-
-    # Compute the Commodity Channel Index(CCI) for NIFTY based on the 20-day Moving average
-    n = 20
-    NI = CalculateCCI(data1, n)
-    CCI = NI['CCI']
-    CCI = CCI.fillna(0)
-    current_cci = round(list(CCI)[-1], 2)
-    prev_cci = round(list(CCI)[-2], 2)
-    prev_prev_cci = round(list(CCI)[-3], 2)
-
-    exp4 = [x1 - 1 for x1 in exp4]
-    exp6 = [x - 1 for x in exp6]
-    point_1 = list(data1['Close'])[0]
-    delta.append(np.mean([current_cci, prev_cci, prev_prev_cci]))
-    anomaly_point = delta[-1]
-    current_price = list(data1['Close'])[-1]
-
-    if order == 0 and anomaly_point < -100:
-        if prev_cci < current_cci:
-            is_close_buy_signal = list(np.isclose([anomaly_point], [-150.0], atol=20))[0]
-            if is_close_buy_signal and anomaly_point > -150:
-                order = list(data1['Close'])[-1]
-                # print("buy: {}".format(current_cci))
-                exp4.append(len(list(data1['Close'])))
-                exp5.append(list(data1['Close'])[-1])
-                total_step = 0
-
-    # elif order == 0 and 50 < np.mean([x for x in list(CCI)[-5:]]) <= 100:
-    #     if current_cci > 100:
-    #         order = list(data1['Close'])[-1]
-    #         # print("buy: {}".format(current_cci))
-    #         exp4.append(len(list(data1['Close'])))
-    #         exp5.append(list(data1['Close'])[-1])
-    #         total_step = 0
-
-    elif order != 0 and list(np.isclose([anomaly_point], [0.0], atol=10))[0]:
-        if current_cci > 0.0:
-            budget += list(data1['Close'])[-1] - order
-            print("sell: {} budget: {} total step: {}".format(anomaly_point, round(budget, 2), total_step))
-            order = 0
-            total_step = 0
-            exp6.append(len(list(data1['Close'])))
-            exp7.append(list(data1['Close'])[-1])
-            budget_list.append(budget)
-
-    elif order != 0 and list(np.isclose([anomaly_point], [100.0], atol=20))[0]:
-        if current_cci > 100.0:
-            budget += list(data1['Close'])[-1] - order
-            print("sell: {} budget: {} total step: {}".format(anomaly_point, round(budget, 2), total_step))
-            order = 0
-            total_step = 0
-            exp6.append(len(list(data1['Close'])))
-            exp7.append(list(data1['Close'])[-1])
-            budget_list.append(budget)
-
-    # if order != 0:
-    #     if list(np.isclose([anomaly_point], [200.0], atol=30))[0]:
-    #         budget += list(data1['Close'])[-1] - order
-    #         print("sell: {} budget: {} total step: {}".format(anomaly_point, round(budget, 2), total_step))
-    #         order = 0
-    #         total_step = 0
-    #         exp6.append(len(list(data1['Close'])))
-    #         exp7.append(list(data1['Close'])[-1])
-
-    # if order != 0 and current_price - order < -10:
-    #     # stop loss
-    #     budget += list(data1['Close'])[-1] - order
-    #     print("stop loss: {} budget: {} total step: {}".format(current_cci, round(budget, 2), total_step))
-    #     order = 0
-    #     total_step = 0
-    #     exp6.append(len(list(data1['Close'])))
-    #     exp7.append(list(data1['Close'])[-1])
-
-    if order != 0:
-        total_step += 1
-
-    for x4 in exp4:
-        if x4 < 20:
-            exp4 = exp4[1:]
-            exp5 = exp5[1:]
-
-    for x6 in exp6:
-        if x6 < 20:
-            exp6 = exp6[1:]
-            exp7 = exp7[1:]
-
-    if len(delta) >= 200:
-        delta.pop(0)
-
-    # if len(budget_list) >= 200:
-    #     budget_list.pop(0)
-
-    if x == len(data) - 200 - 1:
+    def plot_data(self):
         # Plotting the Price Series chart and the Commodity Channel index below
-        index = [i for i, val in enumerate(list(data['Close']))]
-        ax = fig.add_subplot(2, 1, 1)
-        ax.set_xticklabels([])
-        plt.plot(index, data['Close'], lw=1)
-        plt.plot(exp4, exp5, 'ro', color='g')
-        plt.plot(exp6, exp7, 'ro', color='r')
-        plt.title('BNBUSDT Chart')
-        plt.ylabel('Close Price')
-        plt.grid(True)
-        # bx = fig.add_subplot(4, 1, 2)
-        # plt.plot(index, CCI, 'k', lw=0.75, linestyle='-', label='CCI')
-        # plt.legend(loc=2, prop={'size': 9.5})
-        # plt.ylabel('CCI values')
-        # plt.grid(True)
-        # cx = fig.add_subplot(4, 1, 3)
-        # plt.plot(delta)
-        # plt.ylabel('Delta')
-        # plt.grid(True)
-        dx = fig.add_subplot(2, 1, 2)
-        plt.plot(budget_list)
-        plt.ylabel('Budget')
-        plt.grid(True)
-        plt.setp(plt.gca().get_xticklabels(), rotation=30)
-
+        self.ax.cla()
+        self.bx.cla()
+        self.cx.cla()
+        index = [i for i, val in enumerate(list(self.data['Close']))]
+        self.ax.set_xticklabels([])
+        self.ax.plot(index, self.data['Close'], lw=1, label='Price')
+        self.ax.plot(self.exp4, self.exp5, 'ro', color='g')
+        self.ax.plot(self.exp6, self.exp7, 'ro', color='r')
+        self.ax.legend(loc='upper left')
+        self.ax.grid(True)
+        self.bx.set_xticklabels([])
+        self.bx.plot(self.delta, label='Delta')
+        self.bx.legend(loc='upper left')
+        self.bx.grid(True)
+        self.cx.set_xticklabels([])
+        self.cx.plot(self.budget_list, label='Budget')
+        self.cx.legend(loc='upper left')
+        self.cx.grid(True)
+        self.fig.canvas.draw()
         plt.pause(0.0001)
-        plt.show()
-        # ax.cla()
-        # bx.cla()
-        # cx.cla()
-        # plt.cla()
+
+    def start_socket(self):
+        # start any sockets here, i.e a trade socket
+        conn_key = self.bm.start_kline_socket('BTCUSDT', self.process_message, interval=KLINE_INTERVAL_1MINUTE)
+        # then start the socket manager
+        self.bm.start()
+
+    def process_message(self, msg):
+        msg = msg['k']
+        _open = float(msg['o'])
+        _high = float(msg['h'])
+        _low = float(msg['l'])
+        _close = float(msg['c'])
+        _latest = msg['x']
+        insert = self.db.btc15minutes.insert_one(msg).inserted_id
+
+        if _latest:
+            df2 = pd.DataFrame([[_open, _high, _low, _close]], columns=['Open', 'High', 'Low', 'Close'])
+            self.data = pd.concat((self.data, df2), ignore_index=True)
+            # self.data.append(df2, ignore_index=True)
+            n = 20
+            data1 = self.data.iloc[-200:, :]
+            NI = self.calculate_cci(data1, n)
+            CCI = NI['CCI']
+            CCI = CCI.fillna(0)
+            current_cci = round(list(CCI)[-1], 2)
+            prev_cci = round(list(CCI)[-2], 2)
+            prev_prev_cci = round(list(CCI)[-3], 2)
+
+            # exp4 = [x1 - 1 for x1 in self.exp4]
+            # exp6 = [x - 1 for x in self.exp6]
+            anomaly_point = np.mean([current_cci, prev_cci, prev_prev_cci])
+            self.delta.append(anomaly_point)
+            current_price = list(data1['Close'])[-1]
+
+            if self.order == 0 and anomaly_point < -100:
+                if prev_cci < current_cci:
+                    is_close_buy_signal = list(np.isclose([anomaly_point], [-150.0], atol=20))[0]
+                    if is_close_buy_signal and anomaly_point > -150:
+                        self.order = current_price
+                        # print("buy: {}".format(current_cci))
+                        # self.exp4.append(len(list(data1['Close'])))
+                        # self.exp5.append(current_price)
+                        self.total_step = 0
+
+            elif self.order != 0 and list(np.isclose([anomaly_point], [0.0], atol=10))[0]:
+                if current_cci > 0.0:
+                    self.budget += current_price - self.order
+                    print("sell: {} budget: {} total step: {}".format(anomaly_point, round(self.budget, 2), self.total_step))
+                    self.order = 0
+                    self.total_step = 0
+                    # self.exp6.append(len(list(data1['Close'])))
+                    # self.exp7.append(current_price)
+                    self.budget_list.append(self.budget)
+
+            elif self.order != 0 and list(np.isclose([anomaly_point], [100.0], atol=20))[0]:
+                if current_cci > 100.0:
+                    self.budget += current_price - self.order
+                    print("sell: {} budget: {} total step: {}".format(anomaly_point, round(self.budget, 2), self.total_step))
+                    self.order = 0
+                    self.total_step = 0
+                    # self.exp6.append(len(list(data1['Close'])))
+                    # self.exp7.append(current_price)
+                    self.budget_list.append(self.budget)
+
+            if self.order != 0:
+                self.total_step += 1
+
+            # for x4 in exp4:
+            #     if x4 < 20:
+            #         self.exp4 = self.exp4[1:]
+            #         self.exp5 = self.exp5[1:]
+            #
+            # for x6 in exp6:
+            #     if x6 < 20:
+            #         self.exp6 = self.exp6[1:]
+            #         self.exp7 = self.exp7[1:]
+            #
+            # if len(self.delta) >= 200:
+            #     self.delta.pop(0)
+
+            # self.plot_data()
+
+
+if __name__ == '__main__':
+    trading_bot = AutoTrading()
+    trading_bot.start_socket()
