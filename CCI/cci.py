@@ -15,9 +15,9 @@ from binance.enums import KLINE_INTERVAL_1HOUR
 from binance.websockets import BinanceSocketManager
 from pymongo import MongoClient
 from tqdm import tqdm
-from CCI.mailer import SendMail
+from mailer import SendMail
 
-logging.basicConfig(filename='log/cci.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename='../log/cci.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
 
 class AutoTrading:
@@ -75,8 +75,11 @@ class AutoTrading:
 
         usdt_amount = info['userAssets'][2]['free']
         details = self.binace_client.get_max_margin_transfer(asset='BTC')
+        logging.warning("Margin Lever: {}".format(info['marginLevel']))
         print("Margin Lever: {}".format(info['marginLevel']))
+        logging.warning("Amount in BTC: {}".format(info['totalAssetOfBtc']))
         print("Amount in BTC: {}".format(info['totalAssetOfBtc']))
+        logging.warning("Account Status: {}".format(info['tradeEnabled']))
         print("Account Status: {}".format(info['tradeEnabled']))
 
         symbol = 'BTCUSDT'
@@ -92,6 +95,7 @@ class AutoTrading:
         amount = info['totalAssetOfBtc']
         precision = 5
         amt_str = "{:0.0{}f}".format(float(amount)*0.98, precision)
+        logging.warning("Sell: {}".format(amt_str))
         mailer = SendMail()
         try:
             sell_order = self.binace_client.create_margin_order(
@@ -104,7 +108,7 @@ class AutoTrading:
             current_btc = info['totalAssetOfBtc']
             usdt = info['userAssets'][2]['free']
             txt = "Sell successfully: Balance: {} Sell Amount: {} Owned BTC: {}".format(usdt, amt_str, current_btc)
-            print(txt)
+            logging.warning(txt)
             mailer.notification(txt)
             return True
         except Exception as ex:
@@ -119,9 +123,9 @@ class AutoTrading:
             current_btc = info['totalAssetOfBtc']
             usdt = info['userAssets'][2]['free']
             txt = "Sell successfully: Balance: {} Sell Amount: {} Owned BTC: {}".format(usdt, amt_str, current_btc)
-            print(txt)
+            logging.warning(txt)
             mailer.notification(txt)
-            print(ex)
+            logging.error(ex)
             return False
 
     def buy_margin(self):
@@ -133,19 +137,19 @@ class AutoTrading:
         precision = 5
         amt_str = "{:0.0{}f}".format(amount*0.98, precision)
         mailer = SendMail()
-
+        logging.warning("Buy : {}".format(amt_str))
         try:
-            txt = "Buy successfully: Amount: {}".format(amt_str)
-            print(txt)
             buy_order = self.binace_client.create_margin_order(
                 symbol=symbol,
                 side=SIDE_BUY,
                 type=ORDER_TYPE_MARKET,
                 quantity=amt_str)
+            txt = "Buy successfully: Amount: {}".format(amt_str)
+            logging.warning(txt)
             mailer.notification(txt)
             return True
         except Exception as ex:
-            print(ex)
+            logging.error(ex)
             return False
 
     def start_socket(self):
@@ -178,10 +182,10 @@ class AutoTrading:
 
             anomaly_point = np.mean([current_cci, prev_cci, prev_prev_cci])
             current_price = list(data1['Close'])[-1]
-            print("Current Price: {}".format(current_price))
+            logging.warning("Current Price: {}".format(current_price))
             if self.order == 0 and anomaly_point < -100:
                 if prev_cci < current_cci:
-                    is_close_buy_signal = list(np.isclose([anomaly_point], [-150.0], atol=20))[0]
+                    is_close_buy_signal = list(np.isclose([anomaly_point], [-140.0], atol=20))[0]
                     if is_close_buy_signal and anomaly_point > -150:
                         if self.buy_margin():
                             self.order = list(data1['Close'])[-1]
