@@ -80,8 +80,8 @@ class AutoTrading:
         print("Account Status: {}".format(info['tradeEnabled']))
 
         symbol = 'BTCUSDT'
-        self.buy_margin()
-        time.sleep(5)
+        # self.buy_margin()
+        # time.sleep(5)
         self.sell_margin()
 
         print("Test Done!!")
@@ -89,9 +89,9 @@ class AutoTrading:
     def sell_margin(self):
         info = self.binace_client.get_margin_account()
         symbol = 'BTCUSDT'
-        amount = self.binace_client.get_max_margin_transfer(asset='BTC')
+        amount = info['totalAssetOfBtc']
         precision = 5
-        amt_str = "{:0.0{}f}".format(float(amount['amount'])*0.95, precision)
+        amt_str = "{:0.0{}f}".format(float(amount)*0.98, precision)
         mailer = SendMail()
         try:
             sell_order = self.binace_client.create_margin_order(
@@ -102,7 +102,8 @@ class AutoTrading:
 
             info = self.binace_client.get_margin_account()
             current_btc = info['totalAssetOfBtc']
-            txt = "Sell successfully: {} Amout: {} Owned BTC: {}".format(sell_order['orderId'], amt_str, current_btc)
+            usdt = info['userAssets'][2]['free']
+            txt = "Sell successfully: Balance: {} Sell Amount: {} Owned BTC: {}".format(usdt, amt_str, current_btc)
             print(txt)
             mailer.notification(txt)
             return True
@@ -117,7 +118,7 @@ class AutoTrading:
         price_index = self.binace_client.get_margin_price_index(symbol=symbol)
         amount = float(usdt_amount)/float(price_index['price'])
         precision = 5
-        amt_str = "{:0.0{}f}".format(amount*0.95, precision)
+        amt_str = "{:0.0{}f}".format(amount*0.98, precision)
         mailer = SendMail()
 
         try:
@@ -127,7 +128,7 @@ class AutoTrading:
                 type=ORDER_TYPE_MARKET,
                 quantity=amt_str)
 
-            txt = "Buy successfully: {} Amout: {}".format(buy_order['orderId'], amt_str)
+            txt = "Buy successfully: Amount: {}".format(amt_str)
             print(txt)
             mailer.notification(txt)
             return True
