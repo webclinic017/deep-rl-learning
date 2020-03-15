@@ -9,3 +9,6 @@ __pycache__
 /random_network/
 /A3C/models/
 /log/
+A2C/__pycache__
+utils/__pycache__
+MACD/models

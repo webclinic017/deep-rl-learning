@@ -34,7 +34,7 @@ class Actor(Agent):
         entropy = K.sum(self.model.output * K.log(self.model.output + 1e-10), axis=1)
         loss = 0.001 * entropy - K.sum(eligibility)
         updates = self.rms_optimizer.get_updates(self.model.trainable_weights, [], loss)
-        return K.function([self.model.input, self.action_pl, self.advantages_pl], [], updates=updates)
+        return K.function([self.model.input[0], self.model.input[1], self.action_pl, self.advantages_pl], [], updates=updates)
 
     def save(self, path):
         self.model.save_weights(path + '_actor.h5')
