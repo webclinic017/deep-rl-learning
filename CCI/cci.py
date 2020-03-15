@@ -108,6 +108,19 @@ class AutoTrading:
             mailer.notification(txt)
             return True
         except Exception as ex:
+            amt_str = "{:0.0{}f}".format(float(amount) * 0.9, precision)
+            sell_order = self.binace_client.create_margin_order(
+                symbol=symbol,
+                side=SIDE_SELL,
+                type=ORDER_TYPE_MARKET,
+                quantity=amt_str)
+
+            info = self.binace_client.get_margin_account()
+            current_btc = info['totalAssetOfBtc']
+            usdt = info['userAssets'][2]['free']
+            txt = "Sell successfully: Balance: {} Sell Amount: {} Owned BTC: {}".format(usdt, amt_str, current_btc)
+            print(txt)
+            mailer.notification(txt)
             print(ex)
             return False
 
@@ -122,14 +135,13 @@ class AutoTrading:
         mailer = SendMail()
 
         try:
+            txt = "Buy successfully: Amount: {}".format(amt_str)
+            print(txt)
             buy_order = self.binace_client.create_margin_order(
                 symbol=symbol,
                 side=SIDE_BUY,
                 type=ORDER_TYPE_MARKET,
                 quantity=amt_str)
-
-            txt = "Buy successfully: Amount: {}".format(amt_str)
-            print(txt)
             mailer.notification(txt)
             return True
         except Exception as ex:
