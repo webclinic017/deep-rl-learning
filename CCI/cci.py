@@ -84,14 +84,11 @@ class AutoTrading(A2C):
         dense = Dense(1024, activation='relu')(secondary_input)
         merge = concatenate([lstm, dense])
 
-        x = Dense(2048, activation='relu')(merge)
-        x = Dense(2048, activation='relu')(x)
-        x = Dense(2048, activation='relu')(x)
-        x = Dense(2048, activation='relu')(x)
-        x = Dense(2048, activation='relu')(x)
-        x = Dense(2048, activation='relu')(x)
-        out_dense = Dense(1024, activation='relu')(x)
-        output = Dense(1024, activation='relu')(out_dense)
+        x = Dense(1024, activation='relu')(merge)
+        x = Dense(1024, activation='relu')(x)
+        x = Dense(512, activation='relu')(x)
+        out_dense = Dense(256, activation='relu')(x)
+        output = Dense(128, activation='relu')(out_dense)
         model = Model(inputs=[initial_input, secondary_input], outputs=output)
         return model
 
@@ -411,7 +408,7 @@ class AutoTrading(A2C):
             rewards.append(r)
             states.append([inp1, inp2])
 
-            if x % 32 == 0 and x > 0:
+            if x % 512 == 0 and x > 0:
                 self.train_models(states, actions, rewards, done)
                 tqdm_e.set_description(
                     "Profit: {}, Cumul reward: {}, EP: {}".format(
@@ -449,31 +446,28 @@ class AutoTrading(A2C):
         if action == 0:
             # hold
             if self.order:
-                if diff > 0:
-                    r = diff
+                r = 0.1 if diff > 0 else 0
             else:
-                r = -5
+                r = -1
 
         elif action == 1:
             # sell
             if self.order:
-                if diff > 0:
-                    r = 2 * diff
-
+                r = 1 * diff if diff > 0 else 0
                 self.budget += diff
                 self.order = 0
                 self.total_step = 0
                 self.budget_list.append(self.budget)
             else:
-                r = -5
+                r = -1
 
         elif action == 2:
             # buy
             if not self.order:
-                r = 1
+                r = 0.1
                 self.order = current_price
             else:
-                r = -5
+                r = -1
 
         state_1 = list(CCI)[-self.consecutive_frames:]
         state_2 = list(macd)[-self.consecutive_frames:]
