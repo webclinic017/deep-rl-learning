@@ -12,3 +12,4 @@ __pycache__
 A2C/__pycache__
 utils/__pycache__
 MACD/models
+.idea/*

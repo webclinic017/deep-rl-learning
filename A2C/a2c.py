@@ -20,7 +20,7 @@ class A2C:
     """ Actor-Critic Main Algorithm
     """
 
-    def __init__(self, act_dim, env_dim, k, gamma=0.7, lr=0.0001):
+    def __init__(self, act_dim, env_dim, k, gamma=0.99, lr=0.0001):
         """ Initialization
         """
         # Environment and A2C parameters
