@@ -28,7 +28,7 @@ class A2C:
         self.env_dim = (k,) + env_dim
         self.gamma = gamma
         self.lr = lr
-        self.epsilon = 0.7
+        self.epsilon = 0.3
         # Create actor and critic networks
         self.shared = self.buildNetwork()
         self.actor = Actor(self.env_dim, act_dim, self.shared, lr)
@@ -56,10 +56,10 @@ class A2C:
         logging.warning("a: {}, p: {}".format(action, p))
         return action
 
-    def random_actions(self, s):
+    def random_actions(self, inp1, inp2):
         if np.random.uniform() > self.epsilon:
             # forward feed the observation and get q value for every actions
-            actions_value = self.actor.predict(s)[0]
+            actions_value = self.actor.predict(inp1, inp2)
             action = np.argmax(actions_value)
             logging.warning("action: {} values: {}".format(action, actions_value))
         else:
