@@ -33,6 +33,7 @@ class AutoTrading(A2C):
         self.cumul_reward = 0
         self.done = False
         self.waiting_time = 0
+        self.consecutive_frames = k
 
         self.api_key = "9Hj6HLNNMGgkqj6ngouMZD1kjIbUb6RZmIpW5HLiZjtDT5gwhXAzc20szOKyQ3HW"
         self.api_secret = "ioD0XICp0cFE99VVql5nuxiCJEb6GK8mh08NYnSYdIUfkiotd1SZqLTQsjFvrXwk"
@@ -74,7 +75,7 @@ class AutoTrading(A2C):
 
     def buildNetwork(self):
         """ Assemble shared layers"""
-        initial_input = Input(shape=(1, 40))
+        initial_input = Input(shape=(1, 10))
         secondary_input = Input(shape=(2,))
 
         lstm = LSTM(128, dropout=0.1, recurrent_dropout=0.3)(initial_input)
@@ -388,7 +389,7 @@ class AutoTrading(A2C):
 
     def learning_start(self):
         df = pd.read_csv("data/5minute.csv", sep=',')
-        tqdm_e = tqdm(range(0, len(df) - 200), desc='Score', leave=True, unit=" budget")
+        tqdm_e = tqdm(range(0, len(df) - 200), desc='Score', leave=True, unit=" episode")
         time, cumul_reward, done = 0, 0, False
         actions, states, rewards = [], [], []
         inp1, inp2 = self.getState()
@@ -403,7 +404,7 @@ class AutoTrading(A2C):
             rewards.append(r)
             states.append([inp1, inp2])
 
-            if x % 128 == 0 and x > 0:
+            if x % 64 == 0 and x > 0:
                 self.train_models(states, actions, rewards, done)
                 tqdm_e.set_description(
                     "Profit: {}, Cumul reward: {}, EP: {}".format(
@@ -448,7 +449,7 @@ class AutoTrading(A2C):
         elif action == 1:
             # sell
             if self.order:
-                r = 2 * diff
+                r = diff
                 self.budget += diff
                 self.order = 0
                 self.total_step = 0
@@ -456,7 +457,7 @@ class AutoTrading(A2C):
                 self.exp7.append(current_price)
                 self.budget_list.append(self.budget)
             else:
-                r = -10
+                r = -1
 
         elif action == 2:
             # buy
@@ -465,13 +466,13 @@ class AutoTrading(A2C):
                 self.exp4.append(len(list(data1['Close'])))
                 self.exp5.append(list(data1['Close'])[-1])
             else:
-                r = -10
-        state = np.array([list(CCI)[-40:]])
-        info = {'diff': diff, 'order': 1 if self.order else 0}
+                r = -1
+        state = np.array([list(CCI)[-self.consecutive_frames:]])
+        info = {'diff': 1 if diff > 0 else 0, 'order': 1 if self.order else 0}
         return state, r, done, info
 
     def getState(self):
-        inp1 = np.random.randint(0, 1, (1, 1, 40))
+        inp1 = np.random.randint(0, 1, (1, 1, self.consecutive_frames))
         inp2 = np.random.randint(0, 1, (1, 2))
         return inp1, inp2
 
