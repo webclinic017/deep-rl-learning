@@ -10,8 +10,8 @@ from keras import regularizers
 from keras.utils import to_categorical
 from keras.layers import Input, Dense, Flatten, LSTM
 
-from .critic import Critic
-from .actor import Actor
+from critic import Critic
+from actor import Actor
 from utils.networks import tfSummary
 from utils.stats import gather_stats
 
