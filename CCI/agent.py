@@ -14,7 +14,7 @@ class Agent:
     def fit(self, inp, targ):
         """ Perform one epoch of training
         """
-        self.model.fit(self.reshape(inp), targ, epochs=1, verbose=0)
+        self.model.fit(self.reshape(inp), targ, epochs=1, verbose=1)
 
     def predict(self, inp):
         """ Critic Value Prediction
