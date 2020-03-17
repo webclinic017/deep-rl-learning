@@ -78,14 +78,14 @@ class AutoTrading(A2C):
         initial_input = Input(shape=(5, 40))
         secondary_input = Input(shape=(2,))
 
-        lstm = LSTM(2048, dropout=0.1, recurrent_dropout=0.3, return_sequences=True)(initial_input)
-        lstm = LSTM(2048, dropout=0.1, recurrent_dropout=0.3, return_sequences=True)(lstm)
-        lstm = LSTM(2048, dropout=0.1, recurrent_dropout=0.3)(lstm)
-        dense = Dense(2048, activation='relu')(secondary_input)
+        lstm = LSTM(512, dropout=0.1, recurrent_dropout=0.3, return_sequences=True)(initial_input)
+        lstm = LSTM(512, dropout=0.1, recurrent_dropout=0.3, return_sequences=True)(lstm)
+        lstm = LSTM(512, dropout=0.1, recurrent_dropout=0.3)(lstm)
+        dense = Dense(512, activation='relu')(secondary_input)
         merge = concatenate([lstm, dense])
 
-        x = Dense(1024, activation='relu')(merge)
-        out_dense = Dense(1024, activation='relu')(x)
+        x = Dense(128, activation='relu')(merge)
+        out_dense = Dense(128, activation='relu')(x)
         output = Dense(128, activation='relu')(out_dense)
         model = Model(inputs=[initial_input, secondary_input], outputs=output)
         return model
