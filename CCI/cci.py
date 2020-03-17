@@ -75,19 +75,17 @@ class AutoTrading(A2C):
 
     def buildNetwork(self):
         """ Assemble shared layers"""
-        initial_input = Input(shape=(4, 40))
+        initial_input = Input(shape=(5, 40))
         secondary_input = Input(shape=(2,))
 
         lstm = LSTM(2048, dropout=0.1, recurrent_dropout=0.3, return_sequences=True)(initial_input)
         lstm = LSTM(2048, dropout=0.1, recurrent_dropout=0.3, return_sequences=True)(lstm)
-        lstm = LSTM(1024, dropout=0.1, recurrent_dropout=0.3)(lstm)
-        dense = Dense(1024, activation='relu')(secondary_input)
+        lstm = LSTM(2048, dropout=0.1, recurrent_dropout=0.3)(lstm)
+        dense = Dense(2048, activation='relu')(secondary_input)
         merge = concatenate([lstm, dense])
 
         x = Dense(1024, activation='relu')(merge)
-        x = Dense(1024, activation='relu')(x)
-        x = Dense(512, activation='relu')(x)
-        out_dense = Dense(256, activation='relu')(x)
+        out_dense = Dense(1024, activation='relu')(x)
         output = Dense(128, activation='relu')(out_dense)
         model = Model(inputs=[initial_input, secondary_input], outputs=output)
         return model
@@ -261,7 +259,7 @@ class AutoTrading(A2C):
     def mock_data(self):
         df = pd.read_csv("../data/5minute.csv", sep=',')
         for x in range(0, len(df) - 200):
-            data = df.iloc[x:x+160, :]
+            data = df.iloc[0:0+160, :]
             self.process_mock(data)
 
         # Plotting the Price Series chart and the Commodity Channel index below
@@ -392,14 +390,14 @@ class AutoTrading(A2C):
             self.delta.pop(0)
 
     def learning_start(self):
-        df = pd.read_csv("data/5minute.csv", sep=',')
-        tqdm_e = tqdm(range(0, len(df) - 200), desc='Score', leave=True, unit=" episode")
+        df = pd.read_csv("data/1minute.csv", sep=',')
+        tqdm_e = tqdm(range(0, 160), desc='Score', leave=True, unit=" episode")
         time, cumul_reward, done = 0, 0, False
         actions, states, rewards = [], [], []
         inp1, inp2 = self.getState()
         for x in tqdm_e:
             data = df.iloc[x:x + 160, :]
-            a = self.random_actions(inp1, inp2)
+            a = self.policy_action(inp1, inp2)
             new_state, r, done, info = self.learning(a, data)
             cumul_reward += r
             inp1 = np.array([new_state])
@@ -407,8 +405,14 @@ class AutoTrading(A2C):
             actions.append(to_categorical(a, self.act_dim))
             rewards.append(r)
             states.append([inp1, inp2])
+            tqdm_e.set_description(
+                "Profit: {}, Cumul reward: {}, EP: {}".format(
+                    round(self.budget, 2),
+                    round(cumul_reward, 2), x)
+            )
+            tqdm_e.refresh()
 
-            if x % 512 == 0 and x > 0:
+            if x == len(tqdm_e) - 1 or done:
                 self.train_models(states, actions, rewards, done)
                 tqdm_e.set_description(
                     "Profit: {}, Cumul reward: {}, EP: {}".format(
@@ -423,6 +427,37 @@ class AutoTrading(A2C):
     def reset(self):
         self.order = 0
         self.budget = 0
+
+    def stochastics(self, dataframe, low, high, close, k, d):
+        """
+        Fast stochastic calculation
+        %K = (Current Close - Lowest Low)/
+        (Highest High - Lowest Low) * 100
+        %D = 3-day SMA of %K
+
+        Slow stochastic calculation
+        %K = %D of fast stochastic
+        %D = 3-day SMA of %K
+
+        When %K crosses above %D, buy signal
+        When the %K crosses below %D, sell signal
+        """
+
+        df = dataframe.copy()
+
+        # Set minimum low and maximum high of the k stoch
+        low_min = df.Low.rolling(window=k).min()
+        high_max = df.High.rolling(window=k).max()
+
+        # Fast Stochastic
+        df['k_fast'] = 100 * (df.Close - low_min) / (high_max - low_min)
+        df['d_fast'] = df['k_fast'].rolling(window=d).mean()
+
+        # Slow Stochastic
+        df['k_slow'] = df["d_fast"]
+        df['d_slow'] = df['k_slow'].rolling(window=d).mean()
+
+        return df
 
     def learning(self, action, data1):
         ndays = 20
@@ -439,47 +474,44 @@ class AutoTrading(A2C):
         exp3 = macd.ewm(span=9, adjust=False).mean()
         histogram = macd - exp3
 
+        # stochastics
+        stochs = self.stochastics(data1, 'Low', 'High', 'Close', 14, 3)
+        slow_k = stochs['k_slow'].fillna(0).values
+        # fast_k = stochs['k_fast'].fillna(0).values
+
         current_price = list(data1['Close'])[-1]
         diff = current_price - self.order if self.order else 0
         r = 0
         done = False
         if action == 0:
             # hold
-            if self.order:
-                r = 0.1 if diff > 0 else 0
-            else:
-                r = -1
+            pass
 
         elif action == 1:
             # sell
-            if self.order:
-                r = 1 * diff if diff > 0 else 0
-                self.budget += diff
-                self.order = 0
-                self.total_step = 0
-                self.budget_list.append(self.budget)
-            else:
-                r = -1
+            r = diff if diff > 2 else 0
+            self.budget += diff
+            self.order = 0
+            self.total_step = 0
+            self.budget_list.append(self.budget)
+            done = True
 
         elif action == 2:
             # buy
-            if not self.order:
-                r = 0.1
-                self.order = current_price
-            else:
-                r = -1
+            self.order = current_price
 
         state_1 = list(CCI)[-self.consecutive_frames:]
         state_2 = list(macd)[-self.consecutive_frames:]
         state_3 = list(exp3)[-self.consecutive_frames:]
         state_4 = list(histogram)[-self.consecutive_frames:]
+        state_5 = list(slow_k)[-self.consecutive_frames:]
 
-        state = np.array([state_1, state_2, state_3, state_4])
-        info = {'diff': 1 if diff > 0 else 0, 'order': 1 if self.order else 0}
+        state = np.array([state_1, state_2, state_3, state_4, state_5])
+        info = {'diff': 0, 'order': 0}
         return state, r, done, info
 
     def getState(self):
-        inp1 = np.random.randint(0, 1, (1, 4, self.consecutive_frames))
+        inp1 = np.random.randint(0, 1, (1, 5, self.consecutive_frames))
         inp2 = np.random.randint(0, 1, (1, 2))
         return inp1, inp2
 
@@ -490,7 +522,7 @@ if __name__ == '__main__':
     act_range = 2
     consecutive_frames = 40
     trading_bot = AutoTrading(action_dim, state_dim, consecutive_frames)
-    for _ in range(100):
+    for _ in range(10000):
         trading_bot.learning_start()
         trading_bot.save_weights('CCI/models/new_nodel')
 
