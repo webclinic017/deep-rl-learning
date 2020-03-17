@@ -15,11 +15,11 @@ from binance.enums import KLINE_INTERVAL_1HOUR
 from binance.websockets import BinanceSocketManager
 from pymongo import MongoClient
 from tqdm import tqdm
-from CCI.mailer import SendMail
+from .mailer import SendMail
 from keras.layers import Input, Dense, Flatten, LSTM, concatenate
 from keras import Model
 from keras.utils import to_categorical
-from A2C.a2c import A2C
+from .a2c import A2C
 
 logging.basicConfig(filename='log/cci.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
