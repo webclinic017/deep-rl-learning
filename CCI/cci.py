@@ -15,11 +15,11 @@ from binance.enums import KLINE_INTERVAL_1HOUR
 from binance.websockets import BinanceSocketManager
 from pymongo import MongoClient
 from tqdm import tqdm
-from .mailer import SendMail
+from mailer import SendMail
 from keras.layers import Input, Dense, Flatten, LSTM, concatenate
 from keras import Model
 from keras.utils import to_categorical
-from .a2c import A2C
+from a2c import A2C
 
 logging.basicConfig(filename='log/cci.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
@@ -390,7 +390,7 @@ class AutoTrading(A2C):
             self.delta.pop(0)
 
     def learning_start(self):
-        df = pd.read_csv("data/1minute.csv", sep=',')
+        df = pd.read_csv("../data/1minute.csv", sep=',')
         tqdm_e = tqdm(range(0, 160), desc='Score', leave=True, unit=" episode")
         time, cumul_reward, done = 0, 0, False
         actions, states, rewards = [], [], []
@@ -524,7 +524,7 @@ if __name__ == '__main__':
     trading_bot = AutoTrading(action_dim, state_dim, consecutive_frames)
     for _ in range(10000):
         trading_bot.learning_start()
-        trading_bot.save_weights('CCI/models/new_nodel')
+        trading_bot.save_weights('models/new_nodel')
 
     # actor critic learning
     # trading_bot.mock_data()
