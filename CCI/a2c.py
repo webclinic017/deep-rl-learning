@@ -12,8 +12,6 @@ from keras.layers import Input, Dense, Flatten, LSTM
 
 from critic import Critic
 from actor import Actor
-from utils.networks import tfSummary
-from utils.stats import gather_stats
 
 
 class A2C:
@@ -135,11 +133,11 @@ class A2C:
             tqdm_e.set_description("Profit: " + str(info['total_profit']))
             tqdm_e.refresh()
             # Export results for Tensorboard
-            score = tfSummary('score', cumul_reward)
-            budget = tfSummary('budget', info['total_profit'])
-            summary_writer.add_summary(score, global_step=e)
-            summary_writer.add_summary(budget, global_step=e)
-            summary_writer.flush()
+            # score = tfSummary('score', cumul_reward)
+            # budget = tfSummary('budget', info['total_profit'])
+            # summary_writer.add_summary(score, global_step=e)
+            # summary_writer.add_summary(budget, global_step=e)
+            # summary_writer.flush()
 
         return results
 
