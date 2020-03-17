@@ -12,13 +12,15 @@ from keras.layers import Input, Dense, Flatten, LSTM
 
 from critic import Critic
 from actor import Actor
+# from utils.networks import tfSummary
+# from utils.stats import gather_stats
 
 
 class A2C:
     """ Actor-Critic Main Algorithm
     """
 
-    def __init__(self, act_dim, env_dim, k, gamma=0.85, lr=0.0001):
+    def __init__(self, act_dim, env_dim, k, gamma=0.99, lr=0.0001):
         """ Initialization
         """
         # Environment and A2C parameters
