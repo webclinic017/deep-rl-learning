@@ -5,7 +5,6 @@ from keras.models import Model, load_model
 from keras.layers import Input, Dense, Flatten
 from keras.optimizers import Adam
 from agent import Agent
-from A2C.a2c import logging
 
 
 class Actor(Agent):
