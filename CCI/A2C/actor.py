@@ -1,10 +1,8 @@
-import numpy as np
 import keras.backend as K
 
-from keras.models import Model, load_model
-from keras.layers import Input, Dense, Flatten
-from keras.optimizers import Adam
-from agent import Agent
+from keras.models import Model
+from keras.layers import Dense
+from A2C.agent import Agent
 
 
 class Actor(Agent):
@@ -20,7 +18,7 @@ class Actor(Agent):
     def addHead(self, network):
         """ Assemble Actor network to predict probability of each action
         """
-        x = Dense(128, activation='relu')(network.output)
+        x = Dense(32, activation='relu')(network.output)
         out = Dense(self.out_dim, activation='softmax')(x)
         return Model(network.input, out)
 

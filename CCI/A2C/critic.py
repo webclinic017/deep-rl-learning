@@ -1,10 +1,8 @@
-import numpy as np
 import keras.backend as K
 
 from keras.models import Model
-from keras.layers import Input, Dense, Flatten
-from keras.optimizers import Adam
-from agent import Agent
+from keras.layers import Dense
+from A2C.agent import Agent
 
 
 class Critic(Agent):
@@ -19,7 +17,7 @@ class Critic(Agent):
     def addHead(self, network):
         """ Assemble Critic network to predict value of each state
         """
-        x = Dense(128, activation='relu')(network.output)
+        x = Dense(32, activation='relu')(network.output)
         out = Dense(1, activation='linear')(x)
         return Model(network.input, out)
 
