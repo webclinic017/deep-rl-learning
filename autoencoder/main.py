@@ -1,12 +1,14 @@
 import pandas as pd
 from keras import Sequential
-from keras.layers import Dense
+from keras.callbacks import EarlyStopping, ModelCheckpoint
+from keras.layers import Dense, BatchNormalization
 from sklearn import datasets, linear_model
 from sklearn.model_selection import train_test_split
 from keras.wrappers.scikit_learn import KerasRegressor, KerasClassifier
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import KFold
 from sklearn.pipeline import Pipeline
+from collections import Counter
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score, roc_auc_score, roc_curve, precision_recall_curve
 from matplotlib import pyplot
@@ -96,18 +98,19 @@ class Autoencoder:
     def baseline_model(self):
         # create model
         model = Sequential()
-        model.add(Dense(512, input_dim=2, activation='relu'))
-        model.add(Dense(512, activation='relu'))
-        model.add(Dense(1, activation='sigmoid'))
+        model.add(Dense(1024, input_dim=6, activation='relu', kernel_initializer='uniform'))
+        model.add(BatchNormalization())
+        model.add(Dense(1024, activation='relu', kernel_initializer='uniform'))
+        model.add(Dense(1, activation='sigmoid', kernel_initializer='uniform'))
         # Compile model
-        model.compile(loss='binary_crossentropy', optimizer='adam', metrics=["accuracy"])
+        model.compile(loss='binary_crossentropy', optimizer='rmsprop', metrics=["accuracy"])
         return model
 
     def train_start(self):
-        col = ['CCI', 'Histogram']
+        col = ['CCI', 'MACD', 'Signal', 'Histogram', 'k_fast', 'd_fast']
         train_data = self.train[col]
         self.train['signal'] = 0
-        self.train.loc[(self.train.Close - self.train.MA > 5), 'signal'] = 1
+        self.train.loc[(self.train.Close > self.train.MA), 'signal'] = 1
         # self.train.loc[(self.train.Close < self.train.Open), 'signal'] = 0
 
         y = self.train.signal
@@ -121,12 +124,17 @@ class Autoencoder:
         # evaluate model
         standardscaler = StandardScaler()
         standardscaler.fit_transform(X_train)
-        model = KerasClassifier(build_fn=self.baseline_model, epochs=100, batch_size=5, verbose=0)
+        standardscaler.transform(X_test)
+
+        model = KerasClassifier(build_fn=self.baseline_model, epochs=10000, batch_size=5, verbose=0)
         # kfold = KFold(n_splits=2)
         # results = cross_val_score(model, X_train, y_train, cv=kfold)
         # print("Standardized: %.2f (%.2f) MSE" % (results.mean(), results.std()))
-        model.fit(X_train, y_train)
-        standardscaler.transform(X_test)
+
+        es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=50)
+        mc = ModelCheckpoint('best_model.h5', monitor='val_loss', mode='min', save_best_only=True)
+
+        model.fit(X_train, y_train, validation_data=(X_test, y_test), callbacks=[es, mc])
         y_pred = model.predict(X_test)
         y_true = y_test
         print(accuracy_score(y_true, y_pred))
@@ -172,6 +180,12 @@ class Autoencoder:
         pyplot.show()
 
         print("Done")
+
+        # print(Counter(yhat))
+        # create a histogram of the predicted probabilities
+        pyplot.hist(pos_probs, bins=100)
+        pyplot.show()
+
         # print(y_pred)
 
         # estimator = KerasRegressor(build_fn=self.baseline_model, epochs=100, batch_size=5, verbose=1)
