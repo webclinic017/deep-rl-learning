@@ -1,7 +1,8 @@
+import numpy as np
 import pandas as pd
 from keras import Sequential
 from keras.callbacks import EarlyStopping, ModelCheckpoint
-from keras.layers import Dense, BatchNormalization
+from keras.layers import Dense, BatchNormalization, LSTM, RepeatVector, TimeDistributed
 from sklearn import datasets, linear_model
 from sklearn.model_selection import train_test_split
 from keras.wrappers.scikit_learn import KerasRegressor, KerasClassifier
@@ -12,6 +13,7 @@ from collections import Counter
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score, roc_auc_score, roc_curve, precision_recall_curve
 from matplotlib import pyplot
+
 
 class Autoencoder:
     def __init__(self):
@@ -98,23 +100,40 @@ class Autoencoder:
     def baseline_model(self):
         # create model
         model = Sequential()
-        model.add(Dense(1024, input_dim=6, activation='relu', kernel_initializer='uniform'))
+        model.add(Dense(512, input_dim=3, activation='relu', kernel_initializer='uniform'))
         model.add(BatchNormalization())
-        model.add(Dense(1024, activation='relu', kernel_initializer='uniform'))
-        model.add(Dense(1, activation='sigmoid', kernel_initializer='uniform'))
+        model.add(Dense(512, activation='relu', kernel_initializer='uniform'))
+        model.add(Dense(1, activation='softmax', kernel_initializer='uniform'))
         # Compile model
-        model.compile(loss='binary_crossentropy', optimizer='rmsprop', metrics=["accuracy"])
+        model.compile(loss='binary_crossentropy', optimizer='adam', metrics=["accuracy"])
         return model
 
+    def lstm_autoencoder(self, n_in=10):
+        model = Sequential()
+        model.add(LSTM(100, activation='relu', input_shape=(n_in, 1)))
+        model.add(RepeatVector(n_in))
+        model.add(LSTM(100, activation='relu', return_sequences=True))
+        model.add(TimeDistributed(Dense(1)))
+        model.compile(optimizer='adam', loss='mse')
+        return model
+
+    def create_dataset(self, dataset, look_back=10):
+        dataX, dataY = [], []
+        for i in range(len(dataset) - look_back - 1):
+            a = dataset[['CCI', 'k_fast', 'd_fast']].iloc[i:i+look_back].values
+            dataX.append(a)
+        return np.array(dataX), np.array(dataX)
+
     def train_start(self):
-        col = ['CCI', 'MACD', 'Signal', 'Histogram', 'k_fast', 'd_fast']
+        col = ['CCI', 'k_fast', 'd_fast']
         train_data = self.train[col]
         self.train['signal'] = 0
-        self.train.loc[(self.train.Close > self.train.MA), 'signal'] = 1
+        self.train.loc[(self.train.Open < self.train.Close), 'signal'] = 1
         # self.train.loc[(self.train.Close < self.train.Open), 'signal'] = 0
+        x_train, y_train = self.create_dataset(self.train)
 
-        y = self.train.signal
-        X_train, X_test, y_train, y_test = train_test_split(train_data, y, test_size=0.2)
+        # y = self.train.signal
+        # X_train, X_test, y_train, y_test = train_test_split(train_data, y, test_size=0.2)
         # lm = linear_model.LinearRegression(normalize=True)
         # model = lm.fit(X_train, y_train)
         # predictions = lm.predict(X_test)
@@ -122,9 +141,8 @@ class Autoencoder:
         #     print(correct, prediction)
 
         # evaluate model
-        standardscaler = StandardScaler()
-        standardscaler.fit_transform(X_train)
-        standardscaler.transform(X_test)
+        # standardscaler = StandardScaler()
+        # standardscaler.fit_transform(x_train)
 
         model = KerasClassifier(build_fn=self.baseline_model, epochs=10000, batch_size=5, verbose=0)
         # kfold = KFold(n_splits=2)
@@ -160,8 +178,8 @@ class Autoencoder:
         pyplot.legend()
         # show the plot
         pyplot.show()
-
-        # predict probabilities
+        #
+        # # predict probabilities
         yhat = model.predict_proba(X_test)
         # retrieve just the probabilities for the positive class
         pos_probs = yhat[:, 1]
