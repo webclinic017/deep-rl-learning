@@ -42,6 +42,10 @@ class AutoTrading:
         self.exp7 = []
         self.delta = []
         self.budget_list = []
+        self.take_profit = 0
+        self.stop_loss = 0
+        self.max_diff = 0
+
         klines = self.binace_client.get_historical_klines("BTCUSDT", Client.KLINE_INTERVAL_5MINUTE, "13 Mar, 2020")
         df = pd.DataFrame(klines, columns=['open_time', 'Open', 'High', 'Low', 'Close',
                                                 'Volume', 'close_time', 'quote_asset_volume', 'number_of_trades',
@@ -228,41 +232,95 @@ class AutoTrading:
                 self.total_step += 1
 
     def mock_data(self):
-        df = pd.read_csv("../data/1hour.csv", sep=',')
+        df = pd.read_csv("../data/5minute.csv", sep=',')
         for x in range(0, len(df)):
             data = df.iloc[x:x+200, :]
             self.process_mock(data)
 
+    @classmethod
+    def fibonacci(cls, price_max, price_min):
+        diff = price_max - price_min
+        level1 = price_max + 1.618 * diff
+        stop_loss = price_max - 0.618 * diff
+        return level1, stop_loss
+
     def process_mock(self, data1):
-        ndays = 25
+        ndays = 14
         data_cp = data1.copy()
+        close_price = data_cp.Close.values
         tp = (data_cp['High'] + data_cp['Low'] + data_cp['Close']) / 3
         raw_cci = pd.Series((tp - tp.rolling(ndays).mean()) / (0.015 * tp.rolling(ndays).std()), name='CCI')
         NI = data_cp.join(raw_cci)
 
         CCI = NI['CCI']
         CCI = CCI.fillna(0)
-        current_cci = round(list(CCI)[-1], 2)
+        cci = list(CCI)
+        current_cci = round(cci[-1], 2)
+        prev_cci = round(cci[-2], 2)
+        prev_prev_cci = round(cci[-3], 2)
 
         self.exp4 = [x1 - 1 for x1 in self.exp4]
         self.exp6 = [x - 1 for x in self.exp6]
 
-        current_price = list(data1['Close'])[-1]
-        if self.order == 0 and current_cci > 0:
-            self.order = list(data1['Close'])[-1]
-            self.exp4.append(len(list(data1['Close'])))
-            self.exp5.append(list(data1['Close'])[-1])
+        anomaly_point = np.mean([current_cci, prev_cci, prev_prev_cci])
+        current_price = close_price[-1]
+        logging.warning("Current Price: {}".format(current_price))
+        if self.order == 0 and anomaly_point < -100:
+            if prev_prev_cci < prev_cci < current_cci:
+                is_close_buy_signal = list(np.isclose([anomaly_point], [-170.0], atol=50))[0]
+                if is_close_buy_signal:
+                    self.order = list(data1['Close'])[-1]
+                    print("buy: {}".format(current_price))
+                    custom_range = close_price[-10:]
+                    max_price = max(custom_range)
+                    min_price = min(custom_range)
+                    self.exp4.append(len(close_price))
+                    self.exp5.append(current_price)
+                    self.take_profit, self.stop_loss = self.fibonacci(max_price, min_price)
 
-        elif self.order != 0 and current_cci < 0:
+        elif self.order != 0 and 0 < current_cci < prev_cci > prev_prev_cci or self.total_step > 20:
             # close order
-            self.budget += current_price - self.order
+            diff = current_price - self.order
+            # if diff > self.max_diff:
+            #     self.max_diff = diff
+            # else:
+            self.budget += diff
+            self.max_diff = 0
             print(
-                "sell: budget: {} total step: {}".format(round(self.budget, 2), self.total_step))
+                "sell: budget: {} total step: {} diff: {}".format(round(self.budget, 2), self.total_step, diff))
             self.order = 0
             self.total_step = 0
-            self.exp6.append(len(list(data1['Close'])))
+            self.exp6.append(len(close_price))
             self.exp7.append(current_price)
             self.budget_list.append(self.budget)
+            self.take_profit, self.stop_loss = 0, 0
+
+
+        # elif self.take_profit and self.take_profit <= current_price:
+        #     # take profit close order
+        #     diff = current_price - self.order
+        #     self.budget += diff
+        #     print(
+        #         "Take profit: budget: {} current_price: {} diff: {}".format(round(self.budget, 2), current_price, diff))
+        #     self.order = 0
+        #     self.total_step = 0
+        #     self.exp6.append(len(close_price))
+        #     self.exp7.append(current_price)
+        #     self.budget_list.append(self.budget)
+        #     self.take_profit, self.stop_loss = 0, 0
+
+        # elif self.order and current_price < self.stop_loss and self.stop_loss and self.total_step > 1:
+        #     # take profit close order
+        #     diff = current_price - self.order
+        #     self.budget += diff
+        #     print(
+        #         "Stop loss: budget: {} total step: {} diff: {}".format(round(self.budget, 2), self.total_step, diff))
+        #     self.order = 0
+        #     self.total_step = 0
+        #     self.exp6.append(len(close_price))
+        #     self.exp7.append(current_price)
+        #     self.budget_list.append(self.budget)
+        #     self.take_profit, self.stop_loss = 0, 0
 
         if self.order != 0:
             self.total_step += 1
@@ -284,7 +342,6 @@ class AutoTrading:
         # self.ax.cla()
         # self.bx.cla()
         # self.cx.cla()
-        # # self.dx.cla()
         # index = [i for i, val in enumerate(list(data1['Close']))]
         # self.ax.set_xticklabels([])
         # self.ax.plot(index, data1['Close'], lw=1, label='Price')
@@ -293,17 +350,13 @@ class AutoTrading:
         # self.ax.legend(loc='upper left')
         # self.ax.grid(True)
         # self.bx.set_xticklabels([])
-        # self.bx.plot(self.delta, label='CCI')
+        # self.bx.plot(cci, label='CCI')
         # self.bx.legend(loc='upper left')
         # self.bx.grid(True)
         # self.cx.set_xticklabels([])
         # self.cx.plot(self.budget_list, label='Budget')
         # self.cx.legend(loc='upper left')
         # self.cx.grid(True)
-        # # self.dx.set_xticklabels([])
-        # # self.dx.plot(histogram, label='Histogram')
-        # # self.dx.legend(loc='upper left')
-        # # self.dx.grid(True)
         # self.fig.canvas.draw()
         # plt.pause(0.0001)
 
