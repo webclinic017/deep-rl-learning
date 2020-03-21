@@ -234,17 +234,15 @@ class AutoTrading:
             self.process_mock(data)
 
     def process_mock(self, data1):
-        ndays = 20
+        ndays = 25
         data_cp = data1.copy()
-        TP = (data_cp['High'] + data_cp['Low'] + data_cp['Close']) / 3
-        rawCCI = pd.Series((TP - pd.rolling_mean(TP, ndays)) / (0.015 * pd.rolling_std(TP, ndays)), name='CCI')
-        NI = data_cp.join(rawCCI)
+        tp = (data_cp['High'] + data_cp['Low'] + data_cp['Close']) / 3
+        raw_cci = pd.Series((tp - tp.rolling(ndays).mean()) / (0.015 * tp.rolling(ndays).std()), name='CCI')
+        NI = data_cp.join(raw_cci)
 
         CCI = NI['CCI']
         CCI = CCI.fillna(0)
         current_cci = round(list(CCI)[-1], 2)
-        prev_cci = round(list(CCI)[-2], 2)
-        prev_prev_cci = round(list(CCI)[-3], 2)
 
         self.exp4 = [x1 - 1 for x1 in self.exp4]
         self.exp6 = [x - 1 for x in self.exp6]
