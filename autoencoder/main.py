@@ -8,7 +8,7 @@ from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import KFold
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score, roc_auc_score, roc_curve
+from sklearn.metrics import accuracy_score, roc_auc_score, roc_curve, precision_recall_curve
 from matplotlib import pyplot
 
 class Autoencoder:
@@ -16,6 +16,7 @@ class Autoencoder:
         self.train_data, self.normalize_price, self.raw_price, self.moving_avg = self.get_data('../data/1hour.csv')
         self.cci = self.calculate_cci(self.train_data, 25)
         self.train = self.macd(self.cci)
+        self.train = self.stochastics(self.train)
         self.train = self.train.dropna()
         self.budget = 0
 
@@ -61,11 +62,41 @@ class Autoencoder:
         return_data = dataraw.join(raw_cci)
         return return_data
 
+    @staticmethod
+    def stochastics(data_frame, k=14, d=3):
+        """
+        Fast stochastic calculation
+        %K = (Current Close - Lowest Low)/
+        (Highest High - Lowest Low) * 100
+        %D = 3-day SMA of %K
+
+        Slow stochastic calculation
+        %K = %D of fast stochastic
+        %D = 3-day SMA of %K
+
+        When %K crosses above %D, buy signal
+        When the %K crosses below %D, sell signal
+        """
+        df = data_frame.copy()
+
+        # Set minimum low and maximum high of the k stoch
+        low_min = df.Low.rolling(window=k).min()
+        high_max = df.High.rolling(window=k).max()
+
+        # Fast Stochastic
+        df['k_fast'] = 100 * (df.Close - low_min) / (high_max - low_min)
+        df['d_fast'] = df['k_fast'].rolling(window=d).mean()
+
+        # Slow Stochastic
+        df['k_slow'] = df["d_fast"]
+        df['d_slow'] = df['k_slow'].rolling(window=d).mean()
+        return df
+
     # define base model
     def baseline_model(self):
         # create model
         model = Sequential()
-        model.add(Dense(512, input_dim=4, activation='relu'))
+        model.add(Dense(512, input_dim=2, activation='relu'))
         model.add(Dense(512, activation='relu'))
         model.add(Dense(1, activation='sigmoid'))
         # Compile model
@@ -73,9 +104,10 @@ class Autoencoder:
         return model
 
     def train_start(self):
-        train_data = self.train[['CCI', 'MACD', 'Histogram', 'Signal']]
+        col = ['CCI', 'Histogram']
+        train_data = self.train[col]
         self.train['signal'] = 0
-        self.train.loc[(self.train.Close > self.train.MA), 'signal'] = 1
+        self.train.loc[(self.train.Close - self.train.MA > 5), 'signal'] = 1
         # self.train.loc[(self.train.Close < self.train.Open), 'signal'] = 0
 
         y = self.train.signal
@@ -89,7 +121,7 @@ class Autoencoder:
         # evaluate model
         standardscaler = StandardScaler()
         standardscaler.fit_transform(X_train)
-        model = KerasClassifier(build_fn=self.baseline_model, epochs=1000, batch_size=5, verbose=0)
+        model = KerasClassifier(build_fn=self.baseline_model, epochs=100, batch_size=5, verbose=0)
         # kfold = KFold(n_splits=2)
         # results = cross_val_score(model, X_train, y_train, cv=kfold)
         # print("Standardized: %.2f (%.2f) MSE" % (results.mean(), results.std()))
@@ -121,6 +153,25 @@ class Autoencoder:
         # show the plot
         pyplot.show()
 
+        # predict probabilities
+        yhat = model.predict_proba(X_test)
+        # retrieve just the probabilities for the positive class
+        pos_probs = yhat[:, 1]
+        no_skill = len(y[y == 1]) / len(y)
+        pyplot.plot([0, 1], [no_skill, no_skill], linestyle='--', label='No Skill')
+        # calculate model precision-recall curve
+        precision, recall, _ = precision_recall_curve(y_test, pos_probs)
+        # plot the model precision-recall curve
+        pyplot.plot(recall, precision, marker='.', label='Logistic')
+        # axis labels
+        pyplot.xlabel('Recall')
+        pyplot.ylabel('Precision')
+        # show the legend
+        pyplot.legend()
+        # show the plot
+        pyplot.show()
+
+        print("Done")
         # print(y_pred)
 
         # estimator = KerasRegressor(build_fn=self.baseline_model, epochs=100, batch_size=5, verbose=1)
