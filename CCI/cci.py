@@ -228,7 +228,7 @@ class AutoTrading:
                 self.total_step += 1
 
     def mock_data(self):
-        df = pd.read_csv("data/5minute.csv", sep=',')
+        df = pd.read_csv("../data/1hour.csv", sep=',')
         for x in range(0, len(df)):
             data = df.iloc[x:x+200, :]
             self.process_mock(data)
@@ -249,70 +249,22 @@ class AutoTrading:
         self.exp4 = [x1 - 1 for x1 in self.exp4]
         self.exp6 = [x - 1 for x in self.exp6]
 
-        anomaly_point = np.mean([current_cci, prev_cci, prev_prev_cci])
-
-        self.delta.append(anomaly_point)
         current_price = list(data1['Close'])[-1]
-        if self.order == 0 and anomaly_point < -100:
-            if prev_cci < current_cci:
-                is_close_buy_signal = list(np.isclose([anomaly_point], [-150.0], atol=20))[0]
-                if is_close_buy_signal and anomaly_point > -150:
-                    self.order = list(data1['Close'])[-1]
-                    # print("buy: {}".format(current_cci))
-                    self.exp4.append(len(list(data1['Close'])))
-                    self.exp5.append(list(data1['Close'])[-1])
+        if self.order == 0 and current_cci > 0:
+            self.order = list(data1['Close'])[-1]
+            self.exp4.append(len(list(data1['Close'])))
+            self.exp5.append(list(data1['Close'])[-1])
 
-        elif self.order != 0 and anomaly_point > 100:
-            # up trend. must close order and buy
-            if prev_cci < current_cci:
-                is_close_buy_signal = list(np.isclose([anomaly_point], [120.0], atol=20))[0]
-                if is_close_buy_signal and anomaly_point > 120:
-                    # close order
-                    self.budget += current_price - self.order
-                    self.budget_list.append(self.budget)
-                    self.order = 0
-                    self.total_step = 0
-
-                    # new order
-                    self.order = list(data1['Close'])[-1]
-                    self.exp4.append(len(list(data1['Close'])))
-                    self.exp5.append(list(data1['Close'])[-1])
-
-        elif self.order != 0 and list(np.isclose([anomaly_point], [0.0], atol=10))[0]:
-            # close order 50:50
-            if current_cci > 0.0:
-                self.budget += current_price - self.order
-                print(
-                    "sell: {} budget: {} total step: {}".format(anomaly_point, round(self.budget, 2), self.total_step))
-                self.order = 0
-                self.total_step = 0
-                self.exp6.append(len(list(data1['Close'])))
-                self.exp7.append(current_price)
-                self.budget_list.append(self.budget)
-
-        elif self.order != 0 and list(np.isclose([anomaly_point], [100.0], atol=10))[0]:
-            # take profit
-            if current_cci > 100.0:
-                self.budget += current_price - self.order
-                print(
-                    "sell: {} budget: {} total step: {}".format(anomaly_point, round(self.budget, 2), self.total_step))
-                self.order = 0
-                self.total_step = 0
-                self.exp6.append(len(list(data1['Close'])))
-                self.exp7.append(current_price)
-                self.budget_list.append(self.budget)
-
-        elif self.order != 0 and list(np.isclose([anomaly_point], [200.0], atol=20))[0]:
-            # Super take profit
-            if current_cci > 180.0:
-                self.budget += current_price - self.order
-                print(
-                    "sell: {} budget: {} total step: {}".format(anomaly_point, round(self.budget, 2), self.total_step))
-                self.order = 0
-                self.total_step = 0
-                self.exp6.append(len(list(data1['Close'])))
-                self.exp7.append(current_price)
-                self.budget_list.append(self.budget)
+        elif self.order != 0 and current_cci < 0:
+            # close order
+            self.budget += current_price - self.order
+            print(
+                "sell: budget: {} total step: {}".format(round(self.budget, 2), self.total_step))
+            self.order = 0
+            self.total_step = 0
+            self.exp6.append(len(list(data1['Close'])))
+            self.exp7.append(current_price)
+            self.budget_list.append(self.budget)
 
         if self.order != 0:
             self.total_step += 1
@@ -360,6 +312,6 @@ class AutoTrading:
 
 if __name__ == '__main__':
     trading_bot = AutoTrading()
-    # trading_bot.mock_data()
+    trading_bot.mock_data()
     # trading_bot.test_order()
-    trading_bot.start_socket()
+    # trading_bot.start_socket()
