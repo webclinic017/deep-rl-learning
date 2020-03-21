@@ -65,7 +65,7 @@ class Autoencoder:
     def baseline_model(self):
         # create model
         model = Sequential()
-        model.add(Dense(512, input_dim=1, activation='relu'))
+        model.add(Dense(512, input_dim=4, activation='relu'))
         model.add(Dense(512, activation='relu'))
         model.add(Dense(1, activation='sigmoid'))
         # Compile model
@@ -73,14 +73,13 @@ class Autoencoder:
         return model
 
     def train_start(self):
-        train_data = self.train[['CCI']]
+        train_data = self.train[['CCI', 'MACD', 'Histogram', 'Signal']]
         self.train['signal'] = 0
         self.train.loc[(self.train.Close > self.train.MA), 'signal'] = 1
         # self.train.loc[(self.train.Close < self.train.Open), 'signal'] = 0
 
         y = self.train.signal
         X_train, X_test, y_train, y_test = train_test_split(train_data, y, test_size=0.2)
-        print("Done")
         # lm = linear_model.LinearRegression(normalize=True)
         # model = lm.fit(X_train, y_train)
         # predictions = lm.predict(X_test)
@@ -90,7 +89,7 @@ class Autoencoder:
         # evaluate model
         standardscaler = StandardScaler()
         standardscaler.fit_transform(X_train)
-        model = KerasClassifier(build_fn=self.baseline_model, epochs=1000, batch_size=5, verbose=1)
+        model = KerasClassifier(build_fn=self.baseline_model, epochs=1000, batch_size=5, verbose=0)
         # kfold = KFold(n_splits=2)
         # results = cross_val_score(model, X_train, y_train, cv=kfold)
         # print("Standardized: %.2f (%.2f) MSE" % (results.mean(), results.std()))
@@ -98,7 +97,6 @@ class Autoencoder:
         standardscaler.transform(X_test)
         y_pred = model.predict(X_test)
         y_true = y_test
-        print(model.predict_proba(X_test))
         print(accuracy_score(y_true, y_pred))
         lr_probs = model.predict_proba(X_test)
         lr_probs = lr_probs[:, 1]
