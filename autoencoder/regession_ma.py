@@ -130,18 +130,19 @@ class RegressionMA:
         ma = data.MA.values[-1]
         macd = data.MACD.values[-1]
         signal = data.Signal.values[-1]
-        histogram = data.Histogram.values[-1]
+        histogram = data.Histogram.values
         minus_di = data.MINUS_DM.values[-1]
         plus_di = data.PLUS_DM.values[-1]
         adx_di = data.ADX.values[-1]
 
+        current_histogram = histogram[-1]
         prev_histogram = histogram[-2]
-        if not self.order and histogram > prev_histogram and plus_di > minus_di and macd > signal > 0:
+        if not self.order and current_histogram > prev_histogram and plus_di > minus_di and macd > signal > 0:
             # buy signal
             self.order = price
             # logging.warning("Buy Order: {}".format(price))
 
-        if self.order and histogram < prev_histogram:
+        if self.order and current_histogram < prev_histogram:
             diff = price - self.order
             self.budget += diff
             self.order = 0
