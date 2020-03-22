@@ -2,25 +2,22 @@ import random
 import numpy as np
 import logging
 
-logging.basicConfig(filename='log/a2c.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename='../log/a2c.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
 from tqdm import tqdm
 from keras.models import Model
-from keras import regularizers
 from keras.utils import to_categorical
-from keras.layers import Input, Dense, Flatten, LSTM
+from keras.layers import Input, Dense, LSTM, concatenate
 
-from .critic import Critic
-from .actor import Actor
-from utils.networks import tfSummary
-from utils.stats import gather_stats
+from A2C.critic import Critic
+from A2C.actor import Actor
 
 
 class A2C:
     """ Actor-Critic Main Algorithm
     """
 
-    def __init__(self, act_dim, env_dim, k, gamma=0.85, lr=0.0001):
+    def __init__(self, act_dim, env_dim, k, gamma=0.8, lr=1e-4):
         """ Initialization
         """
         # Environment and A2C parameters
@@ -28,7 +25,9 @@ class A2C:
         self.env_dim = (k,) + env_dim
         self.gamma = gamma
         self.lr = lr
-        self.epsilon = 0.3
+        self.epsilon = 1
+        self.min_epsilon = 0.1
+        self.epsilon_decay = 0.999
         # Create actor and critic networks
         self.shared = self.buildNetwork()
         self.actor = Actor(self.env_dim, act_dim, self.shared, lr)
@@ -38,15 +37,21 @@ class A2C:
         self.c_opt = self.critic.optimizer()
 
     def buildNetwork(self):
-        """ Assemble shared layers
-        """
-        inp = Input((self.env_dim))
-        x = LSTM(128, dropout=0.1, recurrent_dropout=0.3)(inp)
-        x = Dense(128, activation='relu')(x)
-        x = Dense(128, activation='relu')(x)
-        x = Dense(64, activation='relu')(x)
-        x = Dense(32, activation='relu')(x)
-        return Model(inp, x)
+        """ Assemble shared layers"""
+        initial_input = Input(shape=(2, 40))
+        secondary_input = Input(shape=(2,))
+
+        lstm = LSTM(128, return_sequences=True)(initial_input)
+        lstm = LSTM(128, return_sequences=True)(lstm)
+        lstm = LSTM(128)(lstm)
+        dense = Dense(128, activation='relu')(secondary_input)
+        merge = concatenate([lstm, dense])
+
+        x = Dense(64, activation='relu')(merge)
+        out_dense = Dense(64, activation='relu')(x)
+        output = Dense(64, activation='relu')(out_dense)
+        model = Model(inputs=[initial_input, secondary_input], outputs=output)
+        return model
 
     def policy_action(self, inp1, inp2):
         """ Use the actor to predict the next action to take, using the policy
@@ -56,14 +61,23 @@ class A2C:
         logging.warning("a: {}, p: {}".format(action, p))
         return action
 
-    def random_actions(self, inp1, inp2):
-        if np.random.uniform() > self.epsilon:
-            # forward feed the observation and get q value for every actions
-            actions_value = self.actor.predict(inp1, inp2)
-            action = np.argmax(actions_value)
-            logging.warning("action: {} values: {}".format(action, actions_value))
-        else:
-            action = np.random.randint(0, self.act_dim)
+    def get_q_valid(self, inp1, inp2, valid_actions):
+        q = self.actor.predict(inp1, inp2)[0]
+        q_valid = [np.nan] * len(q)
+        for action in valid_actions:
+            q_valid[action] = q[action]
+        return q_valid
+
+    def random_actions(self, inp1, inp2, valid_actions):
+        if np.random.random() > self.epsilon:
+            inp1 = np.expand_dims(inp1, axis=0)
+            inp2 = np.expand_dims(inp2, axis=0)
+            q_valid = self.get_q_valid(inp1, inp2, valid_actions)
+            if np.nanmin(q_valid) != np.nanmax(q_valid):
+                logging.warning("predict action: {} values: {}".format(np.nanargmax(q_valid), q_valid))
+                return np.nanargmax(q_valid)
+        action = random.sample(valid_actions, 1)[0]
+        logging.warning("random action: {}".format(action))
         return action
 
     def discount(self, r, done, a):
@@ -77,13 +91,13 @@ class A2C:
             discounted_r[t] = cumul_r
         return discounted_r
 
-    def train_models(self, states, actions, rewards, done):
+    def train_models(self, state1, state2, actions, rewards, done):
         """ Update actor and critic networks from experience
         """
         # Compute discounted rewards and Advantage (TD. Error)
         discounted_rewards = self.discount(rewards, done, actions)
-        s1 = np.array([x[0][0] for x in states])
-        s2 = np.array([x[1][0] for x in states])
+        s1 = np.array(state1)
+        s2 = np.array(state2)
         state_values = self.critic.predict(s1, s2)
 
         advantages = discounted_rewards - np.reshape(state_values, len(state_values))
@@ -91,6 +105,9 @@ class A2C:
 
         self.a_opt([s1, s2, actions, advantages])
         self.c_opt([s1, s2, discounted_rewards])
+
+        if self.epsilon > self.min_epsilon:
+            self.epsilon = self.epsilon * self.epsilon_decay
 
     def train(self, env, args, summary_writer):
         """ Main A2C Training Algorithm
@@ -134,12 +151,6 @@ class A2C:
             #     results.append([e, mean, stdev])
             tqdm_e.set_description("Profit: " + str(info['total_profit']))
             tqdm_e.refresh()
-            # Export results for Tensorboard
-            score = tfSummary('score', cumul_reward)
-            budget = tfSummary('budget', info['total_profit'])
-            summary_writer.add_summary(score, global_step=e)
-            summary_writer.add_summary(budget, global_step=e)
-            summary_writer.flush()
 
         return results
 

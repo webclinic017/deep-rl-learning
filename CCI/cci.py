@@ -1,368 +1,89 @@
-from pprint import pprint
+import argparse
+import sys
 
-import matplotlib.pyplot as plt
-import pandas as pd
 import numpy as np
-import math
-import time
 import logging
-import uuid
-import random
-
-from binance.enums import *
-from binance.client import Client
-from binance.enums import KLINE_INTERVAL_1HOUR
-from binance.websockets import BinanceSocketManager
-from pymongo import MongoClient
 from tqdm import tqdm
-from mailer import SendMail
+import tensorflow as tf
+from keras.utils import to_categorical
+from ddqn import DDQN
+from env import TradingEnv
+from utils.networks import tfSummary
 
-logging.basicConfig(filename='../log/cci.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
-
-
-class AutoTrading:
-    def __init__(self):
-        self.api_key = "9Hj6HLNNMGgkqj6ngouMZD1kjIbUb6RZmIpW5HLiZjtDT5gwhXAzc20szOKyQ3HW"
-        self.api_secret = "ioD0XICp0cFE99VVql5nuxiCJEb6GK8mh08NYnSYdIUfkiotd1SZqLTQsjFvrXwk"
-        self.binace_client = Client(self.api_key, self.api_secret)
-        self.bm = BinanceSocketManager(self.binace_client)
-        # mongodb
-        self.client = MongoClient()
-        self.db = self.client.crypto
-
-        # env
-        self.order = 0
-        self.budget = 0
-        self.total_step = 0
-        self.header_list = ["Open", "High", "Low", "Close"]
-        # self.data = pd.read_csv("data/bnb5minute.csv", sep=',')
-        self.exp4 = []
-        self.exp5 = []
-        self.exp6 = []
-        self.exp7 = []
-        self.delta = []
-        self.budget_list = []
-        self.take_profit = 0
-        self.stop_loss = 0
-        self.max_diff = 0
-
-        klines = self.binace_client.get_historical_klines("BTCUSDT", Client.KLINE_INTERVAL_5MINUTE, "13 Mar, 2020")
-        df = pd.DataFrame(klines, columns=['open_time', 'Open', 'High', 'Low', 'Close',
-                                                'Volume', 'close_time', 'quote_asset_volume', 'number_of_trades',
-                                                'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
-        df = df.drop(['open_time', 'Volume', 'close_time', 'quote_asset_volume', 'number_of_trades',
-                      'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'], axis=1)
-        df['Open'] = df['Open'].astype(float)
-        df['High'] = df['High'].astype(float)
-        df['Low'] = df['Low'].astype(float)
-        df['Close'] = df['Close'].astype(float)
-        self.data = df
-
-        # draw canvas
-        self.fig = plt.figure()
-        self.ax = self.fig.add_subplot(411, label='Price')
-        self.bx = self.fig.add_subplot(412, label='CCI')
-        self.cx = self.fig.add_subplot(413, label='Budget')
-        self.dx = self.fig.add_subplot(414, label='Histogram')
-
-    @staticmethod
-    def calculate_cci(dataRaw, ndays):
-        """Commodity Channel Index"""
-        TP = (dataRaw['High'] + dataRaw['Low'] + dataRaw['Close']) / 3
-        rawCCI = pd.Series((TP - pd.rolling_mean(TP, ndays)) / (0.015 * pd.rolling_std(TP, ndays)), name='CCI')
-        return_data = dataRaw.join(rawCCI)
-        return return_data
-
-    def test_order(self):
-        info = self.binace_client.get_margin_account()
-        get_margin_asset = self.binace_client.get_margin_asset(asset='BTC')
-
-        usdt_amount = info['userAssets'][2]['free']
-        details = self.binace_client.get_max_margin_transfer(asset='BTC')
-        logging.warning("Margin Lever: {}".format(info['marginLevel']))
-        print("Margin Lever: {}".format(info['marginLevel']))
-        logging.warning("Amount in BTC: {}".format(info['totalAssetOfBtc']))
-        print("Amount in BTC: {}".format(info['totalAssetOfBtc']))
-        logging.warning("Account Status: {}".format(info['tradeEnabled']))
-        print("Account Status: {}".format(info['tradeEnabled']))
-
-        symbol = 'BTCUSDT'
-        # self.buy_margin()
-        # time.sleep(5)
-        self.sell_margin()
-
-        print("Test Done!!")
-
-    def sell_margin(self):
-        info = self.binace_client.get_margin_account()
-        symbol = 'BTCUSDT'
-        amount = info['totalAssetOfBtc']
-        precision = 5
-        amt_str = "{:0.0{}f}".format(float(amount)*0.98, precision)
-        logging.warning("Sell: {}".format(amt_str))
-        mailer = SendMail()
-        try:
-            sell_order = self.binace_client.create_margin_order(
-                symbol=symbol,
-                side=SIDE_SELL,
-                type=ORDER_TYPE_MARKET,
-                quantity=amt_str)
-
-            info = self.binace_client.get_margin_account()
-            current_btc = info['totalAssetOfBtc']
-            usdt = info['userAssets'][2]['free']
-            txt = "Sell successfully: Balance: {} Sell Amount: {} Owned BTC: {}".format(usdt, amt_str, current_btc)
-            logging.warning(txt)
-            mailer.notification(txt)
-            return True
-        except Exception as ex:
-            amt_str = "{:0.0{}f}".format(float(amount) * 0.9, precision)
-            sell_order = self.binace_client.create_margin_order(
-                symbol=symbol,
-                side=SIDE_SELL,
-                type=ORDER_TYPE_MARKET,
-                quantity=amt_str)
-
-            info = self.binace_client.get_margin_account()
-            current_btc = info['totalAssetOfBtc']
-            usdt = info['userAssets'][2]['free']
-            txt = "Sell successfully: Balance: {} Sell Amount: {} Owned BTC: {}".format(usdt, amt_str, current_btc)
-            logging.warning(txt)
-            mailer.notification(txt)
-            logging.error(ex)
-            return False
-
-    def buy_margin(self):
-        symbol = 'BTCUSDT'
-        info = self.binace_client.get_margin_account()
-        usdt_amount = info['userAssets'][2]['free']
-        price_index = self.binace_client.get_margin_price_index(symbol=symbol)
-        amount = float(usdt_amount)/float(price_index['price'])
-        precision = 5
-        amt_str = "{:0.0{}f}".format(amount*0.98, precision)
-        mailer = SendMail()
-        logging.warning("Buy : {}".format(amt_str))
-        try:
-            buy_order = self.binace_client.create_margin_order(
-                symbol=symbol,
-                side=SIDE_BUY,
-                type=ORDER_TYPE_MARKET,
-                quantity=amt_str)
-            txt = "Buy successfully: Amount: {}".format(amt_str)
-            logging.warning(txt)
-            mailer.notification(txt)
-            return True
-        except Exception as ex:
-            logging.error(ex)
-            return False
-
-    def start_socket(self):
-        # start any sockets here, i.e a trade socket
-        conn_key = self.bm.start_kline_socket('BTCUSDT', self.process_message, interval=KLINE_INTERVAL_5MINUTE)
-        # then start the socket manager
-        self.bm.start()
-
-    def process_message(self, msg):
-        msg = msg['k']
-        _open = float(msg['o'])
-        _high = float(msg['h'])
-        _low = float(msg['l'])
-        _close = float(msg['c'])
-        _latest = msg['x']
-        insert = self.db.btc15minutes.insert_one(msg).inserted_id
-
-        if _latest:
-            df2 = pd.DataFrame([[_open, _high, _low, _close]], columns=['Open', 'High', 'Low', 'Close'])
-            self.data = pd.concat((self.data, df2), ignore_index=True)
-            n = 20
-            data1 = self.data.iloc[-200:, :]
-            NI = self.calculate_cci(data1, n)
-
-            CCI = NI['CCI']
-            CCI = CCI.fillna(0)
-            current_cci = round(list(CCI)[-1], 2)
-            prev_cci = round(list(CCI)[-2], 2)
-            prev_prev_cci = round(list(CCI)[-3], 2)
-
-            anomaly_point = np.mean([current_cci, prev_cci, prev_prev_cci])
-            current_price = list(data1['Close'])[-1]
-            logging.warning("Current Price: {}".format(current_price))
-            if self.order == 0 and anomaly_point < -100:
-                if prev_cci < current_cci:
-                    is_close_buy_signal = list(np.isclose([anomaly_point], [-140.0], atol=20))[0]
-                    if is_close_buy_signal and anomaly_point > -150:
-                        if self.buy_margin():
-                            self.order = list(data1['Close'])[-1]
-                            print("buy: {}".format(current_price))
-
-            elif self.order != 0 and list(np.isclose([anomaly_point], [0.0], atol=10))[0]:
-                # close order 50:50
-                if current_cci > 0.0:
-                    if self.sell_margin():
-                        self.budget += current_price - self.order
-                        print(
-                            "sell: {} budget: {} total step: {}".format(current_price, round(self.budget, 2),
-                                                                        self.total_step))
-                        self.order = 0
-                        self.total_step = 0
-
-            elif self.order != 0 and list(np.isclose([anomaly_point], [100.0], atol=10))[0]:
-                # take profit
-                if current_cci > 100.0:
-                    if self.sell_margin():
-                        self.budget += current_price - self.order
-                        print(
-                            "sell: {} budget: {} total step: {}".format(current_price, round(self.budget, 2),
-                                                                        self.total_step))
-                        self.order = 0
-                        self.total_step = 0
-
-            elif self.order != 0 and list(np.isclose([anomaly_point], [200.0], atol=20))[0]:
-                # Super take profit
-                if current_cci > 180.0:
-                    if self.sell_margin():
-                        self.budget += current_price - self.order
-                        print(
-                            "sell: {} budget: {} total step: {}".format(current_price, round(self.budget, 2),
-                                                                        self.total_step))
-                        self.order = 0
-                        self.total_step = 0
-
-            if self.order != 0:
-                self.total_step += 1
-
-    def mock_data(self):
-        df = pd.read_csv("../data/5minute.csv", sep=',')
-        for x in range(0, len(df)):
-            data = df.iloc[x:x+200, :]
-            self.process_mock(data)
-
-    @classmethod
-    def fibonacci(cls, price_max, price_min):
-        diff = price_max - price_min
-        level1 = price_max + 1.618 * diff
-        stop_loss = price_max - 0.618 * diff
-        return level1, stop_loss
-
-    def process_mock(self, data1):
-        ndays = 14
-        data_cp = data1.copy()
-        close_price = data_cp.Close.values
-        tp = (data_cp['High'] + data_cp['Low'] + data_cp['Close']) / 3
-        raw_cci = pd.Series((tp - tp.rolling(ndays).mean()) / (0.015 * tp.rolling(ndays).std()), name='CCI')
-        NI = data_cp.join(raw_cci)
-
-        CCI = NI['CCI']
-        CCI = CCI.fillna(0)
-        cci = list(CCI)
-        current_cci = round(cci[-1], 2)
-        prev_cci = round(cci[-2], 2)
-        prev_prev_cci = round(cci[-3], 2)
-
-        self.exp4 = [x1 - 1 for x1 in self.exp4]
-        self.exp6 = [x - 1 for x in self.exp6]
-
-        anomaly_point = np.mean([current_cci, prev_cci, prev_prev_cci])
-        current_price = close_price[-1]
-        logging.warning("Current Price: {}".format(current_price))
-        if self.order == 0 and anomaly_point < -100:
-            if prev_prev_cci < prev_cci < current_cci:
-                is_close_buy_signal = list(np.isclose([anomaly_point], [-170.0], atol=50))[0]
-                if is_close_buy_signal:
-                    self.order = list(data1['Close'])[-1]
-                    print("buy: {}".format(current_price))
-                    custom_range = close_price[-10:]
-                    max_price = max(custom_range)
-                    min_price = min(custom_range)
-                    self.exp4.append(len(close_price))
-                    self.exp5.append(current_price)
-                    self.take_profit, self.stop_loss = self.fibonacci(max_price, min_price)
-
-        elif self.order != 0 and 0 < current_cci < prev_cci > prev_prev_cci or self.total_step > 20:
-            # close order
-            diff = current_price - self.order
-            # if diff > self.max_diff:
-            #     self.max_diff = diff
-            # else:
-            self.budget += diff
-            self.max_diff = 0
-            print(
-                "sell: budget: {} total step: {} diff: {}".format(round(self.budget, 2), self.total_step, diff))
-            self.order = 0
-            self.total_step = 0
-            self.exp6.append(len(close_price))
-            self.exp7.append(current_price)
-            self.budget_list.append(self.budget)
-            self.take_profit, self.stop_loss = 0, 0
+logging.basicConfig(filename='log/cci.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
 
-        # elif self.take_profit and self.take_profit <= current_price:
-        #     # take profit close order
-        #     diff = current_price - self.order
-        #     self.budget += diff
-        #     print(
-        #         "Take profit: budget: {} current_price: {} diff: {}".format(round(self.budget, 2), current_price, diff))
-        #     self.order = 0
-        #     self.total_step = 0
-        #     self.exp6.append(len(close_price))
-        #     self.exp7.append(current_price)
-        #     self.budget_list.append(self.budget)
-        #     self.take_profit, self.stop_loss = 0, 0
+class AutoTrading(DDQN):
 
-        # elif self.order and current_price < self.stop_loss and self.stop_loss and self.total_step > 1:
-        #     # take profit close order
-        #     diff = current_price - self.order
-        #     self.budget += diff
-        #     print(
-        #         "Stop loss: budget: {} total step: {} diff: {}".format(round(self.budget, 2), self.total_step, diff))
-        #     self.order = 0
-        #     self.total_step = 0
-        #     self.exp6.append(len(close_price))
-        #     self.exp7.append(current_price)
-        #     self.budget_list.append(self.budget)
-        #     self.take_profit, self.stop_loss = 0, 0
+    def learning_start(self, env, summary_writer):
+        for e in range(args.nb_episodes):
+            tqdm_e = tqdm(range(120, 1000), desc='Score', leave=True, unit=" episode")
+            time, cumul_reward, done = 0, 0, False
+            old_state1, old_state2 = env.reset()
+            # print(old_state1.shape, old_state2.shape)
+            for x in tqdm_e:
+                valid_actions = env.get_valid_actions()
+                a = self.random_actions(old_state1, old_state2, valid_actions)
+                new_state1, new_state2, r, done, info = env.act(a)
+                # print(new_state1.shape, new_state2.shape)
+                self.memorize(old_state1, old_state2, a, r, done, new_state1, new_state2)
+                old_state1 = new_state1
+                old_state2 = new_state2
+                cumul_reward += r
 
-        if self.order != 0:
-            self.total_step += 1
+                if self.buffer.size() > self.args.batch_size:
+                    self.train_agent(batch_size=self.args.batch_size)
+                    self.agent.transfer_weights()
 
-        for x4 in self.exp4:
-            if x4 < 20:
-                self.exp4 = self.exp4[1:]
-                self.exp5 = self.exp5[1:]
+                tqdm_e.set_description(
+                    "Profit: {}, Cumul reward: {} Step: {}".format(
+                        round(env.budget, 2),
+                        round(cumul_reward, 2),
+                        x
+                    )
+                )
+                tqdm_e.refresh()
 
-        for x6 in self.exp6:
-            if x6 < 20:
-                self.exp6 = self.exp6[1:]
-                self.exp7 = self.exp7[1:]
+            score = tfSummary('score', cumul_reward)
+            summary_writer.add_summary(score, global_step=e)
+            summary_writer.flush()
 
-        if len(self.delta) >= 200:
-            self.delta.pop(0)
 
-        # Plotting the Price Series chart and the Commodity Channel index below
-        # self.ax.cla()
-        # self.bx.cla()
-        # self.cx.cla()
-        # index = [i for i, val in enumerate(list(data1['Close']))]
-        # self.ax.set_xticklabels([])
-        # self.ax.plot(index, data1['Close'], lw=1, label='Price')
-        # self.ax.plot(self.exp4, self.exp5, 'ro', color='g')
-        # self.ax.plot(self.exp6, self.exp7, 'ro', color='r')
-        # self.ax.legend(loc='upper left')
-        # self.ax.grid(True)
-        # self.bx.set_xticklabels([])
-        # self.bx.plot(cci, label='CCI')
-        # self.bx.legend(loc='upper left')
-        # self.bx.grid(True)
-        # self.cx.set_xticklabels([])
-        # self.cx.plot(self.budget_list, label='Budget')
-        # self.cx.legend(loc='upper left')
-        # self.cx.grid(True)
-        # self.fig.canvas.draw()
-        # plt.pause(0.0001)
+def parse_args(args):
+    """ Parse arguments from command line input
+    """
+    parser = argparse.ArgumentParser(description='Training parameters')
+    #
+    parser.add_argument('--type', type=str, default='DDQN',help="Algorithm to train from {A2C, A3C, DDQN, DDPG}")
+    parser.add_argument('--is_atari', dest='is_atari', action='store_true', help="Atari Environment")
+    parser.add_argument('--with_PER', dest='with_per', action='store_true', help="Use Prioritized Experience Replay (DDQN + PER)")
+    parser.add_argument('--dueling', dest='dueling', action='store_true', help="Use a Dueling Architecture (DDQN)")
+    #
+    parser.add_argument('--nb_episodes', type=int, default=500, help="Number of training episodes")
+    parser.add_argument('--batch_size', type=int, default=64, help="Batch size (experience replay)")
+    parser.add_argument('--consecutive_frames', type=int, default=5, help="Number of consecutive frames (action repeat)")
+    parser.add_argument('--training_interval', type=int, default=30, help="Network training frequency")
+    parser.add_argument('--n_threads', type=int, default=8, help="Number of threads (A3C)")
+    #
+    parser.add_argument('--gather_stats', dest='gather_stats', action='store_true',help="Compute Average reward per episode (slower)")
+    parser.add_argument('--render', dest='render', action='store_true', help="Render environment while training")
+    parser.add_argument('--env', type=str, default='Autotrading',help="OpenAI Gym Environment")
+    parser.add_argument('--gpu', type=int, default=0, help='GPU ID')
+    #
+    parser.set_defaults(render=False)
+    return parser.parse_args(args)
 
 
 if __name__ == '__main__':
-    trading_bot = AutoTrading()
-    trading_bot.mock_data()
-    # trading_bot.test_order()
-    # trading_bot.start_socket()
+    args = sys.argv[1:]
+    args = parse_args(args)
+
+    trading_env = TradingEnv()
+    state_dim = (40,)
+    action_dim = 3
+
+    trading_bot = AutoTrading(action_dim, state_dim, args)
+    summary_writer = tf.summary.FileWriter("tensorboard/" + args.env)
+    trading_bot.learning_start(trading_env, summary_writer)
+
+    trading_bot.save_weights('models/new_nodel')
