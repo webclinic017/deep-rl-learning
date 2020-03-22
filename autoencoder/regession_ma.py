@@ -1,3 +1,4 @@
+import datetime
 import time
 import logging
 import pandas as pd
@@ -88,6 +89,8 @@ class RegressionMA:
 
     def process_message(self, msg):
         msg['k']['timestamp'] = time.time()
+        readable = datetime.datetime.fromtimestamp(msg['k']['timestamp']).strftime('%Y-%m-%d %H:%M:%S')
+        print("{} Price: {}".format(readable, msg['k']['c']))
         insert = self.db.btc_1hour_realtime.insert_one(msg).inserted_id
         _open_time = msg['k']['t']
         _open = msg['k']['o']
@@ -140,7 +143,7 @@ class RegressionMA:
         if not self.order and current_histogram > prev_histogram and plus_di > minus_di and macd > signal > 0:
             # buy signal
             self.order = price
-            # logging.warning("Buy Order: {}".format(price))
+            logging.warning("Buy Order: {}".format(price))
 
         if self.order and current_histogram < prev_histogram:
             diff = price - self.order
