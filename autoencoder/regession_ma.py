@@ -23,6 +23,8 @@ class RegressionMA:
         self.order = 0
         self.prev_histogram = 0
         self.max_diff = 0
+        self.buy_mount = 0
+        self.trade_amount = 0.1  # 10% currency you owned
         self.client = MongoClient()
         self.db = self.client.crypto
         self.api_key = "9Hj6HLNNMGgkqj6ngouMZD1kjIbUb6RZmIpW5HLiZjtDT5gwhXAzc20szOKyQ3HW"
@@ -148,7 +150,7 @@ class RegressionMA:
                 self.order = price
                 logging.warning("Buy Order: {}".format(price))
 
-        if self.order and current_histogram < prev_histogram:
+        elif self.order and current_histogram < prev_histogram:
             if self.sell_margin():
                 diff = price - self.order
                 self.budget += diff
@@ -217,13 +219,38 @@ class RegressionMA:
 
         print("Test Done!!")
 
+    def buy_margin(self):
+        symbol = 'BTCUSDT'
+        info = self.binace_client.get_margin_account()
+        usdt_amount = info['userAssets'][2]['free']
+        price_index = self.binace_client.get_margin_price_index(symbol=symbol)
+        amount = int(float(usdt_amount))/float(price_index['price'])
+        precision = 5
+        amt_str = "{:0.0{}f}".format(amount*self.trade_amount, precision)
+        mailer = SendMail()
+        try:
+            txt = "Buy successfully: Amount: {} Price: {}".format(amt_str, price_index['price'])
+            print(txt)
+            buy_order = self.binace_client.create_margin_order(
+                symbol=symbol,
+                side=SIDE_BUY,
+                type=ORDER_TYPE_MARKET,
+                quantity=amt_str)
+            mailer.notification(txt)
+            self.buy_mount = amt_str
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
+
     def sell_margin(self):
         info = self.binace_client.get_margin_account()
         symbol = 'BTCUSDT'
         amount = info['totalAssetOfBtc']
         precision = 5
-        amount = round(float(amount), 3)
-        amt_str = "{:0.0{}f}".format(amount, precision)
+        # amount = round(float(amount)*self.trade_amount, 3)
+        # amt_str = "{:0.0{}f}".format(amount, precision)
+        amt_str = self.buy_mount
         price_index = self.binace_client.get_margin_price_index(symbol=symbol)
         mailer = SendMail()
         try:
@@ -240,30 +267,6 @@ class RegressionMA:
                                                                                                  price_index['price'],
                                                                                                  current_btc)
             print(txt)
-            mailer.notification(txt)
-            return True
-        except Exception as ex:
-            print(ex)
-            return False
-
-    def buy_margin(self):
-        symbol = 'BTCUSDT'
-        info = self.binace_client.get_margin_account()
-        usdt_amount = info['userAssets'][2]['free']
-        price_index = self.binace_client.get_margin_price_index(symbol=symbol)
-        amount = int(float(usdt_amount))/float(price_index['price'])
-        precision = 5
-        amt_str = "{:0.0{}f}".format(amount, precision)
-        mailer = SendMail()
-
-        try:
-            txt = "Buy successfully: Amount: {} Price: {}".format(amt_str, price_index['price'])
-            print(txt)
-            buy_order = self.binace_client.create_margin_order(
-                symbol=symbol,
-                side=SIDE_BUY,
-                type=ORDER_TYPE_MARKET,
-                quantity=amt_str)
             mailer.notification(txt)
             return True
         except Exception as ex:
