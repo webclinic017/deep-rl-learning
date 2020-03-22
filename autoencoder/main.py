@@ -1,23 +1,26 @@
 import numpy as np
 import pandas as pd
-from keras import Sequential
+from keras import Sequential, Model, Input
 from keras.callbacks import EarlyStopping, ModelCheckpoint
-from keras.layers import Dense, BatchNormalization, LSTM, RepeatVector, TimeDistributed
+from keras.layers import Dense, BatchNormalization, LSTM, RepeatVector, TimeDistributed, Flatten
+from keras.utils import plot_model
 from sklearn import datasets, linear_model
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, StratifiedKFold
 from keras.wrappers.scikit_learn import KerasRegressor, KerasClassifier
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import KFold
 from sklearn.pipeline import Pipeline
 from collections import Counter
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.metrics import accuracy_score, roc_auc_score, roc_curve, precision_recall_curve
 from matplotlib import pyplot
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 
 class Autoencoder:
     def __init__(self):
-        self.train_data, self.normalize_price, self.raw_price, self.moving_avg = self.get_data('../data/1hour.csv')
+        self.train_data, self.normalize_price, self.raw_price, self.moving_avg = self.get_data('../data/15minute.csv')
         self.cci = self.calculate_cci(self.train_data, 25)
         self.train = self.macd(self.cci)
         self.train = self.stochastics(self.train)
@@ -100,29 +103,35 @@ class Autoencoder:
     def baseline_model(self):
         # create model
         model = Sequential()
-        model.add(Dense(512, input_dim=3, activation='relu', kernel_initializer='uniform'))
+        model.add(Dense(128, input_dim=1, activation='relu'))
         model.add(BatchNormalization())
-        model.add(Dense(512, activation='relu', kernel_initializer='uniform'))
-        model.add(Dense(1, activation='softmax', kernel_initializer='uniform'))
+        model.add(Dense(64, activation='relu'))
+        model.add(Dense(1, activation='sigmoid'))
         # Compile model
         model.compile(loss='binary_crossentropy', optimizer='adam', metrics=["accuracy"])
         return model
 
-    def lstm_autoencoder(self, n_in=10):
-        model = Sequential()
-        model.add(LSTM(100, activation='relu', input_shape=(n_in, 1)))
-        model.add(RepeatVector(n_in))
-        model.add(LSTM(100, activation='relu', return_sequences=True))
-        model.add(TimeDistributed(Dense(1)))
-        model.compile(optimizer='adam', loss='mse')
-        return model
-
-    def create_dataset(self, dataset, look_back=10):
+    def create_dataset(self, dataset, look_back=20):
         dataX, dataY = [], []
-        for i in range(len(dataset) - look_back - 1):
+        num_positive = 0
+        num_negative = 0
+        for i in range(len(dataset) - look_back - 2):
             a = dataset[['CCI', 'k_fast', 'd_fast']].iloc[i:i+look_back].values
-            dataX.append(a)
-        return np.array(dataX), np.array(dataX)
+            a = a.flatten()
+            close_data = dataset[['Open', 'Close']].iloc[i+look_back-1].values
+            diff = close_data[1] - close_data[0]
+
+            if diff > 10:
+                num_positive += 1
+                dataX.append(a)
+                dataY.append(1)
+
+            if diff < -10:
+                num_negative += 1
+                dataX.append(a)
+                dataY.append(0)
+
+        return np.array(dataX), np.array(dataY)
 
     def train_start(self):
         col = ['CCI', 'k_fast', 'd_fast']
@@ -131,18 +140,76 @@ class Autoencoder:
         self.train.loc[(self.train.Open < self.train.Close), 'signal'] = 1
         # self.train.loc[(self.train.Close < self.train.Open), 'signal'] = 0
         x_train, y_train = self.create_dataset(self.train)
+        scaler = MinMaxScaler()
+        scaler.fit(x_train)
+        normalized = scaler.transform(x_train)
+        # define model
+        input_img = Input(shape=(60,))
+        encoded = Dense(128, activation='relu')(input_img)
+        encoded = Dense(64, activation='relu')(encoded)
+        encoded = Dense(1, activation='relu')(encoded)
 
-        # y = self.train.signal
-        # X_train, X_test, y_train, y_test = train_test_split(train_data, y, test_size=0.2)
-        # lm = linear_model.LinearRegression(normalize=True)
-        # model = lm.fit(X_train, y_train)
-        # predictions = lm.predict(X_test)
-        # for correct, prediction in zip(y, predictions):
-        #     print(correct, prediction)
+        decoded = Dense(64, activation='relu')(encoded)
+        decoded = Dense(128, activation='relu')(decoded)
+        decoded = Dense(60, activation='sigmoid')(decoded)
+        autoencoder = Model(input_img, decoded)
+        autoencoder.compile(optimizer='adam', loss='mse')
+        autoencoder.summary()
 
-        # evaluate model
-        # standardscaler = StandardScaler()
-        # standardscaler.fit_transform(x_train)
+        autoencoder.fit(normalized, normalized,
+                        epochs=100,
+                        batch_size=32,
+                        shuffle=True,
+                        verbose=0
+                        )
+        # connect the encoder LSTM as the output layer
+        model = Model(inputs=autoencoder.inputs, outputs=autoencoder.layers[0].output)
+        # plot_model(model, show_shapes=True, to_file='lstm_encoder.png')
+        # get the feature vector for the input sequence
+        encoder = Model(autoencoder.inputs, encoded)
+        encoder.save_weights('model_weight.h5')
+
+    def evaluate(self):
+        col = ['CCI', 'k_fast', 'd_fast']
+        train_data = self.train[col]
+        self.train['signal'] = 0
+        self.train.loc[(self.train.Open < self.train.Close), 'signal'] = 1
+        # self.train.loc[(self.train.Close < self.train.Open), 'signal'] = 0
+        x_train, y_train = self.create_dataset(self.train)
+        scaler = MinMaxScaler()
+        scaler.fit(x_train)
+        normalized = scaler.transform(x_train)
+        input_img = Input(shape=(60,))
+        encoded = Dense(128, activation='relu')(input_img)
+        encoded = Dense(64, activation='relu')(encoded)
+        encoded = Dense(1, activation='relu')(encoded)
+
+        decoded = Dense(64, activation='relu')(encoded)
+        decoded = Dense(128, activation='relu')(decoded)
+        decoded = Dense(60, activation='sigmoid')(decoded)
+        autoencoder = Model(input_img, decoded)
+        autoencoder.compile(optimizer='adam', loss='mse')
+        encoder = Model(autoencoder.inputs, encoded)
+        encoder.load_weights('model_weight.h5')
+        encoded_imgs = encoder.predict(normalized)
+        # encoder_scaler = MinMaxScaler(feature_range=(min(encoded_imgs)[0], max(encoded_imgs)[0]))
+        # encoder_scaler.fit_transform(y_train.reshape(-1, 1))
+        # matplotlib histogram
+        # seaborn histogram
+        # colors = ['#E69F00', '#56B4E9']
+        # names = ['Encoder', 'Price']
+        # plt.hist([encoded_imgs.flatten(), encoder_scaler.transform(y_train.reshape(1, -1)).flatten()], bins=int(180/15), color=colors, label=names, stacked=True,)
+        # # Add labels
+        # plt.legend()
+        # plt.title('Histogram of Arrival Delays')
+        # plt.xlabel('Delay (min)')
+        # plt.ylabel('Flights')
+        # plt.show()
+
+        self.re_train(encoded_imgs, y_train)
+
+    def re_train(self, X, y):
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.15, random_state=123)
 
         model = KerasClassifier(build_fn=self.baseline_model, epochs=10000, batch_size=5, verbose=0)
         # kfold = KFold(n_splits=2)
@@ -152,7 +219,7 @@ class Autoencoder:
         es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=50)
         mc = ModelCheckpoint('best_model.h5', monitor='val_loss', mode='min', save_best_only=True)
 
-        model.fit(X_train, y_train, validation_data=(X_test, y_test), callbacks=[es, mc])
+        model.fit(X_train, y_train, validation_data=(X_test, y_test), callbacks=[es, mc], verbose=1)
         y_pred = model.predict(X_test)
         y_true = y_test
         print(accuracy_score(y_true, y_pred))
@@ -204,14 +271,17 @@ class Autoencoder:
         pyplot.hist(pos_probs, bins=100)
         pyplot.show()
 
-        # print(y_pred)
+    def norm_list(self, list_needed):
+        """Scale feature to 0-1"""
+        min_x = min(list_needed)
+        max_x = max(list_needed)
+        if not min_x or not max_x:
+            return list_needed
 
-        # estimator = KerasRegressor(build_fn=self.baseline_model, epochs=100, batch_size=5, verbose=1)
-        # kfold = KFold(n_splits=10)
-        # results = cross_val_score(estimator, X_train, y_train, cv=kfold)
-        # print("Baseline: %.2f (%.2f) MSE" % (results.mean(), results.std()))
-
+        return_data = list(map(lambda x: (x - min_x) / (max_x - min_x), list_needed))
+        return return_data
 
 if __name__ == '__main__':
     autoencode = Autoencoder()
     autoencode.train_start()
+    autoencode.evaluate()

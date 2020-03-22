@@ -430,4 +430,4 @@ if __name__ == '__main__':
     trading_bot.start_mockup("train")
 
     trading_bot.save_weights('MACD/models/new_way')
-    # trading_bot.start_socket()
+    trading_bot.start_socket()
