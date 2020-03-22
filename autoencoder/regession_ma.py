@@ -131,8 +131,8 @@ class RegressionMA:
         macd = data.MACD.values[-1]
         signal = data.Signal.values[-1]
         histogram = data.Histogram.values
-        minus_di = data.MINUS_DM.values[-1]
-        plus_di = data.PLUS_DM.values[-1]
+        minus_di = data.MINUS_DI.values[-1]
+        plus_di = data.PLUS_DI.values[-1]
         adx_di = data.ADX.values[-1]
 
         current_histogram = histogram[-1]
