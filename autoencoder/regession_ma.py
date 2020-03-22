@@ -88,7 +88,7 @@ class RegressionMA:
 
     def process_message(self, msg):
         msg['k']['timestamp'] = time.time()
-        insert = self.db.btc_data.insert_one(msg).inserted_id
+        insert = self.db.btc_1hour_realtime.insert_one(msg).inserted_id
         _open_time = msg['k']['t']
         _open = msg['k']['o']
         _high = msg['k']['h']
