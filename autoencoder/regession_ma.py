@@ -2,7 +2,7 @@ import time
 import logging
 import pandas as pd
 import talib
-from binance.enums import KLINE_INTERVAL_1MINUTE
+from binance.enums import KLINE_INTERVAL_1MINUTE, KLINE_INTERVAL_1HOUR
 from pymongo import MongoClient
 from talib import MA_Type
 from talib._ta_lib import RSI, BBANDS, MA, MOM, MACD, DX, MINUS_DM, PLUS_DM, MINUS_DI, PLUS_DI, ADX
@@ -48,13 +48,13 @@ class RegressionMA:
         api_secret = "uUdxQdnVR48w5ypYxfsi7xK6e6W2v3GL8YrAZp5YeY1GicGbh3N5NI71Pss0crfJ"
         binaci_client = Client(api_key, api_secret)
         bm = BinanceSocketManager(binaci_client)
-        conn_key = bm.start_kline_socket('BTCUSDT', self.process_message, interval=KLINE_INTERVAL_1MINUTE)
+        conn_key = bm.start_kline_socket('BTCUSDT', self.process_message, interval=KLINE_INTERVAL_1HOUR)
         # then start the socket manager
         bm.start()
 
     def process_message(self, msg):
         msg['k']['timestamp'] = time.time()
-        insert = self.db.btc_data.insert_one(msg).inserted_id
+        insert = self.db.btc_1hour_real_data.insert_one(msg).inserted_id
         _open_time = msg['k']['t']
         _open = msg['k']['o']
         _high = msg['k']['h']
