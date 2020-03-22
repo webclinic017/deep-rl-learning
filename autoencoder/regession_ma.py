@@ -3,13 +3,15 @@ import time
 import logging
 import pandas as pd
 import talib
-from binance.enums import KLINE_INTERVAL_1MINUTE, KLINE_INTERVAL_1HOUR, KLINE_INTERVAL_5MINUTE
+from binance.enums import KLINE_INTERVAL_1MINUTE, KLINE_INTERVAL_1HOUR, KLINE_INTERVAL_5MINUTE, SIDE_SELL, \
+    ORDER_TYPE_MARKET, SIDE_BUY
 from pymongo import MongoClient
 from talib import MA_Type
 from talib._ta_lib import RSI, BBANDS, MA, MOM, MACD, DX, MINUS_DM, PLUS_DM, MINUS_DI, PLUS_DI, ADX
 from binance.client import Client
 from binance.websockets import BinanceSocketManager
 import matplotlib.pyplot as plt
+from mailer import SendMail
 
 logging.basicConfig(filename='../log/autotrade.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
@@ -23,6 +25,10 @@ class RegressionMA:
         self.max_diff = 0
         self.client = MongoClient()
         self.db = self.client.crypto
+        self.api_key = "9Hj6HLNNMGgkqj6ngouMZD1kjIbUb6RZmIpW5HLiZjtDT5gwhXAzc20szOKyQ3HW"
+        self.api_secret = "ioD0XICp0cFE99VVql5nuxiCJEb6GK8mh08NYnSYdIUfkiotd1SZqLTQsjFvrXwk"
+        self.binace_client = Client(self.api_key, self.api_secret)
+        self.bm = BinanceSocketManager(self.binace_client)
 
     def get_data(self):
         api_key = "y9JKPpQ3B2zwIRD9GwlcoCXwvA3mwBLiNTriw6sCot13IuRvYKigigXYWCzCRiul"
@@ -45,13 +51,9 @@ class RegressionMA:
 
     def start_socket(self):
         # start any sockets here, i.e a trade socket
-        api_key = "y9JKPpQ3B2zwIRD9GwlcoCXwvA3mwBLiNTriw6sCot13IuRvYKigigXYWCzCRiul"
-        api_secret = "uUdxQdnVR48w5ypYxfsi7xK6e6W2v3GL8YrAZp5YeY1GicGbh3N5NI71Pss0crfJ"
-        binaci_client = Client(api_key, api_secret)
-        bm = BinanceSocketManager(binaci_client)
-        conn_key = bm.start_kline_socket('BTCUSDT', self.process_message, interval=KLINE_INTERVAL_1HOUR)
+        conn_key = self.bm.start_kline_socket('BTCUSDT', self.process_message, interval=KLINE_INTERVAL_1HOUR)
         # then start the socket manager
-        bm.start()
+        self.bm.start()
 
     def getStockDataVec(self, key='train1hour'):
         indexes = []
@@ -141,16 +143,18 @@ class RegressionMA:
         current_histogram = histogram[-1]
         prev_histogram = histogram[-2]
         if not self.order and current_histogram > prev_histogram and plus_di > minus_di and macd > signal > 0:
-            # buy signal
-            self.order = price
-            logging.warning("Buy Order: {}".format(price))
+            if self.buy_margin():
+                # buy signal
+                self.order = price
+                logging.warning("Buy Order: {}".format(price))
 
         if self.order and current_histogram < prev_histogram:
-            diff = price - self.order
-            self.budget += diff
-            self.order = 0
-            self.max_diff = 0
-            logging.warning("Sell Order: Budget {} Diff: {}".format(self.budget, diff))
+            if self.sell_margin():
+                diff = price - self.order
+                self.budget += diff
+                self.order = 0
+                self.max_diff = 0
+                logging.warning("Sell Order: Budget {} Diff: {}".format(self.budget, diff))
 
     def test_trading(self):
         df = self.train_data
@@ -192,24 +196,84 @@ class RegressionMA:
                         max_diff = 0
                         logging.warning("Sell Order: Budget {} Diff: {}".format(self.budget, diff))
 
-                # elif self.order and price - self.order < -3:
-                #     diff = price - self.order
-                #     self.budget += diff
-                #     self.order = 0
-                #     logging.warning("Loss: Budget {} Diff: {}".format(self.budget, diff))
-                # elif self.order and price - self.order > 50:
-                #     diff = price - self.order
-                #     self.budget += diff
-                #     self.order = 0
-                #     logging.warning("Negative Histogram: Budget {} Diff: {}".format(self.budget, diff))
-
             idx += 1
 
         print(self.budget)
+
+    def test_order(self):
+        info = self.binace_client.get_margin_account()
+        get_margin_asset = self.binace_client.get_margin_asset(asset='BTC')
+
+        usdt_amount = info['userAssets'][2]['free']
+        details = self.binace_client.get_max_margin_transfer(asset='BTC')
+        print("Margin Lever: {}".format(info['marginLevel']))
+        print("Amount in BTC: {}".format(info['totalAssetOfBtc']))
+        print("Account Status: {}".format(info['tradeEnabled']))
+
+        symbol = 'BTCUSDT'
+        self.buy_margin()
+        time.sleep(5)
+        self.sell_margin()
+
+        print("Test Done!!")
+
+    def sell_margin(self):
+        info = self.binace_client.get_margin_account()
+        symbol = 'BTCUSDT'
+        amount = info['totalAssetOfBtc']
+        precision = 5
+        amount = round(float(amount), 3)
+        amt_str = "{:0.0{}f}".format(amount, precision)
+        price_index = self.binace_client.get_margin_price_index(symbol=symbol)
+        mailer = SendMail()
+        try:
+            sell_order = self.binace_client.create_margin_order(
+                symbol=symbol,
+                side=SIDE_SELL,
+                type=ORDER_TYPE_MARKET,
+                quantity=amt_str)
+
+            info = self.binace_client.get_margin_account()
+            current_btc = info['totalAssetOfBtc']
+            usdt = info['userAssets'][2]['free']
+            txt = "Sell successfully: Balance: {} Sell Amount: {} In {} Owned In BTC: {}".format(usdt, amt_str,
+                                                                                                 price_index['price'],
+                                                                                                 current_btc)
+            print(txt)
+            mailer.notification(txt)
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
+
+    def buy_margin(self):
+        symbol = 'BTCUSDT'
+        info = self.binace_client.get_margin_account()
+        usdt_amount = info['userAssets'][2]['free']
+        price_index = self.binace_client.get_margin_price_index(symbol=symbol)
+        amount = int(float(usdt_amount))/float(price_index['price'])
+        precision = 5
+        amt_str = "{:0.0{}f}".format(amount, precision)
+        mailer = SendMail()
+
+        try:
+            txt = "Buy successfully: Amount: {} Price: {}".format(amt_str, price_index['price'])
+            print(txt)
+            buy_order = self.binace_client.create_margin_order(
+                symbol=symbol,
+                side=SIDE_BUY,
+                type=ORDER_TYPE_MARKET,
+                quantity=amt_str)
+            mailer.notification(txt)
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
 
 
 if __name__ == '__main__':
     bottrading = RegressionMA()
     bottrading.get_data()
     # bottrading.test_trading()
-    bottrading.start_socket()
+    # bottrading.start_socket()
+    bottrading.test_order()
