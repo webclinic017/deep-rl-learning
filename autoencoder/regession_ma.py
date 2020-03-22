@@ -1,5 +1,5 @@
 import time
-
+import logging
 import pandas as pd
 import talib
 from binance.enums import KLINE_INTERVAL_1MINUTE
@@ -9,6 +9,8 @@ from talib._ta_lib import RSI, BBANDS, MA, MOM, MACD, DX, MINUS_DM, PLUS_DM, MIN
 from binance.client import Client
 from binance.websockets import BinanceSocketManager
 import matplotlib.pyplot as plt
+
+logging.basicConfig(filename='../log/autotrade.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
 
 class RegressionMA:
@@ -98,16 +100,17 @@ class RegressionMA:
         if not self.order and histogram > self.prev_histogram and plus_di > minus_di and axd > minus_di and price > ma:
             # buy signal
             self.order = price
+            logging.warning("Buy Order: {}".format(price))
         elif self.order and self.prev_histogram > 0 and histogram < 0:
             diff = price - self.order
             self.budget += diff
             self.order = 0
-            print(self.budget)
+            logging.warning("Sell Order: {} Diff: {}".format(self.budget, diff))
         elif self.order and price - self.order < -5:
             diff = price - self.order
             self.budget += diff
             self.order = 0
-            print(self.budget)
+            logging.warning("Stop Loss: {} Diff: {}".format(self.budget, diff))
 
         self.prev_histogram = histogram
 
