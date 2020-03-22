@@ -27,7 +27,7 @@ class RegressionMA:
         api_key = "y9JKPpQ3B2zwIRD9GwlcoCXwvA3mwBLiNTriw6sCot13IuRvYKigigXYWCzCRiul"
         api_secret = "uUdxQdnVR48w5ypYxfsi7xK6e6W2v3GL8YrAZp5YeY1GicGbh3N5NI71Pss0crfJ"
         binaci_client = Client(api_key, api_secret)
-        klines = binaci_client.get_historical_klines("BTCUSDT", KLINE_INTERVAL_1HOUR, "1 Jan, 2019", "30 Jan, 2019")
+        klines = binaci_client.get_historical_klines("BTCUSDT", KLINE_INTERVAL_1HOUR, "15 Mar, 2020")
         df = pd.DataFrame(klines, columns=['open_time', 'Open', 'High', 'Low', 'Close',
                                            'Volume', 'close_time', 'quote_asset_volume', 'number_of_trades',
                                            'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
