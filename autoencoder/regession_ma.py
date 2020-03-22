@@ -278,5 +278,5 @@ if __name__ == '__main__':
     bottrading = RegressionMA()
     bottrading.get_data()
     # bottrading.test_trading()
-    # bottrading.start_socket()
-    bottrading.test_order()
+    bottrading.start_socket()
+    # bottrading.test_order()
