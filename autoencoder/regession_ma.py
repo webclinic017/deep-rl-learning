@@ -1,3 +1,4 @@
+import datetime
 import time
 import logging
 import pandas as pd
@@ -27,7 +28,7 @@ class RegressionMA:
         api_key = "y9JKPpQ3B2zwIRD9GwlcoCXwvA3mwBLiNTriw6sCot13IuRvYKigigXYWCzCRiul"
         api_secret = "uUdxQdnVR48w5ypYxfsi7xK6e6W2v3GL8YrAZp5YeY1GicGbh3N5NI71Pss0crfJ"
         binaci_client = Client(api_key, api_secret)
-        klines = binaci_client.get_historical_klines("BTCUSDT", KLINE_INTERVAL_1HOUR, "1 Jan, 2019", "30 Jan, 2019")
+        klines = binaci_client.get_historical_klines("BTCUSDT", KLINE_INTERVAL_1HOUR, "15 Mar, 2020")
         df = pd.DataFrame(klines, columns=['open_time', 'Open', 'High', 'Low', 'Close',
                                            'Volume', 'close_time', 'quote_asset_volume', 'number_of_trades',
                                            'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
@@ -88,7 +89,9 @@ class RegressionMA:
 
     def process_message(self, msg):
         msg['k']['timestamp'] = time.time()
-        insert = self.db.btc_data.insert_one(msg).inserted_id
+        readable = datetime.datetime.fromtimestamp(msg['k']['timestamp']).strftime('%Y-%m-%d %H:%M:%S')
+        print("{} Price: {}".format(readable, msg['k']['c']))
+        insert = self.db.btc_1hour_realtime.insert_one(msg).inserted_id
         _open_time = msg['k']['t']
         _open = msg['k']['o']
         _high = msg['k']['h']
@@ -140,7 +143,7 @@ class RegressionMA:
         if not self.order and current_histogram > prev_histogram and plus_di > minus_di and macd > signal > 0:
             # buy signal
             self.order = price
-            # logging.warning("Buy Order: {}".format(price))
+            logging.warning("Buy Order: {}".format(price))
 
         if self.order and current_histogram < prev_histogram:
             diff = price - self.order
