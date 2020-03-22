@@ -14,15 +14,13 @@ class Agent:
     def fit(self, inp, targ):
         """ Perform one epoch of training
         """
-        self.model.fit(self.reshape(inp), targ, epochs=1, verbose=0)
+        self.model.fit(self.reshape(inp), targ, epochs=10, verbose=1)
 
-    def predict(self, inp):
+    def predict(self, inp1, inp2):
         """ Critic Value Prediction
         """
-        return self.model.predict(self.reshape(inp))
+        return self.model.predict(x=[inp1, inp2])
 
     def reshape(self, x):
-        if x.shape == (2,):
-            return np.expand_dims(x, axis=0)
-        else:
-            return x
+        if len(x.shape) < 3: return np.expand_dims(x, axis=0)
+        else: return x

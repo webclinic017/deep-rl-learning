@@ -1,1 +1,2 @@
 git+git://github.com/matplotlib/mpl_finance/archive/master.zip
+pandas==0.18.0

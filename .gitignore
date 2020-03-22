@@ -12,3 +12,11 @@ __pycache__
 A2C/__pycache__
 utils/__pycache__
 MACD/models
+.idea/*
+/CCI/tensorboard/Autotrading/
+CCI/.idea/
+CCI/log/
+CCI/models/
+CCI/tensorboard/
+DDPG/tensorboard_BreakoutNoFrameskip-v4/
+
