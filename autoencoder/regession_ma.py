@@ -48,7 +48,7 @@ class RegressionMA:
         api_secret = "uUdxQdnVR48w5ypYxfsi7xK6e6W2v3GL8YrAZp5YeY1GicGbh3N5NI71Pss0crfJ"
         binaci_client = Client(api_key, api_secret)
         bm = BinanceSocketManager(binaci_client)
-        conn_key = bm.start_kline_socket('BTCUSDT', self.process_message, interval=KLINE_INTERVAL_1MINUTE)
+        conn_key = bm.start_kline_socket('BTCUSDT', self.process_message, interval=KLINE_INTERVAL_1HOUR)
         # then start the socket manager
         bm.start()
 
