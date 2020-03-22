@@ -76,6 +76,7 @@ class RegressionMA:
                                        'close_time', 'quote_asset_volume', 'number_of_trades',
                                        'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
             self.train_data = self.train_data.append(df, ignore_index=True, sort=False)
+
         else:
             # if self.train_data.open_time.values[-1] == msg['k']['t']:
             self.train_data.at[len(self.train_data) - 1, 'Close'] = _close
@@ -97,11 +98,11 @@ class RegressionMA:
         minus_di = data.MINUS_DI.values[-1]
         axd = data.ADX.values[-1]
 
-        if not self.order and histogram > self.prev_histogram and plus_di > minus_di and axd > minus_di and price > ma:
+        if not self.order and 0 < histogram < 0.02 and plus_di > minus_di and axd > minus_di and price > ma:
             # buy signal
             self.order = price
             logging.warning("Buy Order: {}".format(price))
-        elif self.order and self.prev_histogram > 0 and histogram < 0:
+        elif self.order and 0 > histogram > -0.02:
             diff = price - self.order
             self.budget += diff
             self.order = 0
