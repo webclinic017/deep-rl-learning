@@ -237,10 +237,12 @@ class RegressionMA:
                 type=ORDER_TYPE_MARKET,
                 quantity=amt_str)
             mailer.notification(txt)
+            logging.warning(txt)
             self.buy_mount = amt_str
             return True
         except Exception as ex:
             print(ex)
+            logging.warning(ex)
             return False
 
     def sell_margin(self):
@@ -266,11 +268,13 @@ class RegressionMA:
             txt = "Sell successfully: Balance: {} Sell Amount: {} In {} Owned In BTC: {}".format(usdt, amt_str,
                                                                                                  price_index['price'],
                                                                                                  current_btc)
+            logging.warning(txt)
             print(txt)
             mailer.notification(txt)
             return True
         except Exception as ex:
             print(ex)
+            logging.warning(ex)
             return False
 
 
