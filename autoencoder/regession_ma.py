@@ -220,15 +220,15 @@ class RegressionMA:
         print("Test Done!!")
 
     def buy_margin(self):
-        symbol = 'BTCUSDT'
-        info = self.binace_client.get_margin_account()
-        usdt_amount = info['userAssets'][2]['free']
-        price_index = self.binace_client.get_margin_price_index(symbol=symbol)
-        amount = int(float(usdt_amount))/float(price_index['price'])
-        precision = 5
-        amt_str = "{:0.0{}f}".format(amount*self.trade_amount, precision)
-        mailer = SendMail()
         try:
+            symbol = 'BTCUSDT'
+            info = self.binace_client.get_margin_account()
+            usdt_amount = info['userAssets'][2]['free']
+            price_index = self.binace_client.get_margin_price_index(symbol=symbol)
+            amount = int(float(usdt_amount))/float(price_index['price'])
+            precision = 5
+            amt_str = "{:0.0{}f}".format(amount*self.trade_amount, precision)
+            mailer = SendMail()
             txt = "Buy successfully: Amount: {} Price: {}".format(amt_str, price_index['price'])
             print(txt)
             buy_order = self.binace_client.create_margin_order(
@@ -244,16 +244,16 @@ class RegressionMA:
             return False
 
     def sell_margin(self):
-        info = self.binace_client.get_margin_account()
-        symbol = 'BTCUSDT'
-        amount = info['totalAssetOfBtc']
-        precision = 5
-        # amount = round(float(amount)*self.trade_amount, 3)
-        # amt_str = "{:0.0{}f}".format(amount, precision)
-        amt_str = self.buy_mount
-        price_index = self.binace_client.get_margin_price_index(symbol=symbol)
-        mailer = SendMail()
         try:
+            info = self.binace_client.get_margin_account()
+            symbol = 'BTCUSDT'
+            amount = info['totalAssetOfBtc']
+            precision = 5
+            # amount = round(float(amount)*self.trade_amount, 3)
+            # amt_str = "{:0.0{}f}".format(amount, precision)
+            amt_str = self.buy_mount
+            price_index = self.binace_client.get_margin_price_index(symbol=symbol)
+            mailer = SendMail()
             sell_order = self.binace_client.create_margin_order(
                 symbol=symbol,
                 side=SIDE_SELL,
