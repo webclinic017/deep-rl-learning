@@ -150,7 +150,7 @@ class RegressionMA:
                 self.order = price
                 logging.warning("Buy Order: {}".format(price))
 
-        elif self.order and current_histogram < prev_histogram + 1:
+        elif self.order and current_histogram + 1 < prev_histogram:
             if self.sell_margin():
                 diff = price - self.order
                 self.budget += diff
