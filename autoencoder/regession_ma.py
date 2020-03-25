@@ -220,6 +220,7 @@ class RegressionMA:
         print("Test Done!!")
 
     def buy_margin(self):
+        mailer = SendMail()
         try:
             symbol = 'BTCUSDT'
             info = self.binace_client.get_margin_account()
@@ -228,7 +229,6 @@ class RegressionMA:
             amount = int(float(usdt_amount))/float(price_index['price'])
             precision = 5
             amt_str = "{:0.0{}f}".format(amount*self.trade_amount, precision)
-            mailer = SendMail()
             txt = "Buy successfully: Amount: {} Price: {}".format(amt_str, price_index['price'])
             print(txt)
             buy_order = self.binace_client.create_margin_order(
@@ -242,10 +242,12 @@ class RegressionMA:
             return True
         except Exception as ex:
             print(ex)
+            mailer.notification(str(ex))
             logging.warning(ex)
             return False
 
     def sell_margin(self):
+        mailer = SendMail()
         try:
             info = self.binace_client.get_margin_account()
             symbol = 'BTCUSDT'
@@ -255,7 +257,6 @@ class RegressionMA:
             # amt_str = "{:0.0{}f}".format(amount, precision)
             amt_str = self.buy_mount
             price_index = self.binace_client.get_margin_price_index(symbol=symbol)
-            mailer = SendMail()
             sell_order = self.binace_client.create_margin_order(
                 symbol=symbol,
                 side=SIDE_SELL,
@@ -274,6 +275,7 @@ class RegressionMA:
             return True
         except Exception as ex:
             print(ex)
+            mailer.notification(str(ex))
             logging.warning(ex)
             return False
 
