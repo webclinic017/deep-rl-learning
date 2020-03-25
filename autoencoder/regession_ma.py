@@ -144,7 +144,7 @@ class RegressionMA:
 
         current_histogram = round(histogram[-1], 1)
         prev_histogram = round(histogram[-2], 1)
-        if not self.order and current_histogram > prev_histogram and plus_di > minus_di and macd > signal > 0:
+        if not self.order and current_histogram > prev_histogram and plus_di > minus_di and macd > signal and macd > 0:
             if self.buy_margin():
                 # buy signal
                 self.order = price
