@@ -29,6 +29,7 @@ def connected():
 @sio.on('disconnect')
 def socket_re_connection():
     print("reconnect")
+    sio = socketio.Client()
     sio.connect('wss://fxpricing.com', transports='websocket')
     sio.emit('heartbeat', 'API_KEY')
     sio.emit('real_time_join', '1,1984')
