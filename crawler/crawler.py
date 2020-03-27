@@ -1,13 +1,20 @@
 import time
-
+import schedule
 import socketio
 from bson import ObjectId
 from pymongo import MongoClient
+
+
+def heartbeat():
+    sio.emit('heartbeat', 'API_KEY')
+    print("send heartbeat")
+
 
 client = MongoClient()
 db = client.forex
 sio = socketio.Client()
 sio.connect('wss://fxpricing.com', transports='websocket')
+schedule.every().hour.do(heartbeat)
 
 
 @sio.on('connect')
@@ -31,4 +38,5 @@ def on_data_received(data):
     data['_id'] = str(_id)
     data['timestamp'] = time.time()
     inserted = db.eurusd.insert_one(data)
+    schedule.run_pending()
     print(data)
