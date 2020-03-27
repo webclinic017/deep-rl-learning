@@ -5,15 +5,17 @@ from bson import ObjectId
 from pymongo import MongoClient
 
 
+client = MongoClient()
+db = client.forex
+sio = socketio.Client()
+sio.connect('wss://fxpricing.com', transports='websocket')
+
+
 def heartbeat():
     sio.emit('heartbeat', 'API_KEY')
     print("send heartbeat")
 
 
-client = MongoClient()
-db = client.forex
-sio = socketio.Client()
-sio.connect('wss://fxpricing.com', transports='websocket')
 schedule.every().hour.do(heartbeat)
 
 
