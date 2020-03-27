@@ -122,3 +122,4 @@ wrapt==1.11.2
 zipp==0.6.0
 zmq==0.0.0
 zope.interface==4.7.1
+python-socketio[client]
