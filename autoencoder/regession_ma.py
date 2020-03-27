@@ -36,7 +36,7 @@ class RegressionMA:
         api_key = "y9JKPpQ3B2zwIRD9GwlcoCXwvA3mwBLiNTriw6sCot13IuRvYKigigXYWCzCRiul"
         api_secret = "uUdxQdnVR48w5ypYxfsi7xK6e6W2v3GL8YrAZp5YeY1GicGbh3N5NI71Pss0crfJ"
         binaci_client = Client(api_key, api_secret)
-        klines = binaci_client.get_historical_klines("BTCUSDT", KLINE_INTERVAL_1HOUR, "15 Mar, 2020")
+        klines = binaci_client.get_historical_klines("BTCUSDT", KLINE_INTERVAL_5MINUTE, "26 Mar, 2020")
         df = pd.DataFrame(klines, columns=['open_time', 'Open', 'High', 'Low', 'Close',
                                            'Volume', 'close_time', 'quote_asset_volume', 'number_of_trades',
                                            'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
@@ -53,7 +53,7 @@ class RegressionMA:
 
     def start_socket(self):
         # start any sockets here, i.e a trade socket
-        conn_key = self.bm.start_kline_socket('BTCUSDT', self.process_message, interval=KLINE_INTERVAL_1HOUR)
+        conn_key = self.bm.start_kline_socket('BTCUSDT', self.process_message, interval=KLINE_INTERVAL_5MINUTE)
         # then start the socket manager
         self.bm.start()
 
@@ -95,7 +95,7 @@ class RegressionMA:
         msg['k']['timestamp'] = time.time()
         readable = datetime.datetime.fromtimestamp(msg['k']['timestamp']).strftime('%Y-%m-%d %H:%M:%S')
         print("{} Price: {}".format(readable, msg['k']['c']))
-        insert = self.db.btc_1hour_realtime.insert_one(msg).inserted_id
+        insert = self.db.btc_5minute_realtime.insert_one(msg).inserted_id
         _open_time = msg['k']['t']
         _open = msg['k']['o']
         _high = msg['k']['h']
@@ -144,19 +144,19 @@ class RegressionMA:
 
         current_histogram = round(histogram[-1], 1)
         prev_histogram = round(histogram[-2], 1)
-        if not self.order and current_histogram > prev_histogram and plus_di > minus_di and macd > signal and macd > 0:
-            if self.buy_margin():
-                # buy signal
-                self.order = price
-                logging.warning("Buy Order: {}".format(price))
+        if not self.order and current_histogram - 0.5 > prev_histogram and plus_di > minus_di and macd > signal:
+            self.buy_margin()
+            # buy signal
+            self.order = price
+            logging.warning("Buy Order: {}".format(price))
 
-        elif self.order and current_histogram + 3 < prev_histogram:
-            if self.sell_margin():
-                diff = price - self.order
-                self.budget += diff
-                self.order = 0
-                self.max_diff = 0
-                logging.warning("Sell Order: Budget {} Diff: {}".format(self.budget, diff))
+        elif self.order and current_histogram + 1 < prev_histogram:
+            self.sell_margin()
+            diff = price - self.order
+            self.budget += diff
+            self.order = 0
+            self.max_diff = 0
+            logging.warning("Sell Order: Budget {} Diff: {}".format(self.budget, diff))
 
     def test_trading(self):
         df = self.train_data
