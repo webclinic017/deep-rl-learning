@@ -40,6 +40,10 @@ def on_data_received(data):
     _id = ObjectId()
     data['_id'] = str(_id)
     data['timestamp'] = time.time()
-    inserted = db.eurusd.insert_one(data)
+    if 'XAU-USD' in data.keys():
+        inserted = db.xauusd.insert_one(data)
+    else:
+        inserted = db.eurusd.insert_one(data)
+
     schedule.run_pending()
     print(data)
