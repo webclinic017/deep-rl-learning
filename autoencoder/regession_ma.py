@@ -1,4 +1,5 @@
 import datetime
+import json
 import time
 import logging
 import pandas as pd
@@ -19,10 +20,12 @@ logging.basicConfig(filename='../log/autotrade.log', filemode='w', format='%(nam
 class RegressionMA:
     def __init__(self):
         self.train_data = self.get_data()
+        self.global_step = 0
         self.budget = 0
         self.order = 0
         self.prev_histogram = 0
         self.max_diff = 0
+        self.take_profit, self.stop_loss = 0, 0
         self.buy_mount = 0
         self.trade_amount = 0.1  # 10% currency you owned
         self.client = MongoClient()
@@ -32,11 +35,20 @@ class RegressionMA:
         self.binace_client = Client(self.api_key, self.api_secret)
         self.bm = BinanceSocketManager(self.binace_client)
 
+        # matplotlib
+        self.exp4 = []
+        self.exp5 = []
+        self.exp6 = []
+        self.exp7 = []
+        self.fig = plt.figure()
+        self.ax1 = self.fig.add_subplot(211, label='ax1')
+        self.ax2 = self.fig.add_subplot(212, label='ax2')
+
     def get_data(self):
         api_key = "y9JKPpQ3B2zwIRD9GwlcoCXwvA3mwBLiNTriw6sCot13IuRvYKigigXYWCzCRiul"
         api_secret = "uUdxQdnVR48w5ypYxfsi7xK6e6W2v3GL8YrAZp5YeY1GicGbh3N5NI71Pss0crfJ"
         binaci_client = Client(api_key, api_secret)
-        klines = binaci_client.get_historical_klines("BTCUSDT", KLINE_INTERVAL_5MINUTE, "26 Mar, 2020")
+        klines = binaci_client.get_historical_klines("BTCUSDT", KLINE_INTERVAL_5MINUTE, "20 Mar, 2020")
         df = pd.DataFrame(klines, columns=['open_time', 'Open', 'High', 'Low', 'Close',
                                            'Volume', 'close_time', 'quote_asset_volume', 'number_of_trades',
                                            'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
@@ -51,50 +63,54 @@ class RegressionMA:
         # plt.legend()
         return df
 
+    @classmethod
+    def fibonacci(cls, price_max, price_min):
+        diff = price_max - price_min
+        take_profit = price_max - 0.618 * diff
+        stop_loss = price_max - 1.382 * diff
+        return take_profit, stop_loss
+
     def start_socket(self):
         # start any sockets here, i.e a trade socket
-        conn_key = self.bm.start_kline_socket('BTCUSDT', self.process_message, interval=KLINE_INTERVAL_5MINUTE)
+        conn_key = self.bm.start_kline_socket('BTCUSDT', self.process_message, interval=KLINE_INTERVAL_1HOUR)
         # then start the socket manager
         self.bm.start()
 
-    def getStockDataVec(self, key='train1hour'):
-        indexes = []
-        lines = open("../data/" + key + ".csv", "r").read().splitlines()
-        prices = []
+    def fake_socket(self):
+        lines = open("../data/new/btc.csv", "r").read().splitlines()
         delimiter = ','
-        for _index, line in enumerate(lines[1:]):
 
+        for _index, line in enumerate(lines[20000:]):
+            line = line.split(delimiter)
             msg = {
-                "e": "kline",					# event type
-                "E": 1499404907056,				# event time
-                "s": "BTCUSDT",					# symbol
+                "e": "kline",  # event type
+                "E": 1499404907056,  # event time
+                "s": "BTCUSDT",  # symbol
                 "k": {
-                    "t": line[1], 		# start time of this bar
-                    "T": line[7], 		# end time of this bar
-                    "s": "ETHBTC",				# symbol
-                    "i": "1m",					# interval
-                    "f": 77462,					# first trade id
-                    "L": 77465,					# last trade id
-                    "o": line[2],			# open
-                    "c": line[5],			# close
-                    "h": line[3],			# high
-                    "l": line[4],			# low
-                    "v": line[6],			# volume
-                    "n": 4,						# number of trades
-                    "x": False,					# whether this bar is final
-                    "q": "1.79662878",			# quote volume
-                    "V": "2.34879839",			# volume of active buy
-                    "Q": "0.24142166",			# quote volume of active buy
-                    "B": "13279784.01349473"	# can be ignored
-                    }
+                    "t": "",  # start time of this bar
+                    "T": "",  # end time of this bar
+                    "s": "ETHBTC",  # symbol
+                    "i": "1m",  # interval
+                    "f": "",  # first trade id
+                    "L": "",  # last trade id
+                    "o": float(line[0]),  # open
+                    "c": float(line[3]),  # close
+                    "h": float(line[1]),  # high
+                    "l": float(line[2]),  # low
+                    "v": "",  # volume
+                    "n": 4,  # number of trades
+                    "x": True if line[4] == 'true' else False,  # whether this bar is final
+                    "q": "1.79662878",  # quote volume
+                    "V": "2.34879839",  # volume of active buy
+                    "Q": "0.24142166",  # quote volume of active buy
+                    "B": "13279784.01349473"  # can be ignored
+                }
             }
-
+            self.global_step += 1
             self.process_message(msg)
 
     def process_message(self, msg):
         msg['k']['timestamp'] = time.time()
-        readable = datetime.datetime.fromtimestamp(msg['k']['timestamp']).strftime('%Y-%m-%d %H:%M:%S')
-        print("{} Price: {}".format(readable, msg['k']['c']))
         insert = self.db.btc_5minute_realtime.insert_one(msg).inserted_id
         _open_time = msg['k']['t']
         _open = msg['k']['o']
@@ -117,87 +133,116 @@ class RegressionMA:
                                        'close_time', 'quote_asset_volume', 'number_of_trades',
                                        'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
             self.train_data = self.train_data.append(df, ignore_index=True, sort=False)
+            self.trading(self.train_data)
 
-        else:
-            # if self.train_data.open_time.values[-1] == msg['k']['t']:
-            self.train_data.at[len(self.train_data) - 1, 'Close'] = _close
-            self.train_data.at[len(self.train_data) - 1, 'High'] = _high
-            self.train_data.at[len(self.train_data) - 1, 'Low'] = _low
-        self.trading(self.train_data)
+        # elif len(self.train_data) > 1:
+        #     # if self.train_data.open_time.values[-1] == msg['k']['t']:
+        #     self.train_data.at[len(self.train_data) - 1, 'Close'] = _close
+        #     self.train_data.at[len(self.train_data) - 1, 'High'] = _high
+        #     self.train_data.at[len(self.train_data) - 1, 'Low'] = _low
+
+        price = float(_close)
+        if self.order and price >= self.take_profit:
+            diff = price - self.order
+            self.budget += diff
+            self.reset()
+            logging.warning("Take Profit: Budget {} Diff: {} At Price: {}".format(self.budget, diff, price))
+
+        elif self.order and price <= self.stop_loss:
+            diff = price - self.order
+            self.budget += diff
+            self.reset()
+            logging.warning("Stop loss: Budget {} Diff: {} At Price: {}".format(self.budget, diff, price))
 
     def trading(self, df):
         df['MA'] = MA(df.Close, timeperiod=14)
         df['MACD'], df['Signal'], df['Histogram'] = MACD(df.Close, 12, 26, 9)
-        df['MINUS_DI'] = MINUS_DI(df.High, df.Low, df.Close)
-        df['PLUS_DI'] = PLUS_DI(df.High, df.Low, df.Close)
-        df['ADX'] = ADX(df.High, df.Low, df.Close)
-        data = self.train_data.dropna()
+        df['MINUS_DI'] = MINUS_DI(df.High, df.Low, df.Close, timeperiod=14)
+        df['PLUS_DI'] = PLUS_DI(df.High, df.Low, df.Close, timeperiod=14)
+        df['ADX'] = ADX(df.High, df.Low, df.Close, timeperiod=14)
+        df['MA_High'] = MA(df.High, timeperiod=10)
+        df['MA_Low'] = MA(df.Low, timeperiod=10)
+        data = df.dropna()
         close_price = data.Close.astype('float64').values
         price = close_price[-1]
-        ma = data.MA.values[-1]
-        macd = data.MACD.values[-1]
-        signal = data.Signal.values[-1]
-        histogram = data.Histogram.values
+        # ma_c = data.MA_Close.values[-1]
+        # macd = data.MACD.values[-1]
+        # signal = data.Signal.values[-1]
+        # histogram = data.Histogram.values
+        # adx_di = data.ADX.values[-1]
         minus_di = data.MINUS_DI.values[-1]
         plus_di = data.PLUS_DI.values[-1]
-        adx_di = data.ADX.values[-1]
+        ma_h = data.MA_High.values[-1]
 
-        current_histogram = round(histogram[-1], 1)
-        prev_histogram = round(histogram[-2], 1)
-        if not self.order and current_histogram - 0.5 > prev_histogram and macd > signal:
-            # self.buy_margin()
+        timestamp = int(time.time())
+        readable = datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+        print("{} | Price: {} | MA: {} | DI-: {} | DI+: {}".format(readable, price, round(ma_h, 4),
+                                                                   round(minus_di, 4), round(plus_di, 4)))
+
+        if not self.order and price > ma_h and plus_di > minus_di:
             # buy signal
-            self.order = price
+            self.order = ma_h
+            min_price = min(close_price[-6:])
+            max_price = max(close_price[-6:])
+            self.take_profit, self.stop_loss = self.fibonacci(min_price, price)
             logging.warning("Buy Order: {}".format(price))
 
-        elif self.order and current_histogram + 0.5 < prev_histogram:
-            # self.sell_margin()
-            diff = price - self.order
-            self.budget += diff
-            self.order = 0
-            self.max_diff = 0
-            logging.warning("Sell Order: Budget {} Diff: {}".format(self.budget, diff))
+    def reset(self):
+        self.order = 0
+        self.max_diff = 0
+        self.take_profit = 0
+        self.stop_loss = 0
 
     def test_trading(self):
         df = self.train_data
         df['MA'] = MA(df.Close, timeperiod=14)
         df['MACD'], df['Signal'], df['Histogram'] = MACD(df.Close, 12, 26, 9)
-        df['MINUS_DM'] = MINUS_DI(df.High, df.Low, df.Close)
-        df['PLUS_DM'] = PLUS_DI(df.High, df.Low, df.Close)
-        df['ADX'] = ADX(df.High, df.Low, df.Close)
+        df['MINUS_DI'] = MINUS_DI(df.High, df.Low, df.Close, timeperiod=14)
+        df['PLUS_DI'] = PLUS_DI(df.High, df.Low, df.Close, timeperiod=14)
+        df['ADX'] = ADX(df.High, df.Low, df.Close, timeperiod=14)
+        df['MA_High'] = MA(df.High, timeperiod=10)
+        df['MA_Low'] = MA(df.Low, timeperiod=10)
         data = df.dropna()
         close_price = data.Close.astype('float64').values
         ma_signal = data.MA.values
         macd_data = data.MACD.values
         signal_data = data.Signal.values
         histogram_data = data.Histogram.values
-        minus_dm = data.MINUS_DM.values
-        plus_dm = data.PLUS_DM.values
+        minus_dm = data.MINUS_DI.values
+        plus_dm = data.PLUS_DI.values
         adx_dm = data.ADX.values
+        ma_high = data.MA_High.values
+        ma_low = data.MA_Low.values
+
         print("Start Price: {} Close Price: {}".format(close_price[0], close_price[-1]))
         idx = 0
-        max_diff = 0
-        for price, ma, macd, signal, histogram, plus_di, minus_di, adx in zip(close_price, ma_signal, macd_data,
+        for price, ma, macd, signal, histogram, plus_di, minus_di, adx, ma_h, ma_l in zip(close_price, ma_signal, macd_data,
                                                                               signal_data, histogram_data, plus_dm,
-                                                                              minus_dm, adx_dm):
-            if idx > 2:
-                prev_histogram = histogram_data[idx - 1]
-                if not self.order and histogram > prev_histogram and plus_di > minus_di and macd > signal > 0:
+                                                                              minus_dm, adx_dm, ma_high, ma_low):
+            if idx > 10:
+                if not self.order and price > ma_h and plus_di > minus_di:
                     # buy signal
-                    self.order = price
-                    # logging.warning("Buy Order: {}".format(price))
+                    self.order = ma_h
+                    min_price = min(close_price[idx-6:idx])
+                    max_price = max(close_price[idx-6:idx])
+                    self.take_profit, self.stop_loss = self.fibonacci(min_price, price)
+                    logging.warning("Buy Order: {}".format(price))
 
-                if self.order:
+                elif self.order and price >= self.take_profit:
                     diff = price - self.order
-                    if diff > max_diff:
-                        max_diff = diff
-                    elif price < max_diff - 5 or diff < -5:
-                        diff = price - self.order
-                        self.budget += diff
-                        self.order = 0
-                        max_diff = 0
-                        logging.warning("Sell Order: Budget {} Diff: {}".format(self.budget, diff))
+                    self.budget += diff
+                    self.reset()
+                    self.order = 0
+                    max_diff = 0
+                    logging.warning("Take Profit: Budget {} Diff: {}".format(self.budget, diff))
 
+                elif self.order and price <= self.stop_loss:
+                    diff = price - self.order
+                    self.budget += diff
+                    self.reset()
+                    self.order = 0
+                    max_diff = 0
+                    logging.warning("Stop loss: Budget {} Diff: {}".format(self.budget, diff))
             idx += 1
 
         print(self.budget)
@@ -279,10 +324,19 @@ class RegressionMA:
             logging.warning(ex)
             return False
 
+    def plot_data(self):
+        df = pd.read_csv("../data/new/btc.csv")
+        df = df[20000:]
+        plt.plot(df.Close, label='MA')
+        plt.legend()
+        plt.show()
 
 if __name__ == '__main__':
     bottrading = RegressionMA()
+    # bottrading.plot_data()
     bottrading.get_data()
     # bottrading.test_trading()
     bottrading.start_socket()
     # bottrading.test_order()
+    # bottrading.getStockDataVec()
+    # bottrading.fake_socket()
