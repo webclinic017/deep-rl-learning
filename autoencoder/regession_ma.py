@@ -49,7 +49,7 @@ class RegressionMA:
         api_key = "y9JKPpQ3B2zwIRD9GwlcoCXwvA3mwBLiNTriw6sCot13IuRvYKigigXYWCzCRiul"
         api_secret = "uUdxQdnVR48w5ypYxfsi7xK6e6W2v3GL8YrAZp5YeY1GicGbh3N5NI71Pss0crfJ"
         binaci_client = Client(api_key, api_secret)
-        klines = binaci_client.get_historical_klines("BTCUSDT", KLINE_INTERVAL_5MINUTE, "27 Mar, 2020")
+        klines = binaci_client.get_historical_klines("BTCUSDT", KLINE_INTERVAL_5MINUTE, "15 Mar, 2020")
         df = pd.DataFrame(klines, columns=['open_time', 'Open', 'High', 'Low', 'Close',
                                            'Volume', 'close_time', 'quote_asset_volume', 'number_of_trades',
                                            'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
@@ -67,8 +67,8 @@ class RegressionMA:
     @classmethod
     def fibonacci(cls, price_max, price_min):
         diff = price_max - price_min
-        take_profit = price_max - 0.618 * diff
-        stop_loss = price_max - 1.382 * diff
+        take_profit = price_max + 0.618 * diff
+        stop_loss = price_max - 0.382 * diff
         return take_profit, stop_loss
 
     def start_socket(self):
@@ -134,6 +134,11 @@ class RegressionMA:
                                        'close_time', 'quote_asset_volume', 'number_of_trades',
                                        'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
             self.train_data = self.train_data.append(df, ignore_index=True, sort=False)
+            if self.order:
+                diff = float(_close) - self.order
+                self.budget += diff
+                self.reset()
+                logging.warning("Take Profit: Budget {} Diff: {} At Price: {}".format(self.budget, diff, _close))
         elif len(self.train_data) > 1:
             # if self.train_data.open_time.values[-1] == msg['k']['t']:
             self.train_data.at[len(self.train_data) - 1, 'Close'] = _close
@@ -157,36 +162,37 @@ class RegressionMA:
         # ma_c = data.MA_Close.values[-1]
         # macd = data.MACD.values[-1]
         # signal = data.Signal.values[-1]
-        # histogram = data.Histogram.values
-        # adx_di = data.ADX.values[-1]
+        histogram_data = data.Histogram.values
+        adx = data.ADX.values[-1]
         minus_di = data.MINUS_DI.values[-1]
         plus_di = data.PLUS_DI.values[-1]
         ma_h = data.MA_High.values[-1]
-
+        histogram = histogram_data[-1]
+        prev_histogram = histogram_data[-2]
         timestamp = int(time.time())
         readable = datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
         print("{} | Price: {} | MA: {} | DI-: {} | DI+: {}".format(readable, price, round(ma_h, 4),
                                                                    round(minus_di, 4), round(plus_di, 4)))
 
-        if not self.order and price > ma_h and plus_di > minus_di:
+        if not self.order and price > ma_h and plus_di > minus_di and histogram > prev_histogram and adx > 25:
             # buy signal
             self.order = price
-            min_price = min(close_price[-6:])
-            max_price = max(close_price[-6:])
+            min_price = min(close_price[-5:])
+            max_price = max(close_price[-5:])
             self.take_profit, self.stop_loss = self.fibonacci(price, min_price)
             logging.warning("Buy Order: {}".format(price))
 
-        elif self.order and price >= self.take_profit:
-            diff = price - self.order
-            self.budget += diff
-            self.reset()
-            logging.warning("Take Profit: Budget {} Diff: {} At Price: {}".format(self.budget, diff, price))
-
-        elif self.order and price <= self.stop_loss:
-            diff = price - self.order
-            self.budget += diff
-            self.reset()
-            logging.warning("Stop loss: Budget {} Diff: {} At Price: {}".format(self.budget, diff, price))
+        # elif self.order and price >= self.take_profit:
+        #     diff = price - self.order
+        #     self.budget += diff
+        #     self.reset()
+        #     logging.warning("Take Profit: Budget {} Diff: {} At Price: {}".format(self.budget, diff, price))
+        #
+        # elif self.order and price <= self.stop_loss:
+        #     diff = price - self.order
+        #     self.budget += diff
+        #     self.reset()
+        #     logging.warning("Stop loss: Budget {} Diff: {} At Price: {}".format(self.budget, diff, price))
 
     def reset(self):
         self.order = 0
@@ -205,6 +211,9 @@ class RegressionMA:
         df['MA_Low'] = MA(df.Low, timeperiod=10)
         data = df.dropna()
         close_price = data.Close.astype('float64').values
+        high_price = data.High.astype('float64').values
+        low_price = data.Low.astype('float64').values
+        open_price = data.Open.astype('float64').values
         ma_signal = data.MA.values
         macd_data = data.MACD.values
         signal_data = data.Signal.values
@@ -217,29 +226,29 @@ class RegressionMA:
 
         print("Start Price: {} Close Price: {}".format(close_price[0], close_price[-1]))
         idx = 0
-        for price, ma, macd, signal, histogram, plus_di, minus_di, adx, ma_h, ma_l in zip(close_price, ma_signal, macd_data,
+        for open_p, close_p, ma, macd, signal, histogram, plus_di, minus_di, adx, ma_h, ma_l in zip(open_price, close_price, ma_signal, macd_data,
                                                                               signal_data, histogram_data, plus_dm,
                                                                               minus_dm, adx_dm, ma_high, ma_low):
-            if idx > 10:
-                if not self.order and price > ma_h and plus_di > minus_di:
+            if 10 < idx < len(ma_low) - 2:
+                prev_histogram = histogram_data[idx-1]
+                if not self.order and open_p > ma_h and plus_di > minus_di and histogram > prev_histogram and adx > 25:
                     # buy signal
-                    self.order = price
-                    min_price = min(close_price[-6:])
-                    max_price = max(close_price[-6:])
-                    self.take_profit, self.stop_loss = self.fibonacci(price, min_price)
-                    logging.warning("Buy Order: {}".format(price))
+                    self.order = open_p
+                    min_price = min(low_price[idx-10:idx])
+                    max_price = max(high_price[idx-10:idx])
+                    self.take_profit, self.stop_loss = self.fibonacci(max_price, min_price)
+                    logging.warning("Buy Order: {}".format(open_p))
 
-                elif self.order and price >= self.take_profit:
-                    diff = price - self.order
+                    diff = close_p - self.order
                     self.budget += diff
                     self.reset()
-                    logging.warning("Take Profit: Budget {} Diff: {} At Price: {}".format(self.budget, diff, price))
+                    logging.warning("Take Profit: Budget {} Diff: {} At Price: {}".format(self.budget, diff, close_p))
 
-                elif self.order and price <= self.stop_loss:
-                    diff = price - self.order
-                    self.budget += diff
-                    self.reset()
-                    logging.warning("Stop loss: Budget {} Diff: {} At Price: {}".format(self.budget, diff, price))
+                # elif self.order and price <= self.stop_loss:
+                #     diff = price - self.order
+                #     self.budget += diff
+                #     self.reset()
+                #     logging.warning("Stop loss: Budget {} Diff: {} At Price: {}".format(self.budget, diff, price))
             idx += 1
 
         print(self.budget)
@@ -336,4 +345,3 @@ if __name__ == '__main__':
     bottrading.start_socket()
     # bottrading.test_order()
     # bottrading.getStockDataVec()
-    # bottrading.fake_socket()
