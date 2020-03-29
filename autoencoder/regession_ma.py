@@ -48,7 +48,7 @@ class RegressionMA:
         api_key = "y9JKPpQ3B2zwIRD9GwlcoCXwvA3mwBLiNTriw6sCot13IuRvYKigigXYWCzCRiul"
         api_secret = "uUdxQdnVR48w5ypYxfsi7xK6e6W2v3GL8YrAZp5YeY1GicGbh3N5NI71Pss0crfJ"
         binaci_client = Client(api_key, api_secret)
-        klines = binaci_client.get_historical_klines("BTCUSDT", KLINE_INTERVAL_5MINUTE, "20 Mar, 2020")
+        klines = binaci_client.get_historical_klines("BTCUSDT", KLINE_INTERVAL_5MINUTE, "27 Mar, 2020")
         df = pd.DataFrame(klines, columns=['open_time', 'Open', 'High', 'Low', 'Close',
                                            'Volume', 'close_time', 'quote_asset_volume', 'number_of_trades',
                                            'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
@@ -72,7 +72,7 @@ class RegressionMA:
 
     def start_socket(self):
         # start any sockets here, i.e a trade socket
-        conn_key = self.bm.start_kline_socket('BTCUSDT', self.process_message, interval=KLINE_INTERVAL_1HOUR)
+        conn_key = self.bm.start_kline_socket('BTCUSDT', self.process_message, interval=KLINE_INTERVAL_5MINUTE)
         # then start the socket manager
         self.bm.start()
 
@@ -132,29 +132,17 @@ class RegressionMA:
                               columns=['open_time', 'Open', 'High', 'Low', 'Close', 'Volume',
                                        'close_time', 'quote_asset_volume', 'number_of_trades',
                                        'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
-            self.train_data = self.train_data.append(df, ignore_index=True, sort=False)
-            self.trading(self.train_data)
+            self.train_data.append(df, ignore_index=True, sort=False)
+        elif len(self.train_data) > 1:
+            # if self.train_data.open_time.values[-1] == msg['k']['t']:
+            self.train_data.at[len(self.train_data) - 1, 'Close'] = _close
+            self.train_data.at[len(self.train_data) - 1, 'High'] = _high
+            self.train_data.at[len(self.train_data) - 1, 'Low'] = _low
 
-        # elif len(self.train_data) > 1:
-        #     # if self.train_data.open_time.values[-1] == msg['k']['t']:
-        #     self.train_data.at[len(self.train_data) - 1, 'Close'] = _close
-        #     self.train_data.at[len(self.train_data) - 1, 'High'] = _high
-        #     self.train_data.at[len(self.train_data) - 1, 'Low'] = _low
+        self.trading()
 
-        price = float(_close)
-        if self.order and price >= self.take_profit:
-            diff = price - self.order
-            self.budget += diff
-            self.reset()
-            logging.warning("Take Profit: Budget {} Diff: {} At Price: {}".format(self.budget, diff, price))
-
-        elif self.order and price <= self.stop_loss:
-            diff = price - self.order
-            self.budget += diff
-            self.reset()
-            logging.warning("Stop loss: Budget {} Diff: {} At Price: {}".format(self.budget, diff, price))
-
-    def trading(self, df):
+    def trading(self):
+        df = self.train_data.copy()
         df['MA'] = MA(df.Close, timeperiod=14)
         df['MACD'], df['Signal'], df['Histogram'] = MACD(df.Close, 12, 26, 9)
         df['MINUS_DI'] = MINUS_DI(df.High, df.Low, df.Close, timeperiod=14)
@@ -187,6 +175,17 @@ class RegressionMA:
             self.take_profit, self.stop_loss = self.fibonacci(min_price, price)
             logging.warning("Buy Order: {}".format(price))
 
+        elif self.order and price >= self.take_profit:
+            diff = price - self.order
+            self.budget += diff
+            self.reset()
+            logging.warning("Take Profit: Budget {} Diff: {} At Price: {}".format(self.budget, diff, price))
+
+        elif self.order and price <= self.stop_loss:
+            diff = price - self.order
+            self.budget += diff
+            self.reset()
+            logging.warning("Stop loss: Budget {} Diff: {} At Price: {}".format(self.budget, diff, price))
     def reset(self):
         self.order = 0
         self.max_diff = 0
