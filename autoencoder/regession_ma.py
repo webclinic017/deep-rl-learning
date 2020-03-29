@@ -27,6 +27,7 @@ class RegressionMA:
         self.max_diff = 0
         self.take_profit, self.stop_loss = 0, 0
         self.buy_mount = 0
+        self.is_latest = False
         self.trade_amount = 0.1  # 10% currency you owned
         self.client = MongoClient()
         self.db = self.client.crypto
@@ -125,7 +126,7 @@ class RegressionMA:
         _buy_quote_asset_volume = msg['k']['q']
         _ignore = msg['k']['B']
 
-        if msg['k']['x']:
+        if self.is_latest:
             df = pd.DataFrame([[_open_time, _open, _high, _low, _close, _volume, _close_time,
                                 _quote_asset_volume, _number_of_trades, _buy_base_asset_volume,
                                 _buy_quote_asset_volume, _ignore]],
@@ -138,7 +139,7 @@ class RegressionMA:
             self.train_data.at[len(self.train_data) - 1, 'Close'] = _close
             self.train_data.at[len(self.train_data) - 1, 'High'] = _high
             self.train_data.at[len(self.train_data) - 1, 'Low'] = _low
-
+        self.is_latest = msg['k']['x']
         self.trading()
 
     def trading(self):
@@ -186,6 +187,7 @@ class RegressionMA:
             self.budget += diff
             self.reset()
             logging.warning("Stop loss: Budget {} Diff: {} At Price: {}".format(self.budget, diff, price))
+
     def reset(self):
         self.order = 0
         self.max_diff = 0
