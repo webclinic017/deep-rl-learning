@@ -173,7 +173,7 @@ class RegressionMA:
             self.order = price
             min_price = min(close_price[-6:])
             max_price = max(close_price[-6:])
-            self.take_profit, self.stop_loss = self.fibonacci(min_price, price)
+            self.take_profit, self.stop_loss = self.fibonacci(price, min_price)
             logging.warning("Buy Order: {}".format(price))
 
         elif self.order and price >= self.take_profit:
@@ -223,27 +223,23 @@ class RegressionMA:
             if idx > 10:
                 if not self.order and price > ma_h and plus_di > minus_di:
                     # buy signal
-                    self.order = ma_h
-                    min_price = min(close_price[idx-6:idx])
-                    max_price = max(close_price[idx-6:idx])
-                    self.take_profit, self.stop_loss = self.fibonacci(min_price, price)
+                    self.order = price
+                    min_price = min(close_price[-6:])
+                    max_price = max(close_price[-6:])
+                    self.take_profit, self.stop_loss = self.fibonacci(price, min_price)
                     logging.warning("Buy Order: {}".format(price))
 
                 elif self.order and price >= self.take_profit:
                     diff = price - self.order
                     self.budget += diff
                     self.reset()
-                    self.order = 0
-                    max_diff = 0
-                    logging.warning("Take Profit: Budget {} Diff: {}".format(self.budget, diff))
+                    logging.warning("Take Profit: Budget {} Diff: {} At Price: {}".format(self.budget, diff, price))
 
                 elif self.order and price <= self.stop_loss:
                     diff = price - self.order
                     self.budget += diff
                     self.reset()
-                    self.order = 0
-                    max_diff = 0
-                    logging.warning("Stop loss: Budget {} Diff: {}".format(self.budget, diff))
+                    logging.warning("Stop loss: Budget {} Diff: {} At Price: {}".format(self.budget, diff, price))
             idx += 1
 
         print(self.budget)
@@ -336,8 +332,8 @@ if __name__ == '__main__':
     bottrading = RegressionMA()
     # bottrading.plot_data()
     bottrading.get_data()
-    # bottrading.test_trading()
-    bottrading.start_socket()
+    bottrading.test_trading()
+    # bottrading.start_socket()
     # bottrading.test_order()
     # bottrading.getStockDataVec()
     # bottrading.fake_socket()
