@@ -170,7 +170,7 @@ class RegressionMA:
 
         if not self.order and price > ma_h and plus_di > minus_di:
             # buy signal
-            self.order = ma_h
+            self.order = price
             min_price = min(close_price[-6:])
             max_price = max(close_price[-6:])
             self.take_profit, self.stop_loss = self.fibonacci(min_price, price)
