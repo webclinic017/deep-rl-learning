@@ -49,7 +49,7 @@ class RegressionMA:
         api_key = "y9JKPpQ3B2zwIRD9GwlcoCXwvA3mwBLiNTriw6sCot13IuRvYKigigXYWCzCRiul"
         api_secret = "uUdxQdnVR48w5ypYxfsi7xK6e6W2v3GL8YrAZp5YeY1GicGbh3N5NI71Pss0crfJ"
         binaci_client = Client(api_key, api_secret)
-        klines = binaci_client.get_historical_klines("BTCUSDT", KLINE_INTERVAL_5MINUTE, "15 Mar, 2020")
+        klines = binaci_client.get_historical_klines("BTCUSDT", KLINE_INTERVAL_5MINUTE, "28 Mar, 2020")
         df = pd.DataFrame(klines, columns=['open_time', 'Open', 'High', 'Low', 'Close',
                                            'Volume', 'close_time', 'quote_asset_volume', 'number_of_trades',
                                            'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
@@ -134,11 +134,6 @@ class RegressionMA:
                                        'close_time', 'quote_asset_volume', 'number_of_trades',
                                        'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
             self.train_data = self.train_data.append(df, ignore_index=True, sort=False)
-            if self.order:
-                diff = float(_close) - self.order
-                self.budget += diff
-                self.reset()
-                logging.warning("Take Profit: Budget {} Diff: {} At Price: {}".format(self.budget, diff, _close))
         elif len(self.train_data) > 1:
             # if self.train_data.open_time.values[-1] == msg['k']['t']:
             self.train_data.at[len(self.train_data) - 1, 'Close'] = _close
@@ -158,7 +153,7 @@ class RegressionMA:
         df['MA_Low'] = MA(df.Low, timeperiod=10)
         data = df.dropna()
         close_price = data.Close.astype('float64').values
-        price = close_price[-1]
+        close_p = close_price[-1]
         # ma_c = data.MA_Close.values[-1]
         # macd = data.MACD.values[-1]
         # signal = data.Signal.values[-1]
@@ -170,29 +165,46 @@ class RegressionMA:
         histogram = histogram_data[-1]
         prev_histogram = histogram_data[-2]
         timestamp = int(time.time())
-        readable = datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
-        print("{} | Price: {} | MA: {} | DI-: {} | DI+: {}".format(readable, price, round(ma_h, 4),
-                                                                   round(minus_di, 4), round(plus_di, 4)))
+        low_price = data.Low.values
+        high_price = data.High.values
+        open_time = data.open_time.values[-1]
+        open_time_readable = datetime.datetime.fromtimestamp(open_time/1000).strftime('%Y-%m-%d %H:%M:%S')
+        current_time_readable =  datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+        print("{} | Price: {} | MA: {} | DI-: {} | DI+: {} | Histogram: {}".format(current_time_readable, round(close_p, 2),
+                                                                                   round(ma_h, 2), round(minus_di, 2),
+                                                                                   round(plus_di, 2), round(histogram, 2)))
 
-        if not self.order and price > ma_h and plus_di > minus_di and histogram > prev_histogram and adx > 25:
+        if not self.order and close_p > ma_h and plus_di > minus_di and histogram > prev_histogram and plus_di > 25:
             # buy signal
-            self.order = price
-            min_price = min(close_price[-5:])
-            max_price = max(close_price[-5:])
-            self.take_profit, self.stop_loss = self.fibonacci(price, min_price)
-            logging.warning("Buy Order: {}".format(price))
+            self.order = ma_h
+            min_price = min(low_price[-10:])
+            max_price = max(high_price[-10:])
+            self.take_profit, self.stop_loss = self.fibonacci(close_p, min_price)
+            logging.warning("{} | Buy Order: MA {} | Price {}".format(open_time_readable, ma_h, close_p))
 
-        # elif self.order and price >= self.take_profit:
-        #     diff = price - self.order
-        #     self.budget += diff
-        #     self.reset()
-        #     logging.warning("Take Profit: Budget {} Diff: {} At Price: {}".format(self.budget, diff, price))
-        #
-        # elif self.order and price <= self.stop_loss:
-        #     diff = price - self.order
-        #     self.budget += diff
-        #     self.reset()
-        #     logging.warning("Stop loss: Budget {} Diff: {} At Price: {}".format(self.budget, diff, price))
+        elif self.order and close_p >= self.take_profit:
+            diff = close_p - self.order
+            self.budget += diff
+            self.reset()
+            logging.warning("{} | Take Profit At {} | Budget {} | Diff {}".format(open_time_readable, close_p, self.budget, diff))
+
+        elif self.order and close_p <= self.stop_loss:
+            diff = close_p - self.order
+            self.budget += diff
+            self.reset()
+            logging.warning("{} | Stop loss At {} | Budget {} | Diff {}".format(open_time_readable, close_p, self.budget, diff))
+
+        elif self.order and histogram < 0.5:
+            diff = close_p - self.order
+            self.budget += diff
+            self.reset()
+            logging.warning("{} | Histogram close to zero {} | Budget {} | Diff {}".format(open_time_readable, close_p, self.budget, diff))
+
+        elif self.order and prev_histogram - histogram > 0.5:
+            diff = close_p - self.order
+            self.budget += diff
+            self.reset()
+            logging.warning("{} | Histogram Down Trend {} | Budget {} | Diff {}".format(open_time_readable, close_p, self.budget, diff))
 
     def reset(self):
         self.order = 0
@@ -223,32 +235,51 @@ class RegressionMA:
         adx_dm = data.ADX.values
         ma_high = data.MA_High.values
         ma_low = data.MA_Low.values
+        open_time_data = data.open_time.values
 
         print("Start Price: {} Close Price: {}".format(close_price[0], close_price[-1]))
         idx = 0
-        for open_p, close_p, ma, macd, signal, histogram, plus_di, minus_di, adx, ma_h, ma_l in zip(open_price, close_price, ma_signal, macd_data,
-                                                                              signal_data, histogram_data, plus_dm,
-                                                                              minus_dm, adx_dm, ma_high, ma_low):
+        for open_p, close_p, ma, macd, signal, histogram, \
+            plus_di, minus_di, adx, ma_h, ma_l, open_time in \
+                zip(open_price, close_price, ma_signal, macd_data,
+                    signal_data, histogram_data, plus_dm,
+                    minus_dm, adx_dm, ma_high, ma_low, open_time_data):
+
+            readable = datetime.datetime.fromtimestamp(open_time/1000).strftime('%Y-%m-%d %H:%M:%S')
             if 10 < idx < len(ma_low) - 2:
                 prev_histogram = histogram_data[idx-1]
-                if not self.order and open_p > ma_h and plus_di > minus_di and histogram > prev_histogram and adx > 25:
+                if not self.order and close_p > ma_h and plus_di > minus_di and histogram > prev_histogram and plus_di > 25:
                     # buy signal
-                    self.order = open_p
+                    self.order = ma_h
                     min_price = min(low_price[idx-10:idx])
                     max_price = max(high_price[idx-10:idx])
-                    self.take_profit, self.stop_loss = self.fibonacci(max_price, min_price)
-                    logging.warning("Buy Order: {}".format(open_p))
+                    self.take_profit, self.stop_loss = self.fibonacci(ma_h, min_price)
+                    logging.warning("{} | Buy Order: {} Open Price {} Close Price {}".format(readable, ma_h, open_p, close_p))
 
+                elif self.order and close_p >= self.take_profit >= open_p:
                     diff = close_p - self.order
                     self.budget += diff
                     self.reset()
-                    logging.warning("Take Profit: Budget {} Diff: {} At Price: {}".format(self.budget, diff, close_p))
+                    logging.warning("{} | Take Profit At {} | Budget {} | Diff {}".format(readable, close_p, self.budget, diff))
 
-                # elif self.order and price <= self.stop_loss:
-                #     diff = price - self.order
-                #     self.budget += diff
-                #     self.reset()
-                #     logging.warning("Stop loss: Budget {} Diff: {} At Price: {}".format(self.budget, diff, price))
+                elif self.order and close_p >= self.stop_loss >= open_p:
+                    diff = close_p - self.order
+                    self.budget += diff
+                    self.reset()
+                    logging.warning("{} | Stop loss At {} | Budget {} | Diff {}".format(readable, close_p, self.budget, diff))
+
+                elif self.order and histogram < 0.5:
+                    diff = close_p - self.order
+                    self.budget += diff
+                    self.reset()
+                    logging.warning("{} | Stop loss At {} | Budget {} | Diff {}".format(readable, close_p, self.budget, diff))
+
+                elif self.order and prev_histogram - histogram > 0.5:
+                    diff = close_p - self.order
+                    self.budget += diff
+                    self.reset()
+                    logging.warning("{} | Stop loss At {} | Budget {} | Diff {}".format(readable, close_p, self.budget, diff))
+
             idx += 1
 
         print(self.budget)
@@ -341,7 +372,7 @@ if __name__ == '__main__':
     bottrading = RegressionMA()
     # bottrading.plot_data()
     bottrading.get_data()
-    # bottrading.test_trading()
-    bottrading.start_socket()
+    bottrading.test_trading()
+    # bottrading.start_socket()
     # bottrading.test_order()
     # bottrading.getStockDataVec()
