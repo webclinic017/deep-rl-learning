@@ -187,7 +187,8 @@ class RegressionMA:
                 histogram > prev_histogram and \
                 plus_di > 25 and \
                 adx > prev_adx and \
-                histogram > 0:
+                histogram > 0 and \
+                adx > 25:
             # buy signal
             self.buy_margin()
             self.order = close_p
@@ -253,9 +254,9 @@ class RegressionMA:
             if 10 < idx < len(ma_low) - 2:
                 prev_histogram = histogram_data[idx-1]
                 prev_adx = adx_dm[idx-1]
-                if not self.order and close_p > ma_h and plus_di > minus_di and histogram > prev_histogram and plus_di > 25 and adx > prev_adx and histogram > 0:
+                if not self.order and close_p > ma_h and plus_di > minus_di and histogram > prev_histogram and plus_di > 25 and adx > prev_adx and histogram > 0 and adx > 25:
                     # buy signal
-                    self.order = ma_h
+                    self.order = close_p
                     min_price = min(low_price[idx-10:idx])
                     max_price = max(high_price[idx-10:idx])
                     self.take_profit, self.stop_loss = self.fibonacci(ma_h, min_price)
