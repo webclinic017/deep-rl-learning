@@ -19,7 +19,6 @@ logging.basicConfig(filename='../log/autotrade.log', filemode='w', format='%(nam
 
 class RegressionMA:
     def __init__(self):
-        self.train_data = self.get_data()
         self.global_step = 0
         self.order = 0
         self.buy_mount = 0
@@ -41,6 +40,8 @@ class RegressionMA:
         self.api_secret = "ioD0XICp0cFE99VVql5nuxiCJEb6GK8mh08NYnSYdIUfkiotd1SZqLTQsjFvrXwk"
         self.binace_client = Client(self.api_key, self.api_secret)
         self.bm = BinanceSocketManager(self.binace_client)
+        self.interval = KLINE_INTERVAL_5MINUTE
+        self.train_data = self.get_data()
 
         # matplotlib
         self.exp4 = []
@@ -55,7 +56,7 @@ class RegressionMA:
         api_key = "y9JKPpQ3B2zwIRD9GwlcoCXwvA3mwBLiNTriw6sCot13IuRvYKigigXYWCzCRiul"
         api_secret = "uUdxQdnVR48w5ypYxfsi7xK6e6W2v3GL8YrAZp5YeY1GicGbh3N5NI71Pss0crfJ"
         binaci_client = Client(api_key, api_secret)
-        klines = binaci_client.get_historical_klines("BTCUSDT", KLINE_INTERVAL_5MINUTE, "29 Mar, 2020")
+        klines = binaci_client.get_historical_klines("BTCUSDT", self.interval, "1 Jan, 2020")
         df = pd.DataFrame(klines, columns=['open_time', 'Open', 'High', 'Low', 'Close',
                                            'Volume', 'close_time', 'quote_asset_volume', 'number_of_trades',
                                            'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
@@ -79,7 +80,7 @@ class RegressionMA:
 
     def start_socket(self):
         # start any sockets here, i.e a trade socket
-        conn_key = self.bm.start_kline_socket('BTCUSDT', self.process_message, interval=KLINE_INTERVAL_5MINUTE)
+        conn_key = self.bm.start_kline_socket('BTCUSDT', self.process_message, interval=self.interval)
         # then start the socket manager
         self.bm.start()
 
@@ -163,12 +164,14 @@ class RegressionMA:
         # macd = data.MACD.values[-1]
         # signal = data.Signal.values[-1]
         histogram_data = data.Histogram.values
-        adx = data.ADX.values[-1]
+        adx_data = data.ADX.values
+        adx = adx_data[-1]
         minus_di = data.MINUS_DI.values[-1]
         plus_di = data.PLUS_DI.values[-1]
         ma_h = data.MA_High.values[-1]
         histogram = histogram_data[-1]
         prev_histogram = histogram_data[-2]
+        prev_adx = adx_data[-2]
         timestamp = int(time.time())
         low_price = data.Low.astype('float64').values
         high_price = data.High.astype('float64').values
@@ -179,7 +182,12 @@ class RegressionMA:
                                                                                    round(ma_h, 2), round(minus_di, 2),
                                                                                    round(plus_di, 2), round(histogram, 2)))
 
-        if not self.order and close_p > ma_h and plus_di > minus_di and histogram > prev_histogram and plus_di > 25:
+        if not self.order and close_p > ma_h and \
+                plus_di > minus_di and \
+                histogram > prev_histogram and \
+                plus_di > 25 and \
+                adx > prev_adx and \
+                histogram > 0:
             # buy signal
             self.buy_margin()
             self.order = close_p
@@ -244,7 +252,8 @@ class RegressionMA:
             readable = datetime.datetime.fromtimestamp(open_time/1000).strftime('%Y-%m-%d %H:%M:%S')
             if 10 < idx < len(ma_low) - 2:
                 prev_histogram = histogram_data[idx-1]
-                if not self.order and close_p > ma_h and plus_di > minus_di and histogram > prev_histogram and plus_di > 25 and histogram > 0:
+                prev_adx = adx_dm[idx-1]
+                if not self.order and close_p > ma_h and plus_di > minus_di and histogram > prev_histogram and plus_di > 25 and adx > prev_adx and histogram > 0:
                     # buy signal
                     self.order = ma_h
                     min_price = min(low_price[idx-10:idx])
