@@ -49,7 +49,7 @@ class RegressionMA:
         api_key = "y9JKPpQ3B2zwIRD9GwlcoCXwvA3mwBLiNTriw6sCot13IuRvYKigigXYWCzCRiul"
         api_secret = "uUdxQdnVR48w5ypYxfsi7xK6e6W2v3GL8YrAZp5YeY1GicGbh3N5NI71Pss0crfJ"
         binaci_client = Client(api_key, api_secret)
-        klines = binaci_client.get_historical_klines("BTCUSDT", KLINE_INTERVAL_5MINUTE, "28 Mar, 2020")
+        klines = binaci_client.get_historical_klines("BTCUSDT", KLINE_INTERVAL_5MINUTE, "29 Mar, 2020")
         df = pd.DataFrame(klines, columns=['open_time', 'Open', 'High', 'Low', 'Close',
                                            'Volume', 'close_time', 'quote_asset_volume', 'number_of_trades',
                                            'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
@@ -165,22 +165,22 @@ class RegressionMA:
         histogram = histogram_data[-1]
         prev_histogram = histogram_data[-2]
         timestamp = int(time.time())
-        low_price = data.Low.values
-        high_price = data.High.values
+        low_price = data.Low.astype('float64').values
+        high_price = data.High.astype('float64').values
         open_time = data.open_time.values[-1]
         open_time_readable = datetime.datetime.fromtimestamp(open_time/1000).strftime('%Y-%m-%d %H:%M:%S')
         current_time_readable =  datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
-        print("{} | Price: {} | MA: {} | DI-: {} | DI+: {} | Histogram: {}".format(current_time_readable, round(close_p, 2),
+        print("{} | Price {} | MA {} | DI- {} | DI+ {} | Histogram {}".format(current_time_readable, round(close_p, 2),
                                                                                    round(ma_h, 2), round(minus_di, 2),
                                                                                    round(plus_di, 2), round(histogram, 2)))
 
         if not self.order and close_p > ma_h and plus_di > minus_di and histogram > prev_histogram and plus_di > 25:
             # buy signal
             self.order = close_p
-            min_price = float(min(low_price[-10:]))
-            max_price = float(max(high_price[-10:]))
+            min_price = min(low_price[-10:])
+            max_price = max(high_price[-10:])
             self.take_profit, self.stop_loss = self.fibonacci(close_p, min_price)
-            logging.warning("{} | Buy Order: MA {} | Price {} | Take Profit {} | Stop Loss {}".format(open_time_readable, ma_h, close_p, self.take_profit, self.stop_loss))
+            logging.warning("{} | Buy Order | Price {} | MA {} | Take Profit {} | Stop Loss {}".format(open_time_readable, ma_h, close_p, self.take_profit, self.stop_loss))
 
         elif self.order and close_p >= self.take_profit:
             diff = close_p - self.order
@@ -193,12 +193,6 @@ class RegressionMA:
             self.budget += diff
             self.reset()
             logging.warning("{} | Stop loss At {} | Budget {} | Diff {}".format(open_time_readable, close_p, self.budget, diff))
-
-        elif self.order and histogram < 0.5:
-            diff = close_p - self.order
-            self.budget += diff
-            self.reset()
-            logging.warning("{} | Histogram close to zero {} | Budget {} | Diff {}".format(open_time_readable, close_p, self.budget, diff))
 
         elif self.order and prev_histogram - histogram > 0.5:
             diff = close_p - self.order
@@ -263,12 +257,6 @@ class RegressionMA:
                     logging.warning("{} | Take Profit At {} | Budget {} | Diff {}".format(readable, close_p, self.budget, diff))
 
                 elif self.order and close_p >= self.stop_loss >= open_p:
-                    diff = close_p - self.order
-                    self.budget += diff
-                    self.reset()
-                    logging.warning("{} | Stop loss At {} | Budget {} | Diff {}".format(readable, close_p, self.budget, diff))
-
-                elif self.order and histogram < 0.5:
                     diff = close_p - self.order
                     self.budget += diff
                     self.reset()
