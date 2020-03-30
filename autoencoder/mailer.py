@@ -13,7 +13,7 @@ class SendMail:
 
     def notification(self, txt):
         msg = MIMEMultipart()
-        msg['Subject'] = "Close notification"
+        msg['Subject'] = "Binance notification"
         msg['Form'] = 'thinhlx1993@gmail.com'
         html = """
             <html>
