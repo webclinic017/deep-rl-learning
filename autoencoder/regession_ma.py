@@ -21,9 +21,15 @@ class RegressionMA:
     def __init__(self):
         self.train_data = self.get_data()
         self.global_step = 0
-        self.budget = 0
         self.order = 0
         self.buy_mount = 0
+        with open("config.txt", "r") as file:
+            order_data = file.readline()
+            order_data = order_data.split(',')
+            if float(order_data[0]) != 0:
+                self.order = float(order_data[0])
+                self.buy_mount = float(order_data[1])
+        self.budget = 0
         self.prev_histogram = 0
         self.max_diff = 0
         self.take_profit, self.stop_loss = 0, 0
@@ -181,12 +187,8 @@ class RegressionMA:
             max_price = max(high_price[-10:])
             self.take_profit, self.stop_loss = self.fibonacci(close_p, min_price)
             logging.warning("{} | Buy Order | Price {} | MA {} | Take Profit {} | Stop Loss {}".format(open_time_readable, close_p,  ma_h, self.take_profit, self.stop_loss))
-
-        # elif self.order and close_p >= self.take_profit:
-        #     diff = close_p - self.order
-        #     self.budget += diff
-        #     self.reset()
-        #     logging.warning("{} | Take Profit At {} | Budget {} | Diff {}".format(open_time_readable, close_p, self.budget, diff))
+            with open("config.txt", "w") as file:
+                file.write("{},{}".format(self.order, self.buy_mount))
 
         elif self.order and close_p <= self.stop_loss:
             self.sell_margin()
@@ -194,6 +196,8 @@ class RegressionMA:
             self.budget += diff
             self.reset()
             logging.warning("{} | Stop loss At {} | Budget {} | Diff {}".format(open_time_readable, close_p, self.budget, diff))
+            with open("config.txt", "w") as file:
+                file.write("{},{}".format(self.order, self.buy_mount))
 
         elif self.order and prev_histogram - histogram > 0.5:
             self.sell_margin()
@@ -201,6 +205,8 @@ class RegressionMA:
             self.budget += diff
             self.reset()
             logging.warning("{} | Histogram Down Trend {} | Budget {} | Diff {}".format(open_time_readable, close_p, self.budget, diff))
+            with open("config.txt", "w") as file:
+                file.write("{},{}".format(self.order, self.buy_mount))
 
     def reset(self):
         self.order = 0
@@ -251,12 +257,8 @@ class RegressionMA:
                     max_price = max(high_price[idx-10:idx])
                     self.take_profit, self.stop_loss = self.fibonacci(ma_h, min_price)
                     logging.warning("{} | Buy Order: {} Open Price {} Close Price {}".format(readable, ma_h, open_p, close_p))
-
-                # elif self.order and close_p >= self.take_profit >= open_p:
-                #     diff = close_p - self.order
-                #     self.budget += diff
-                #     self.reset()
-                #     logging.warning("{} | Take Profit At {} | Budget {} | Diff {}".format(readable, close_p, self.budget, diff))
+                    with open("config.txt", "w") as file:
+                        file.write("{},{}".format(self.order, self.buy_mount))
 
                 elif self.order and close_p >= self.stop_loss >= open_p:
                     diff = close_p - self.order
@@ -311,6 +313,8 @@ class RegressionMA:
             mailer.notification(txt)
             logging.warning(txt)
             self.buy_mount = amt_str
+            with open("config.txt", "w") as file:
+                file.write("{},{}".format(price_index['price'], amt_str))
             return True
         except Exception as ex:
             print(ex)
@@ -344,6 +348,8 @@ class RegressionMA:
             logging.warning(txt)
             print(txt)
             mailer.notification(txt)
+            with open("config.txt", "w") as file:
+                file.write("{},{}".format(0, 0))
             return True
         except Exception as ex:
             print(ex)
@@ -362,7 +368,7 @@ if __name__ == '__main__':
     bottrading = RegressionMA()
     # bottrading.plot_data()
     bottrading.get_data()
-    # bottrading.test_trading()
-    bottrading.start_socket()
+    bottrading.test_trading()
+    # bottrading.start_socket()
     # bottrading.test_order()
     # bottrading.getStockDataVec()
