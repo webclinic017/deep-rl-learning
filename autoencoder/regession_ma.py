@@ -177,8 +177,8 @@ class RegressionMA:
         if not self.order and close_p > ma_h and plus_di > minus_di and histogram > prev_histogram and plus_di > 25:
             # buy signal
             self.order = ma_h
-            min_price = min(low_price[-10:])
-            max_price = max(high_price[-10:])
+            min_price = float(min(low_price[-10:]))
+            max_price = float(max(high_price[-10:]))
             self.take_profit, self.stop_loss = self.fibonacci(close_p, min_price)
             logging.warning("{} | Buy Order: MA {} | Price {}".format(open_time_readable, ma_h, close_p))
 
