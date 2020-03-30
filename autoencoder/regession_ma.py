@@ -164,14 +164,17 @@ class RegressionMA:
         # macd = data.MACD.values[-1]
         # signal = data.Signal.values[-1]
         histogram_data = data.Histogram.values
+        plus_di_data = data.PLUS_DI.values
+
         adx_data = data.ADX.values
         adx = adx_data[-1]
         minus_di = data.MINUS_DI.values[-1]
-        plus_di = data.PLUS_DI.values[-1]
+        plus_di = plus_di_data[-1]
         ma_h = data.MA_High.values[-1]
         histogram = histogram_data[-1]
         prev_histogram = histogram_data[-2]
         prev_adx = adx_data[-2]
+        prev_plus_di = plus_di_data[-2]
         timestamp = int(time.time())
         low_price = data.Low.astype('float64').values
         high_price = data.High.astype('float64').values
@@ -188,28 +191,34 @@ class RegressionMA:
                 plus_di > 25 and \
                 adx > prev_adx and \
                 histogram > 0 and \
-                adx > 25:
+                adx > 25 and \
+                plus_di > prev_plus_di:
             # buy signal
             self.buy_margin()
             self.order = close_p
             min_price = min(low_price[-10:])
             max_price = max(high_price[-10:])
             self.take_profit, self.stop_loss = self.fibonacci(close_p, min_price)
-            logging.warning("{} | Buy Order | Price {} | MA {} | Take Profit {} | Stop Loss {}".format(open_time_readable, close_p,  ma_h, self.take_profit, self.stop_loss))
+            logging.warning("{} | Buy Order | Price {} | MA {} | Stop Loss {}".format(open_time_readable,
+                                                                                      round(close_p, 2),
+                                                                                      round(ma_h, 2),
+                                                                                      round(self.stop_loss, 2)))
 
         elif self.order and close_p <= self.stop_loss:
             self.sell_margin()
             diff = close_p - self.order
             self.budget += diff
             self.reset()
-            logging.warning("{} | Stop loss At {} | Budget {} | Diff {}".format(open_time_readable, close_p, self.budget, diff))
+            logging.warning("{} | Stop loss At {} | Budget {} | Diff {}".format(open_time_readable, round(close_p, 2),
+                                                                                round(self.budget, 2), round(diff, 2)))
 
         elif self.order and prev_histogram - histogram > 0.5:
             self.sell_margin()
             diff = close_p - self.order
             self.budget += diff
             self.reset()
-            logging.warning("{} | Histogram Down Trend {} | Budget {} | Diff {}".format(open_time_readable, close_p, self.budget, diff))
+            logging.warning("{} | Close Order {} | Budget {} | Diff {}".format(open_time_readable, round(close_p, 2),
+                                                                               round(self.budget, 2), round(diff, 2)))
 
     def reset(self):
         self.order = 0
@@ -305,7 +314,7 @@ class RegressionMA:
             amount = int(float(usdt_amount))/float(price_index['price'])
             precision = 5
             amt_str = "{:0.0{}f}".format(amount*self.trade_amount, precision)
-            txt = "Buy successfully: Amount: {} Price: {}".format(amt_str, price_index['price'])
+            txt = "Buy successfully | Amount {} | Price {}".format(amt_str, price_index['price'])
             print(txt)
             buy_order = self.binace_client.create_margin_order(
                 symbol=symbol,
@@ -344,9 +353,9 @@ class RegressionMA:
             info = self.binace_client.get_margin_account()
             current_btc = info['totalAssetOfBtc']
             usdt = info['userAssets'][2]['free']
-            txt = "Sell successfully: Balance: {} Sell Amount: {} In {} Owned In BTC: {}".format(usdt, amt_str,
-                                                                                                 price_index['price'],
-                                                                                                 current_btc)
+            txt = "Sell successfully | Balance {} | Sell Amount {} | At Price {} | Owned In BTC {}".format(usdt, amt_str,
+                                                                                                           price_index['price'],
+                                                                                                           current_btc)
             logging.warning(txt)
             print(txt)
             mailer.notification(txt)
