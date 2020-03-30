@@ -187,8 +187,6 @@ class RegressionMA:
             max_price = max(high_price[-10:])
             self.take_profit, self.stop_loss = self.fibonacci(close_p, min_price)
             logging.warning("{} | Buy Order | Price {} | MA {} | Take Profit {} | Stop Loss {}".format(open_time_readable, close_p,  ma_h, self.take_profit, self.stop_loss))
-            with open("config.txt", "w") as file:
-                file.write("{},{}".format(self.order, self.buy_mount))
 
         elif self.order and close_p <= self.stop_loss:
             self.sell_margin()
@@ -196,8 +194,6 @@ class RegressionMA:
             self.budget += diff
             self.reset()
             logging.warning("{} | Stop loss At {} | Budget {} | Diff {}".format(open_time_readable, close_p, self.budget, diff))
-            with open("config.txt", "w") as file:
-                file.write("{},{}".format(self.order, self.buy_mount))
 
         elif self.order and prev_histogram - histogram > 0.5:
             self.sell_margin()
@@ -205,8 +201,6 @@ class RegressionMA:
             self.budget += diff
             self.reset()
             logging.warning("{} | Histogram Down Trend {} | Budget {} | Diff {}".format(open_time_readable, close_p, self.budget, diff))
-            with open("config.txt", "w") as file:
-                file.write("{},{}".format(self.order, self.buy_mount))
 
     def reset(self):
         self.order = 0
@@ -257,8 +251,6 @@ class RegressionMA:
                     max_price = max(high_price[idx-10:idx])
                     self.take_profit, self.stop_loss = self.fibonacci(ma_h, min_price)
                     logging.warning("{} | Buy Order: {} Open Price {} Close Price {}".format(readable, ma_h, open_p, close_p))
-                    with open("config.txt", "w") as file:
-                        file.write("{},{}".format(self.order, self.buy_mount))
 
                 elif self.order and close_p >= self.stop_loss >= open_p:
                     diff = close_p - self.order
