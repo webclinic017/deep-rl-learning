@@ -22,13 +22,13 @@ class RegressionMA:
         self.train_data = self.get_data()
         self.global_step = 0
         self.budget = 0
-        self.order = 0
+        self.order = 6272.82
+        self.buy_mount = 0.01253
         self.prev_histogram = 0
         self.max_diff = 0
         self.take_profit, self.stop_loss = 0, 0
-        self.buy_mount = 0
         self.is_latest = False
-        self.trade_amount = 0.1  # 10% currency you owned
+        self.trade_amount = 0.5  # 50% currency you owned
         self.client = MongoClient()
         self.db = self.client.crypto
         self.api_key = "9Hj6HLNNMGgkqj6ngouMZD1kjIbUb6RZmIpW5HLiZjtDT5gwhXAzc20szOKyQ3HW"
@@ -134,12 +134,12 @@ class RegressionMA:
                                        'close_time', 'quote_asset_volume', 'number_of_trades',
                                        'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
             self.train_data = self.train_data.append(df, ignore_index=True, sort=False)
-            self.trading()
-        # elif len(self.train_data) > 1:
-        #     self.train_data.at[len(self.train_data) - 1, 'Close'] = _close
-        #     self.train_data.at[len(self.train_data) - 1, 'High'] = _high
-        #     self.train_data.at[len(self.train_data) - 1, 'Low'] = _low
+        elif len(self.train_data) > 1:
+            self.train_data.at[len(self.train_data) - 1, 'Close'] = _close
+            self.train_data.at[len(self.train_data) - 1, 'High'] = _high
+            self.train_data.at[len(self.train_data) - 1, 'Low'] = _low
         self.is_latest = msg['k']['x']
+        self.trading()
 
     def trading(self):
         df = self.train_data.copy()
@@ -173,27 +173,30 @@ class RegressionMA:
                                                                                    round(ma_h, 2), round(minus_di, 2),
                                                                                    round(plus_di, 2), round(histogram, 2)))
 
-        if not self.order and close_p > ma_h and plus_di > minus_di and histogram > prev_histogram and plus_di > 25 and histogram > 0:
+        if not self.order and close_p > ma_h and plus_di > minus_di and histogram > prev_histogram and plus_di > 25:
             # buy signal
+            self.buy_margin()
             self.order = close_p
             min_price = min(low_price[-10:])
             max_price = max(high_price[-10:])
             self.take_profit, self.stop_loss = self.fibonacci(close_p, min_price)
             logging.warning("{} | Buy Order | Price {} | MA {} | Take Profit {} | Stop Loss {}".format(open_time_readable, close_p,  ma_h, self.take_profit, self.stop_loss))
 
-        elif self.order and close_p >= self.take_profit:
-            diff = close_p - self.order
-            self.budget += diff
-            self.reset()
-            logging.warning("{} | Take Profit At {} | Budget {} | Diff {}".format(open_time_readable, close_p, self.budget, diff))
+        # elif self.order and close_p >= self.take_profit:
+        #     diff = close_p - self.order
+        #     self.budget += diff
+        #     self.reset()
+        #     logging.warning("{} | Take Profit At {} | Budget {} | Diff {}".format(open_time_readable, close_p, self.budget, diff))
 
         elif self.order and close_p <= self.stop_loss:
+            self.sell_margin()
             diff = close_p - self.order
             self.budget += diff
             self.reset()
             logging.warning("{} | Stop loss At {} | Budget {} | Diff {}".format(open_time_readable, close_p, self.budget, diff))
 
         elif self.order and prev_histogram - histogram > 0.5:
+            self.sell_margin()
             diff = close_p - self.order
             self.budget += diff
             self.reset()
@@ -249,11 +252,11 @@ class RegressionMA:
                     self.take_profit, self.stop_loss = self.fibonacci(ma_h, min_price)
                     logging.warning("{} | Buy Order: {} Open Price {} Close Price {}".format(readable, ma_h, open_p, close_p))
 
-                elif self.order and close_p >= self.take_profit >= open_p:
-                    diff = close_p - self.order
-                    self.budget += diff
-                    self.reset()
-                    logging.warning("{} | Take Profit At {} | Budget {} | Diff {}".format(readable, close_p, self.budget, diff))
+                # elif self.order and close_p >= self.take_profit >= open_p:
+                #     diff = close_p - self.order
+                #     self.budget += diff
+                #     self.reset()
+                #     logging.warning("{} | Take Profit At {} | Budget {} | Diff {}".format(readable, close_p, self.budget, diff))
 
                 elif self.order and close_p >= self.stop_loss >= open_p:
                     diff = close_p - self.order
