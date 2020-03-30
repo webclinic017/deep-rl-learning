@@ -174,7 +174,7 @@ class RegressionMA:
                                                                                    round(ma_h, 2), round(minus_di, 2),
                                                                                    round(plus_di, 2), round(histogram, 2)))
 
-        if not self.order and close_p > ma_h and plus_di > minus_di and histogram > prev_histogram and plus_di > 25:
+        if not self.order and close_p > ma_h and plus_di > minus_di and histogram > prev_histogram and plus_di > 25 and histogram > 0:
             # buy signal
             self.order = close_p
             min_price = min(low_price[-10:])
@@ -242,7 +242,7 @@ class RegressionMA:
             readable = datetime.datetime.fromtimestamp(open_time/1000).strftime('%Y-%m-%d %H:%M:%S')
             if 10 < idx < len(ma_low) - 2:
                 prev_histogram = histogram_data[idx-1]
-                if not self.order and close_p > ma_h and plus_di > minus_di and histogram > prev_histogram and plus_di > 25:
+                if not self.order and close_p > ma_h and plus_di > minus_di and histogram > prev_histogram and plus_di > 25 and histogram > 0:
                     # buy signal
                     self.order = ma_h
                     min_price = min(low_price[idx-10:idx])
@@ -360,7 +360,7 @@ if __name__ == '__main__':
     bottrading = RegressionMA()
     # bottrading.plot_data()
     bottrading.get_data()
-    # bottrading.test_trading()
-    bottrading.start_socket()
+    bottrading.test_trading()
+    # bottrading.start_socket()
     # bottrading.test_order()
     # bottrading.getStockDataVec()
