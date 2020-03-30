@@ -22,8 +22,8 @@ class RegressionMA:
         self.train_data = self.get_data()
         self.global_step = 0
         self.budget = 0
-        self.order = 6272.82
-        self.buy_mount = 0.01253
+        self.order = 0
+        self.buy_mount = 0
         self.prev_histogram = 0
         self.max_diff = 0
         self.take_profit, self.stop_loss = 0, 0
