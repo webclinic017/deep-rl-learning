@@ -36,6 +36,7 @@ class RegressionMA:
         self.trade_amount = 0.5  # 50% currency you owned
         self.client = MongoClient()
         self.db = self.client.crypto
+        # self.db.btc_5minute_realtime.drop()
         self.api_key = "9Hj6HLNNMGgkqj6ngouMZD1kjIbUb6RZmIpW5HLiZjtDT5gwhXAzc20szOKyQ3HW"
         self.api_secret = "ioD0XICp0cFE99VVql5nuxiCJEb6GK8mh08NYnSYdIUfkiotd1SZqLTQsjFvrXwk"
         self.binace_client = Client(self.api_key, self.api_secret)
@@ -119,7 +120,7 @@ class RegressionMA:
 
     def process_message(self, msg):
         msg['k']['timestamp'] = time.time()
-        insert = self.db.btc_5minute_realtime.insert_one(msg).inserted_id
+        insert = self.db.btc_5m.insert_one(msg).inserted_id
         _open_time = msg['k']['t']
         _open = msg['k']['o']
         _high = msg['k']['h']
@@ -133,7 +134,7 @@ class RegressionMA:
         _buy_quote_asset_volume = msg['k']['q']
         _ignore = msg['k']['B']
 
-        if self.is_latest:
+        if msg['k']['x']:
             df = pd.DataFrame([[_open_time, _open, _high, _low, _close, _volume, _close_time,
                                 _quote_asset_volume, _number_of_trades, _buy_base_asset_volume,
                                 _buy_quote_asset_volume, _ignore]],
@@ -141,14 +142,14 @@ class RegressionMA:
                                        'close_time', 'quote_asset_volume', 'number_of_trades',
                                        'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
             self.train_data = self.train_data.append(df, ignore_index=True, sort=False)
-        elif len(self.train_data) > 1:
-            self.train_data.at[len(self.train_data) - 1, 'Close'] = _close
-            self.train_data.at[len(self.train_data) - 1, 'High'] = _high
-            self.train_data.at[len(self.train_data) - 1, 'Low'] = _low
-        self.is_latest = msg['k']['x']
-        self.trading()
+        # elif len(self.train_data) > 1:
+            # self.train_data.at[len(self.train_data) - 1, 'Close'] = _close
+            # self.train_data.at[len(self.train_data) - 1, 'High'] = _high
+            # self.train_data.at[len(self.train_data) - 1, 'Low'] = _low
+        # self.is_latest = msg['k']['x']
+        self.trading(float(_close))
 
-    def trading(self):
+    def trading(self, close_p):
         df = self.train_data.copy()
         df['MA'] = MA(df.Close, timeperiod=14)
         df['MACD'], df['Signal'], df['Histogram'] = MACD(df.Close, 12, 26, 9)
@@ -158,8 +159,8 @@ class RegressionMA:
         df['MA_High'] = MA(df.High, timeperiod=10)
         df['MA_Low'] = MA(df.Low, timeperiod=10)
         data = df.dropna()
-        close_price = data.Close.astype('float64').values
-        close_p = close_price[-1]
+        # close_price = data.Close.astype('float64').values
+        # close_p = close_price[-1]
         # ma_c = data.MA_Close.values[-1]
         # macd = data.MACD.values[-1]
         # signal = data.Signal.values[-1]
@@ -185,7 +186,8 @@ class RegressionMA:
                                                                                    round(ma_h, 2), round(minus_di, 2),
                                                                                    round(plus_di, 2), round(histogram, 2)))
 
-        if not self.order and close_p > ma_h and \
+        if not self.order and \
+                close_p > ma_h and \
                 plus_di > minus_di and \
                 histogram > prev_histogram and \
                 plus_di > 25 and \
@@ -194,7 +196,7 @@ class RegressionMA:
                 adx > 25 and \
                 plus_di > prev_plus_di:
             # buy signal
-            self.buy_margin()
+            # self.buy_margin()
             self.order = close_p
             min_price = min(low_price[-10:])
             max_price = max(high_price[-10:])
@@ -205,7 +207,7 @@ class RegressionMA:
                                                                                       round(self.stop_loss, 2)))
 
         elif self.order and close_p <= self.stop_loss:
-            self.sell_margin()
+            # self.sell_margin()
             diff = close_p - self.order
             self.budget += diff
             self.reset()
@@ -213,7 +215,7 @@ class RegressionMA:
                                                                                 round(self.budget, 2), round(diff, 2)))
 
         elif self.order and prev_histogram - histogram > 0.5:
-            self.sell_margin()
+            # self.sell_margin()
             diff = close_p - self.order
             self.budget += diff
             self.reset()
@@ -263,9 +265,19 @@ class RegressionMA:
             if 10 < idx < len(ma_low) - 2:
                 prev_histogram = histogram_data[idx-1]
                 prev_adx = adx_dm[idx-1]
-                if not self.order and close_p > ma_h and plus_di > minus_di and histogram > prev_histogram and plus_di > 25 and adx > prev_adx and histogram > 0 and adx > 25:
+                prev_plus_di = plus_dm[idx-1]
+                if not self.order and \
+                        close_p > ma_h and \
+                        plus_di > minus_di and \
+                        histogram > prev_histogram and \
+                        plus_di > 25 and \
+                        adx > prev_adx and \
+                        histogram > 0 and \
+                        adx > 25 and \
+                        prev_plus_di < plus_di:
+
                     # buy signal
-                    self.order = close_p
+                    self.order = (close_p + open_p) / 2
                     min_price = min(low_price[idx-10:idx])
                     max_price = max(high_price[idx-10:idx])
                     self.take_profit, self.stop_loss = self.fibonacci(ma_h, min_price)
@@ -281,7 +293,7 @@ class RegressionMA:
                     diff = close_p - self.order
                     self.budget += diff
                     self.reset()
-                    logging.warning("{} | Stop loss At {} | Budget {} | Diff {}".format(readable, close_p, self.budget, diff))
+                    logging.warning("{} | Close At {} | Budget {} | Diff {}".format(readable, close_p, self.budget, diff))
 
             idx += 1
 
