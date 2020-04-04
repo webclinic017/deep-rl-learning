@@ -6,15 +6,14 @@ from sklearn import decomposition
 
 
 class TradingEnv:
-    def __init__(self, consecutive_frames=50, nb_features=15):
+    def __init__(self, consecutive_frames=40):
         self.t = 120
-        self.budget = 100
+        self.budget = 0
         self.order = 0
         self.normalize_order = 0
         self.done = False
         self.waiting_time = 0
         self.consecutive_frames = consecutive_frames
-        self.nb_features = nb_features
         self.train_data, self.prices = self.get_data('../data/train_3m.csv')
 
     def get_data(self, csv_path):
@@ -25,12 +24,12 @@ class TradingEnv:
                                       high='high', low='low', volume='volume', fillna=True)
         raw_price = df.close.astype('float64').values
         data = data.drop(columns=['open', 'high', 'low', 'close', 'volume'], axis=1)
-        scaler = MinMaxScaler(feature_range=(-1, 1))
+        scaler = MinMaxScaler(feature_range=(0, 1))
         data = scaler.fit_transform(data)
-        # pca = decomposition.PCA(n_components=self.nb_features)
-        # pca.fit(data)
-        # X = pca.transform(data)
-        return data, raw_price
+        pca = decomposition.PCA(n_components=3)
+        pca.fit(data)
+        X = pca.transform(data)
+        return X, raw_price
 
     @staticmethod
     def normalize(raw_list):
@@ -59,9 +58,6 @@ class TradingEnv:
         return reward
 
     def act(self, action):
-        if self.t == len(self.train_data) - 1:
-            self.t = 120
-
         current_price = self.prices[self.t]
 
         diff = current_price - self.order if self.order else 0
@@ -81,27 +77,26 @@ class TradingEnv:
             if self.order:
                 self.order = 0
                 self.budget += diff
-                done = True
-                if diff > 50:
-                    r = 100
+                r = diff
 
-        state_5 = self.train_data[self.t-self.consecutive_frames:self.t]
-        state = state_5
+        state_5 = self.train_data[self.t-50:self.t]
+        state = np.array([state_5])
         info = {'diff': diff, 'order': 1 if self.order else 0, 'budget': self.budget, 'waiting_time': self.waiting_time}
-        state2 = np.array([diff, 1 if self.order else 0])
+        state2 = np.array([1, 1, 1, 1])
         self.t += 1
         self.waiting_time += 1
         return state, state2, r, done, info
 
     def reset(self):
-        self.budget = 100
+        self.t = 120
+        self.budget = 0
         self.order = 0
         self.normalize_order = 0
         self.done = False
         self.waiting_time = 0
 
-        inp1 = np.random.rand(self.consecutive_frames, self.nb_features)
-        inp2 = np.random.rand(2,)
+        inp1 = np.random.rand(1, self.consecutive_frames)
+        inp2 = np.random.rand(4,)
         return inp1, inp2
 
     def get_state_size(self):
