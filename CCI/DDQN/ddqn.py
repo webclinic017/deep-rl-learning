@@ -1,17 +1,15 @@
 import logging
 import random
 import numpy as np
-from keras import Input, Model
-from keras.layers import LSTM, Dense, concatenate
 
 from tqdm import tqdm
-from agent import Agent
+from DDQN.agent import Agent
 
 from utils.memory_buffer import MemoryBuffer
 from utils.networks import tfSummary
 from utils.stats import gather_stats
 
-logging.basicConfig(filename='log/ddqn.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename='../log/ddqn.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
 
 class DDQN:

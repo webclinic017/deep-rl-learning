@@ -2,32 +2,34 @@ import random
 import numpy as np
 import logging
 
-logging.basicConfig(filename='../log/a2c.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
-
 from tqdm import tqdm
 from keras.models import Model
 from keras.utils import to_categorical
-from keras.layers import Input, Dense, LSTM, concatenate
+from keras.layers import Input, Dense, LSTM, concatenate, BatchNormalization, Dropout, Add, Dot
 
 from A2C.critic import Critic
 from A2C.actor import Actor
+from utils.networks import tfSummary
+
+logging.basicConfig(filename='log/a2c.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
 
 class A2C:
     """ Actor-Critic Main Algorithm
     """
 
-    def __init__(self, act_dim, env_dim, k, gamma=0.8, lr=1e-4):
+    def __init__(self, act_dim, env_dim, args, gamma=0.995, lr=1e-4):
         """ Initialization
         """
         # Environment and A2C parameters
         self.act_dim = act_dim
-        self.env_dim = (k,) + env_dim
+        self.env_dim = env_dim
         self.gamma = gamma
+        self.nb_episodes = args.nb_episodes
         self.lr = lr
         self.epsilon = 1
-        self.min_epsilon = 0.1
-        self.epsilon_decay = 0.999
+        self.min_epsilon = 0.01
+        self.epsilon_decay = 0.99
         # Create actor and critic networks
         self.shared = self.buildNetwork()
         self.actor = Actor(self.env_dim, act_dim, self.shared, lr)
@@ -38,18 +40,19 @@ class A2C:
 
     def buildNetwork(self):
         """ Assemble shared layers"""
-        initial_input = Input(shape=(2, 40))
+        initial_input = Input(shape=self.env_dim)
         secondary_input = Input(shape=(2,))
 
-        lstm = LSTM(128, return_sequences=True)(initial_input)
-        lstm = LSTM(128, return_sequences=True)(lstm)
-        lstm = LSTM(128)(lstm)
+        lstm = LSTM(1024, return_sequences=True, dropout=0.5, recurrent_dropout=0.5)(initial_input)
+        lstm = LSTM(1024, return_sequences=True, dropout=0.5, recurrent_dropout=0.5)(lstm)
+        lstm = LSTM(128, dropout=0.5, recurrent_dropout=0.5)(lstm)
         dense = Dense(128, activation='relu')(secondary_input)
         merge = concatenate([lstm, dense])
-
-        x = Dense(64, activation='relu')(merge)
-        out_dense = Dense(64, activation='relu')(x)
-        output = Dense(64, activation='relu')(out_dense)
+        out_dense = Dense(2048, activation='relu')(merge)
+        out_dense = Dense(2048, activation='relu')(out_dense)
+        out_dense = BatchNormalization()(out_dense)
+        out_dense = Dropout(0.25)(out_dense)
+        output = Dense(1024, activation='relu')(out_dense)
         model = Model(inputs=[initial_input, secondary_input], outputs=output)
         return model
 
@@ -153,6 +156,41 @@ class A2C:
             tqdm_e.refresh()
 
         return results
+
+    def learning_start(self, env, summary_writer):
+        tqdm_e = tqdm(range(self.nb_episodes), desc='Score', leave=True, unit=" episode")
+        for e in tqdm_e:
+            # Reset episode
+            old_state1, old_state2 = env.reset()
+            time, cumul_reward, done = 0, 0, False
+            actions, states1, states2, rewards = [], [], [], []
+            while not done:
+                valid_actions = env.get_valid_actions()
+                a = self.random_actions(old_state1, old_state2, valid_actions)
+                new_state1, new_state2, r, done, info = env.act(a)
+                actions.append(to_categorical(a, self.act_dim))
+                rewards.append(r)
+                states1.append(old_state1)
+                states2.append(old_state2)
+
+                old_state1 = new_state1
+                old_state2 = new_state2
+                cumul_reward += r
+
+            tqdm_e.set_description(
+                "Profit: {}, Cumul reward: {} Episode: {}".format(
+                    round(env.budget, 2),
+                    round(cumul_reward, 2),
+                    e
+                )
+            )
+            tqdm_e.refresh()
+
+            self.train_models(states1, states2, actions, rewards, done)
+
+            score = tfSummary('score', cumul_reward)
+            summary_writer.add_summary(score, global_step=e)
+            summary_writer.flush()
 
     def save_weights(self, path):
         path += '_LR_{}'.format(self.lr)
