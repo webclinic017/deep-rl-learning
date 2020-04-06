@@ -27,23 +27,23 @@ def convert_data(obj):
 
 
 # fetch train data
-klines = client.get_historical_klines("BTCUSDT", Client.KLINE_INTERVAL_3MINUTE, "1 Jan, 2020", "1 Feb, 2020")
+klines = client.get_historical_klines("BTCUSDT", Client.KLINE_INTERVAL_5MINUTE, "1 Jan, 2019", "1 Feb, 2020")
 train_df = pd.DataFrame(klines, columns=['open_time', 'open', 'high', 'low', 'close',
                                          'volume', 'close_time', 'quote_asset_volume', 'number_of_trades',
                                          'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
 train_df.drop(columns=['open_time', 'close_time', 'quote_asset_volume', 'number_of_trades',
                        'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'], axis=1)
-train_df.to_csv('../data/train_3m.csv', sep=',')
+train_df.to_csv('../data/train_5m.csv', sep=',')
 
 
 # fetch test data
-klines = client.get_historical_klines("BTCUSDT", Client.KLINE_INTERVAL_3MINUTE, "1 Feb, 2020")
-df_test = pd.DataFrame(klines, columns=['open_time', 'Open', 'High', 'Low', 'Close',
-                                        'Volume', 'close_time', 'quote_asset_volume', 'number_of_trades',
+klines = client.get_historical_klines("BTCUSDT", Client.KLINE_INTERVAL_5MINUTE, "1 Feb, 2020")
+df_test = pd.DataFrame(klines, columns=['open_time', 'open', 'high', 'low', 'close',
+                                        'volume', 'close_time', 'quote_asset_volume', 'number_of_trades',
                                         'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
 df_test.drop(columns=['open_time', 'close_time', 'quote_asset_volume', 'number_of_trades',
                       'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'], axis=1)
-df_test.to_csv('../data/test_3m.csv', sep=',')
+df_test.to_csv('../data/test_5m.csv', sep=',')
 
 # test_data = list(map(convert_data, klines))
 # print(test_data[0])
