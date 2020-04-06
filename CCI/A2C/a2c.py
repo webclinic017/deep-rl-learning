@@ -28,8 +28,8 @@ class A2C:
         self.nb_episodes = args.nb_episodes
         self.lr = lr
         self.epsilon = 1
-        self.min_epsilon = 0.01
-        self.epsilon_decay = 0.99
+        self.min_epsilon = 0.1
+        self.epsilon_decay = 0.999
         # Create actor and critic networks
         self.shared = self.buildNetwork()
         self.actor = Actor(self.env_dim, act_dim, self.shared, lr)
@@ -41,24 +41,24 @@ class A2C:
     def buildNetwork(self):
         """ Assemble shared layers"""
         initial_input = Input(shape=self.env_dim)
-        secondary_input = Input(shape=(2,))
+        secondary_input = Input(shape=(1,))
 
-        lstm = LSTM(1024, return_sequences=True, dropout=0.5, recurrent_dropout=0.5)(initial_input)
-        lstm = LSTM(1024, return_sequences=True, dropout=0.5, recurrent_dropout=0.5)(lstm)
-        lstm = LSTM(128, dropout=0.5, recurrent_dropout=0.5)(lstm)
-        dense = Dense(128, activation='relu')(secondary_input)
-        merge = concatenate([lstm, dense])
-        out_dense = Dense(2048, activation='relu')(merge)
-        out_dense = Dense(2048, activation='relu')(out_dense)
+        lstm = LSTM(1024, return_sequences=True, dropout=0.0, recurrent_dropout=0.0)(initial_input)
+        lstm = LSTM(1024, return_sequences=True, dropout=0.0, recurrent_dropout=0.0)(lstm)
+        lstm = LSTM(512, dropout=0.0, recurrent_dropout=0.0)(lstm)
+        dense = Dense(512, activation='sigmoid')(secondary_input)
+        merge = Add()([lstm, dense])
+        out_dense = Dense(512, activation='relu')(merge)
         out_dense = BatchNormalization()(out_dense)
-        out_dense = Dropout(0.25)(out_dense)
-        output = Dense(1024, activation='relu')(out_dense)
+        output = Dense(512, activation='relu')(out_dense)
         model = Model(inputs=[initial_input, secondary_input], outputs=output)
         return model
 
     def policy_action(self, inp1, inp2):
         """ Use the actor to predict the next action to take, using the policy
         """
+        inp1 = np.expand_dims(inp1, axis=0)
+        inp2 = np.expand_dims(inp2, axis=0)
         p = self.actor.predict(inp1, inp2)
         action = np.random.choice(np.arange(self.act_dim), 1, p=p.ravel())[0]
         logging.warning("a: {}, p: {}".format(action, p))
@@ -105,6 +105,8 @@ class A2C:
 
         advantages = discounted_rewards - np.reshape(state_values, len(state_values))
         # Networks optimization
+        logging.warning("advantages: {}".format(advantages))
+        logging.warning("discounted_rewards: {}".format(discounted_rewards))
 
         self.a_opt([s1, s2, actions, advantages])
         self.c_opt([s1, s2, discounted_rewards])
@@ -164,7 +166,7 @@ class A2C:
             old_state1, old_state2 = env.reset()
             time, cumul_reward, done = 0, 0, False
             actions, states1, states2, rewards = [], [], [], []
-            while not done:
+            while not done and len(actions) <= 128:
                 valid_actions = env.get_valid_actions()
                 a = self.random_actions(old_state1, old_state2, valid_actions)
                 new_state1, new_state2, r, done, info = env.act(a)

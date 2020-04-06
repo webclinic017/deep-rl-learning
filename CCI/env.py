@@ -1,35 +1,51 @@
 import pandas as pd
 import numpy as np
 import ta
+import math
+
+from keras.utils import to_categorical
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn import decomposition
+from sklearn.externals import joblib
 
 
 class TradingEnv:
-    def __init__(self, consecutive_frames=50, nb_features=15):
-        self.t = 120
+    def __init__(self, consecutive_frames=50, nb_features=15, dataset=None, strategy='train'):
+        self.t = consecutive_frames
         self.budget = 100
         self.order = 0
         self.normalize_order = 0
         self.done = False
+        self.side = None
+        self.strategy = strategy
         self.waiting_time = 0
         self.consecutive_frames = consecutive_frames
         self.nb_features = nb_features
-        self.train_data, self.prices = self.get_data('../data/train_3m.csv')
+        self.train_data, self.prices = self.get_data(dataset)
 
     def get_data(self, csv_path):
         df = pd.read_csv(csv_path, sep=',')
-        df = df.drop(columns=['no', 'open_time', 'close_time', 'quote_asset_volume', 'number_of_trades',
+        df = df.drop(columns=['open_time', 'close_time', 'quote_asset_volume', 'number_of_trades',
                               'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'], axis=1)
         data = ta.add_all_ta_features(df, close='close', open='open',
                                       high='high', low='low', volume='volume', fillna=True)
         raw_price = df.close.astype('float64').values
         data = data.drop(columns=['open', 'high', 'low', 'close', 'volume'], axis=1)
-        scaler = MinMaxScaler(feature_range=(-1, 1))
-        data = scaler.fit_transform(data)
-        # pca = decomposition.PCA(n_components=self.nb_features)
-        # pca.fit(data)
-        # X = pca.transform(data)
+
+        scaler_filename = 'scaler.pkl'
+        if self.strategy == 'train':
+            scaler = MinMaxScaler(feature_range=(-1, 1))
+            scaler.fit(data)
+            data = scaler.transform(data)
+            joblib.dump(scaler, scaler_filename)
+        else:
+            scaler = joblib.load(scaler_filename)
+            data = scaler.transform(data)
+
+        # PCA
+        pca = decomposition.PCA(n_components=self.nb_features, random_state=123)
+        pca.fit(data)
+        data = pca.transform(data)
         return data, raw_price
 
     @staticmethod
@@ -44,7 +60,13 @@ class TradingEnv:
         return return_data
 
     def get_valid_actions(self):
-        return [0, 1] if not self.order else [0, 2]
+        return [0, 3] if self.order else [1, 2]
+
+    @staticmethod
+    def sigmoid(x):
+        if x <= 0:
+            return 0
+        return 1 / (1 + math.exp(-x))
 
     def get_noncash_reward(self, diff, direction):
         risk_averse = 1
@@ -59,57 +81,78 @@ class TradingEnv:
         return reward
 
     def act(self, action):
-        if self.t == len(self.train_data) - 1:
-            self.t = 120
-
         current_price = self.prices[self.t]
-
-        diff = current_price - self.order if self.order else 0
-        r = 0
         done = False
+        if action in self.get_valid_actions():
+            r = -1
+        else:
+            r = -10
+
+        diff = 0
+        if self.order:
+            if self.side == 'buy':
+                diff = current_price - self.order
+            elif self.side == 'sell':
+                diff = self.order - current_price
 
         if action == 0:
             pass
 
         elif action == 1:
             # Buy
-            if not self.order:
-                self.order = current_price
+            self.order = current_price
+            self.side = 'buy'
 
         elif action == 2:
             # Sell
-            if self.order:
-                self.order = 0
-                self.budget += diff
-                done = True
-                if diff > 50:
-                    r = 100
+            self.order = current_price
+            self.side = 'sell'
 
-        state_5 = self.train_data[self.t-self.consecutive_frames:self.t]
-        state = state_5
-        info = {'diff': diff, 'order': 1 if self.order else 0, 'budget': self.budget, 'waiting_time': self.waiting_time}
-        state2 = np.array([diff, 1 if self.order else 0])
+        elif action == 3:
+            # close
+            self.budget += diff
+            self.side = None
+            self.order = None
+            if diff == 0:
+                r = -11
+            # if self.strategy == 'train':
+            #     if diff > 10:
+            #         r = 0.5
+
+        done = True if self.budget > 200 else False
+        # create state
+        state = self.train_data[self.t-self.consecutive_frames:self.t]
+        state = state.flatten()
+        info = {'diff': round(diff, 2), 'order': 1 if self.order else 0, 'budget': round(self.budget, 2), 'waiting_time': self.waiting_time}
+        # state = np.append(state, np.array(diff/100))
+        # state = np.append(state, to_categorical(action, 4))
         self.t += 1
         self.waiting_time += 1
-        return state, state2, r, done, info
+
+        if self.t == len(self.prices) - 1:
+            done = True
+
+        return state, r, done, info
 
     def reset(self):
+        if self.strategy == 'test':
+            self.t = self.consecutive_frames
+        if self.t == len(self.prices) - 1:
+            self.t = self.consecutive_frames
+
         self.budget = 100
+        self.side = None
         self.order = 0
         self.normalize_order = 0
         self.done = False
         self.waiting_time = 0
 
-        inp1 = np.random.rand(self.consecutive_frames, self.nb_features)
-        inp2 = np.random.rand(2,)
-        return inp1, inp2
-
-    def get_state_size(self):
-        return self.consecutive_frames
-
-    @staticmethod
-    def get_action_space():
-        return 3
+        inp1 = self.train_data[self.t-self.consecutive_frames:self.t]
+        inp1 = inp1.flatten()
+        # inp1 = np.append(inp1, np.array(0))
+        # inp1 = np.append(inp1, to_categorical(0, 4))
+        self.t += 1
+        return inp1
 
 
 if __name__ == '__main__':
