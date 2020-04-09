@@ -27,25 +27,31 @@ class TradingEnv:
         df = pd.read_csv(csv_path, sep=',')
         df = df.drop(columns=['open_time', 'close_time', 'quote_asset_volume', 'number_of_trades',
                               'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'], axis=1)
-        data = ta.add_all_ta_features(df, close='close', open='open',
-                                      high='high', low='low', volume='volume', fillna=True)
+        data = ta.add_all_ta_features(df, close='close', open='open', high='high', low='low', volume='volume', fillna=True)
         raw_price = df.close.astype('float64').values
         data = data.drop(columns=['open', 'high', 'low', 'close', 'volume'], axis=1)
 
         scaler_filename = 'scaler.pkl'
+        pca_filename = 'pca.pkl'
         if self.strategy == 'train':
             scaler = MinMaxScaler(feature_range=(-1, 1))
-            scaler.fit(data)
+            scaler = scaler.fit(data)
             data = scaler.transform(data)
             joblib.dump(scaler, scaler_filename)
+
+            # PCA
+            # pca = decomposition.PCA(n_components=self.nb_features, random_state=123)
+            # pca.fit(data)
+            # joblib.dump(pca, pca_filename)
+            # data = pca.transform(data)
+            # print(pca.explained_variance_ratio_)
+            # print(pca.singular_values_)
         else:
             scaler = joblib.load(scaler_filename)
+            # pca = joblib.load(pca_filename)
             data = scaler.transform(data)
+            # data = pca.transform(data)
 
-        # PCA
-        pca = decomposition.PCA(n_components=self.nb_features, random_state=123)
-        pca.fit(data)
-        data = pca.transform(data)
         return data, raw_price
 
     @staticmethod
@@ -60,7 +66,7 @@ class TradingEnv:
         return return_data
 
     def get_valid_actions(self):
-        return [0, 3] if self.order else [1, 2]
+        return [0, 2] if self.order else [0, 1]
 
     @staticmethod
     def sigmoid(x):
@@ -83,62 +89,58 @@ class TradingEnv:
     def act(self, action):
         current_price = self.prices[self.t]
         done = False
-        if action in self.get_valid_actions():
-            r = -1
-        else:
+
+        diff = current_price - self.order if self.order != 0 else 0
+        r = diff / 5000 if diff >= 0 else -1
+        if action not in self.get_valid_actions():
             r = -10
 
-        diff = 0
-        if self.order:
-            if self.side == 'buy':
-                diff = current_price - self.order
-            elif self.side == 'sell':
-                diff = self.order - current_price
-
-        if action == 0:
-            pass
-
-        elif action == 1:
+        if action == 1:
             # Buy
-            self.order = current_price
-            self.side = 'buy'
+            if not self.order:
+                self.order = current_price
+                self.side = 'buy'
 
         elif action == 2:
-            # Sell
-            self.order = current_price
-            self.side = 'sell'
+            if self.order:
+                self.budget += diff
+                self.side = None
+                self.order = 0
+                if diff > 100:
+                    r = 100
 
-        elif action == 3:
-            # close
-            self.budget += diff
-            self.side = None
-            self.order = None
-            if diff == 0:
-                r = -11
-            # if self.strategy == 'train':
-            #     if diff > 10:
-            #         r = 0.5
+        # if self.waiting_time >= 10 and self.budget >= 100 and self.strategy == 'train':
+        #     done = True
+        # if self.budget < -50:
+        #     self.budget = 100
+        #     self.side = None
+        #     self.order = 0
+        #     self.normalize_order = 0
+        #     self.done = True
+        #     self.waiting_time = 0
+        #     r = -11
 
-        done = True if self.budget > 200 else False
         # create state
         state = self.train_data[self.t-self.consecutive_frames:self.t]
         state = state.flatten()
-        info = {'diff': round(diff, 2), 'order': 1 if self.order else 0, 'budget': round(self.budget, 2), 'waiting_time': self.waiting_time}
-        # state = np.append(state, np.array(diff/100))
-        # state = np.append(state, to_categorical(action, 4))
+        info = {'diff': round(diff, 2), 'order': 1 if self.order else 0,
+                'budget': round(self.budget, 2), 'waiting_time': self.waiting_time, 'end_ep': False}
+        state = np.append(state, [1 if self.order else 0, diff/5000])
         self.t += 1
         self.waiting_time += 1
 
         if self.t == len(self.prices) - 1:
             done = True
+            info['end_ep'] = True
 
         return state, r, done, info
 
     def reset(self):
-        if self.strategy == 'test':
-            self.t = self.consecutive_frames
-        if self.t == len(self.prices) - 1:
-            self.t = self.consecutive_frames
+        # if self.strategy == 'test':
+        #     self.t = self.consecutive_frames
+        #
+        # if self.t == len(self.prices) - 1:
+        self.t = self.consecutive_frames
 
         self.budget = 100
         self.side = None
@@ -149,8 +151,7 @@ class TradingEnv:
 
         inp1 = self.train_data[self.t-self.consecutive_frames:self.t]
         inp1 = inp1.flatten()
-        # inp1 = np.append(inp1, np.array(0))
-        # inp1 = np.append(inp1, to_categorical(0, 4))
+        inp1 = np.append(inp1, [0, 0])
         self.t += 1
         return inp1
 

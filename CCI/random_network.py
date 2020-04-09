@@ -6,6 +6,11 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import logging
+
+from tqdm import tqdm
+
+from utils.networks import tfSummary
+
 logging.basicConfig(filename='log/random.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 from env import TradingEnv
 
@@ -24,6 +29,7 @@ class CuriosityNet:
             memory_size=10000,
             batch_size=128,
             output_graph=False,
+            eval_models=False
     ):
         self.n_a = n_a
         self.n_s = n_s
@@ -59,6 +65,11 @@ class CuriosityNet:
 
         self.sess.run(tf.global_variables_initializer())
 
+        self.saver = tf.train.Saver(max_to_keep=5)
+
+        # new_saver = tf.train.import_meta_graph('save_model/best_model-9616.meta')
+        # new_saver.restore(self.sess, tf.train.latest_checkpoint('./save_model'))
+
     def _build_nets(self):
         tfs = tf.placeholder(tf.float32, [None, self.n_s], name="s")    # input State
         tfa = tf.placeholder(tf.int32, [None, ], name="a")              # input Action
@@ -78,7 +89,9 @@ class CuriosityNet:
 
     def _build_predictor(self, s_, rand_encode_s_):
         with tf.variable_scope("predictor"):
-            net = tf.layers.dense(s_, 128, tf.nn.relu)
+            d1 = tf.layers.dense(s_, 1024, tf.nn.relu)
+            b1 = tf.layers.batch_normalization(d1)
+            net = tf.layers.dense(b1, 1024, tf.nn.relu)
             out = tf.layers.dense(net, self.s_encode_size)
 
         with tf.name_scope("int_r"):
@@ -90,12 +103,14 @@ class CuriosityNet:
 
     def _build_dqn(self, s, a, ri, re, s_):
         with tf.variable_scope('eval_net'):
-            e0 = tf.layers.dense(s, 512, tf.nn.relu)
-            e1 = tf.layers.dense(e0, 128, tf.nn.relu)
+            e0 = tf.layers.dense(s, 1024, tf.nn.relu)
+            b1 = tf.layers.batch_normalization(e0)
+            e1 = tf.layers.dense(b1, 1024, tf.nn.relu)
             q = tf.layers.dense(e1, self.n_a, name="q")
         with tf.variable_scope('target_net'):
-            t0 = tf.layers.dense(s_, 512, tf.nn.relu)
-            t1 = tf.layers.dense(t0, 128, tf.nn.relu)
+            t0 = tf.layers.dense(s_, 1024, tf.nn.relu)
+            b2 = tf.layers.batch_normalization(t0)
+            t1 = tf.layers.dense(b2, 1024, tf.nn.relu)
             q_ = tf.layers.dense(t1, self.n_a, name="q_")
 
         with tf.variable_scope('q_target'):
@@ -144,7 +159,7 @@ class CuriosityNet:
         # to have batch dimension when feed into tf placeholder
         s = observation[np.newaxis, :]
 
-        if np.random.uniform() < self.epsilon:
+        if np.random.uniform() > self.epsilon:
             # forward feed the observation and get q value for every actions
             actions_value = self.sess.run(self.q, feed_dict={self.tfs: s})
             action = np.argmax(actions_value)
@@ -181,6 +196,9 @@ class CuriosityNet:
         if self.epsilon > self.min_epsilon:
             self.epsilon = self.epsilon * self.epsilon_decay
 
+    def save_model(self, step):
+        self.saver.save(self.sess, 'models/best_model', global_step=step, write_meta_graph=True)
+
 
 def parse_args(args):
     """ Parse arguments from command line input
@@ -192,16 +210,16 @@ def parse_args(args):
     parser.add_argument('--with_PER', dest='with_per', action='store_true', help="Use Prioritized Experience Replay (DDQN + PER)")
     parser.add_argument('--dueling', dest='dueling', action='store_true', help="Use a Dueling Architecture (DDQN)")
     #
-    parser.add_argument('--nb_episodes', type=int, default=500000, help="Number of training episodes")
+    parser.add_argument('--nb_episodes', type=int, default=100000, help="Number of training episodes")
     parser.add_argument('--batch_size', type=int, default=64, help="Batch size (experience replay)")
-    parser.add_argument('--consecutive_frames', type=int, default=3, help="Number of consecutive frames (action repeat)")
-    parser.add_argument('--nb_features', type=int, default=10, help="Number of consecutive frames (action repeat)")
+    parser.add_argument('--consecutive_frames', type=int, default=1, help="Number of consecutive frames (action repeat)")
+    parser.add_argument('--nb_features', type=int, default=5, help="Number of consecutive frames (action repeat)")
     parser.add_argument('--training_interval', type=int, default=30, help="Network training frequency")
     parser.add_argument('--n_threads', type=int, default=8, help="Number of threads (A3C)")
     #
-    parser.add_argument('--gather_stats', dest='gather_stats', action='store_true',help="Compute Average reward per episode (slower)")
+    parser.add_argument('--gather_stats', dest='gather_stats', action='store_true', help="Compute Average reward per episode (slower)")
     parser.add_argument('--render', dest='render', action='store_true', help="Render environment while training")
-    parser.add_argument('--env', type=str, default='Autotrading',help="OpenAI Gym Environment")
+    parser.add_argument('--env', type=str, default='RandomNetwork',help="OpenAI Gym Environment")
     parser.add_argument('--gpu', type=int, default=0, help='GPU ID')
     #
     parser.set_defaults(render=False)
@@ -212,19 +230,24 @@ if __name__ == '__main__':
     args = sys.argv[1:]
     args = parse_args(args)
     env = TradingEnv(consecutive_frames=args.consecutive_frames, nb_features=args.nb_features,
-                     dataset='../data/train_1h.csv')
+                     dataset='../data/train_3m.csv')
     test_env = TradingEnv(consecutive_frames=args.consecutive_frames, nb_features=args.nb_features,
-                          dataset='../data/test_1h.csv', strategy='test')
+                          dataset='../data/test_3m.csv', strategy='test')
     state_dim = (args.consecutive_frames, args.nb_features)
-    action_dim = 4
-
-    dqn = CuriosityNet(n_a=action_dim, n_s=30, lr=0.01, output_graph=False)
+    action_dim = 3
     ep_steps = []
-    for epi in range(20000):
+    max_budget = 0
+    eval_model = False
+    n_s = args.consecutive_frames * args.nb_features + 2
+    dqn = CuriosityNet(n_a=action_dim, n_s=n_s, lr=0.001, output_graph=True, batch_size=32, eval_models=eval_model)
+    summary_writer = tf.summary.FileWriter("tensorboard/" + args.env)
+    tqdm_e = tqdm(range(args.nb_episodes))
+
+    for epi in tqdm_e:
         s = env.reset()
         steps = 0
         cul_reaward = 0
-        while True:
+        while True and not eval_model:
             # env.render()
             valid_actions = env.get_valid_actions()
             a = dqn.choose_action(s, valid_actions)
@@ -234,9 +257,12 @@ if __name__ == '__main__':
             cul_reaward += r
 
             if done:
-                logging.warning("Cumun Reward: {} | Done: {} | Step: {}".format(cul_reaward, done, env.t))
-                # print('Train Epi: ', epi, "| steps: ", steps, "| cul_reaward: ", cul_reaward)
-                ep_steps.append(steps)
+                # logging.warning("Budget: {} | Cumun Reward: {} | Step: {}".format(env.budget, cul_reaward, env.t))
+                # print('Train Epi: ', epi, "| steps: ", steps, "| cul_reaward: ", round(cul_reaward, 2))
+                # ep_steps.append(cul_reaward)
+                steps_sc = tfSummary('Steps', cul_reaward)
+                summary_writer.add_summary(steps_sc, global_step=epi)
+                summary_writer.flush()
                 break
 
             s = s_
@@ -246,15 +272,27 @@ if __name__ == '__main__':
         while True:
             valid_actions = test_env.get_valid_actions()
             a = dqn.action(s, valid_actions)
-            info['action'] = a
-            # logging.warning("info: {}".format(info))
             s_, r, done, info = test_env.act(a)
+            info['action'] = a
+            logging.warning("info: {}".format(info))
             s = s_
             if done:
-                print('Test Epi: {} | steps: {} | Budget: {} | Cul Reward: {}'.format(epi, test_env.t, round(info['budget'], 2), cul_reaward))
+                tqdm_e.set_description(
+                    'Test Epi: {} | steps: {}| Cul Reward: {}  | Budget: {} '.format(epi, test_env.t,
+                                                                                     cul_reaward,
+                                                                                     round(info['budget'], 2))
+                )
+                tqdm_e.refresh()
+                score = tfSummary('Budget', round(info['budget'], 1))
+                summary_writer.add_summary(score, global_step=epi)
+                summary_writer.flush()
+
+                if max_budget < info['budget']:
+                    max_budget = info['budget']
+                    dqn.save_model(epi)
                 break
 
-    plt.plot(ep_steps)
-    plt.ylabel("steps")
-    plt.xlabel("episode")
-    plt.show()
+    # plt.plot(ep_steps)
+    # plt.ylabel("steps")
+    # plt.xlabel("episode")
+    # plt.show()
