@@ -31,11 +31,11 @@ class Agent:
     def network(self, dueling):
         """ Build Deep Q-Network
         """
-        inp = Input((self.state_dim))
+        inp = Input((self.state_dim,))
 
         # Determine whether we are dealing with an image input (Atari) or not
-        x = LSTM(128, dropout=0.1, recurrent_dropout=0.3)(inp)
-        x = Dense(128, activation='relu')(x)
+        # x = LSTM(128, dropout=0.1, recurrent_dropout=0.3)(inp)
+        x = Dense(128, activation='relu')(inp)
         x = Dense(128, activation='relu')(x)
         x = Dense(64, activation='relu')(x)
         x = Dense(32, activation='relu')(x)
@@ -73,9 +73,10 @@ class Agent:
         return self.target_model.predict(self.reshape(inp))
 
     def reshape(self, x):
-        if len(x.shape) < 4 and len(self.state_dim) > 2: return np.expand_dims(x, axis=0)
-        elif len(x.shape) < 3: return np.expand_dims(x, axis=0)
-        else: return x
+        # if len(x.shape) < 4 and len(self.state_dim) > 2: return np.expand_dims(x, axis=0)
+        # elif len(x.shape) < 3: return np.expand_dims(x, axis=0)
+        # else:
+        return x
 
     def save(self, path):
         if(self.dueling):

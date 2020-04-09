@@ -1,17 +1,12 @@
 import logging
-import sys
 import random
 import numpy as np
 
 from tqdm import tqdm
-from .agent import Agent
+from agent import Agent
 from random import random, randrange
 
 from utils.memory_buffer import MemoryBuffer
-from utils.networks import tfSummary
-from utils.environment import Environment
-from utils.stats import gather_stats
-# logging.basicConfig(filename='log/ddpg.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
 
 class DDQN:
@@ -24,7 +19,7 @@ class DDQN:
         # Environment and DDQN parameters
         self.with_per = args.with_per
         self.action_dim = action_dim
-        self.state_dim = (args.consecutive_frames,) + state_dim
+        self.state_dim = state_dim
         #
         self.lr = 2.5e-4
         self.gamma = 0.95
@@ -33,10 +28,10 @@ class DDQN:
         self.epsilon_decay = 0.99
         self.buffer_size = 20000
         #
-        if(len(state_dim) < 3):
-            self.tau = 1e-2
-        else:
-            self.tau = 1.0
+        # if(len(self.state_dim) < 3):
+        self.tau = 1e-2
+        # else:
+        #     self.tau = 1.0
         # Create actor and critic networks
         self.agent = Agent(self.state_dim, action_dim, self.lr, self.tau, args.dueling)
         # Memory Buffer for Experience Replay
@@ -49,7 +44,8 @@ class DDQN:
         if random() <= self.epsilon:
             return randrange(self.action_dim)
         else:
-            logging.warning(self.agent.predict(s))
+            # logging.warning(self.agent.predict(s))
+            s = np.expand_dims(s, axis=0)
             return np.argmax(self.agent.predict(s)[0])
 
     def train_agent(self, batch_size):
@@ -79,23 +75,7 @@ class DDQN:
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
-    def test(self, summary_writer, e):
-        test_env = Environment(start_step=11, windows=10, dataset='test1hour')
-        time, cumul_reward, done = 0, 0, False
-        old_state = test_env.reset()
-        while not done:
-            # Actor picks an action (following the policy)
-            a = self.policy_action(old_state)
-            # Retrieve new state, reward, and whether the state is terminal
-            new_state, r, done, info = test_env.step(a)
-            logging.warning(info)
-            # Update current state
-            old_state = new_state
-            cumul_reward += r
-            time += 1
-        return info['total_profit']
-
-    def train(self, env, args, summary_writer):
+    def train(self, env, args):
         """ Main DDQN Training Algorithm
         """
 
@@ -112,8 +92,8 @@ class DDQN:
                 # Actor picks an action (following the policy)
                 a = self.policy_action(old_state)
                 # Retrieve new state, reward, and whether the state is terminal
-                new_state, r, done, info = env.step(a)
-                logging.warning(info)
+                new_state, r, done, info = env.act(a)
+                # logging.warning(info)
                 # Memorize for experience replay
                 self.memorize(old_state, a, r, done, new_state)
                 # Update current state
@@ -126,17 +106,18 @@ class DDQN:
                     self.train_agent(args.batch_size)
                     self.agent.transfer_weights()
 
+                tqdm_e.set_description("Budget: " + str(round(info['budget'], 3)))
+                tqdm_e.refresh()
+
             # Display score
-            total_profit = self.test(summary_writer, e)
-            tqdm_e.set_description("Profit: " + str(round(total_profit, 3)))
-            tqdm_e.refresh()
+            # total_profit = self.test(summary_writer, e)
 
             # Export results for Tensorboard
-            score = tfSummary('score', cumul_reward)
-            summary_writer.add_summary(score, global_step=e)
-            budget = tfSummary('budget', total_profit)
-            summary_writer.add_summary(budget, global_step=e)
-            summary_writer.flush()
+            # score = tfSummary('score', cumul_reward)
+            # summary_writer.add_summary(score, global_step=e)
+            # budget = tfSummary('budget', total_profit)
+            # summary_writer.add_summary(budget, global_step=e)
+            # summary_writer.flush()
 
         return results
 
