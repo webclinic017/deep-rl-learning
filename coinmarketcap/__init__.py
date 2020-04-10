@@ -1,11 +1,9 @@
 from binance.client import Client
-from binance.websockets import BinanceSocketManager
 import pandas as pd
 
 api_key = "y9JKPpQ3B2zwIRD9GwlcoCXwvA3mwBLiNTriw6sCot13IuRvYKigigXYWCzCRiul"
 api_secret = "uUdxQdnVR48w5ypYxfsi7xK6e6W2v3GL8YrAZp5YeY1GicGbh3N5NI71Pss0crfJ"
 client = Client(api_key, api_secret)
-bm = BinanceSocketManager(client)
 
 
 def convert_data(obj):
@@ -29,21 +27,24 @@ def convert_data(obj):
 
 
 # fetch train data
-# klines = client.get_historical_klines("BTCUSDT", Client.KLINE_INTERVAL_1HOUR, "1 Jan, 2019")
-# train_df = pd.DataFrame(klines, columns=['open_time', 'open', 'high', 'low', 'close',
-#                                    'volume', 'close_time', 'quote_asset_volume', 'number_of_trades',
-#                                    'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
-# train_df.to_csv('../data/train_1hours.csv', sep=',')
-# train_data = list(map(convert_data, klines))
-# print(train_data[0])
+klines = client.get_historical_klines("BTCUSDT", Client.KLINE_INTERVAL_1HOUR, "1 July, 2019", "1 Feb, 2020")
+train_df = pd.DataFrame(klines, columns=['open_time', 'open', 'high', 'low', 'close',
+                                         'volume', 'close_time', 'quote_asset_volume', 'number_of_trades',
+                                         'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
+train_df.drop(columns=['open_time', 'close_time', 'quote_asset_volume', 'number_of_trades',
+                       'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'], axis=1)
+train_df.to_csv('../data/train_1h.csv', sep=',')
 
 
 # fetch test data
-klines = client.get_historical_klines("BTCUSDT", Client.KLINE_INTERVAL_4HOUR, "1 Jan, 2019")
-df_test = pd.DataFrame(klines, columns=['open_time', 'Open', 'High', 'Low', 'Close',
-                                   'Volume', 'close_time', 'quote_asset_volume', 'number_of_trades',
-                                   'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
-df_test.to_csv('../data/4hour.csv', sep=',')
+klines = client.get_historical_klines("BTCUSDT", Client.KLINE_INTERVAL_1HOUR, "1 Feb, 2020")
+df_test = pd.DataFrame(klines, columns=['open_time', 'open', 'high', 'low', 'close',
+                                        'volume', 'close_time', 'quote_asset_volume', 'number_of_trades',
+                                        'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
+df_test.drop(columns=['open_time', 'close_time', 'quote_asset_volume', 'number_of_trades',
+                      'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'], axis=1)
+df_test.to_csv('../data/test_1h.csv', sep=',')
+
 # test_data = list(map(convert_data, klines))
 # print(test_data[0])
 
