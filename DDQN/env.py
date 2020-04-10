@@ -29,28 +29,28 @@ class TradingEnv:
                               'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'], axis=1)
         data = ta.add_all_ta_features(df, close='close', open='open', high='high', low='low', volume='volume', fillna=True)
         raw_price = df.close.astype('float64').values
-        data = data.drop(columns=['open', 'high', 'low', 'close', 'volume'], axis=1)
+        # data = data.drop(columns=['open', 'high', 'low', 'close', 'volume'], axis=1)
 
         scaler_filename = 'scaler.pkl'
         pca_filename = 'pca.pkl'
         if self.strategy == 'train':
             scaler = MinMaxScaler(feature_range=(-1, 1))
-            scaler = scaler.fit(data)
+            scaler.fit(data)
             data = scaler.transform(data)
             joblib.dump(scaler, scaler_filename)
 
             # PCA
-            # pca = decomposition.PCA(n_components=self.nb_features, random_state=123)
-            # pca.fit(data)
-            # joblib.dump(pca, pca_filename)
-            # data = pca.transform(data)
-            # print(pca.explained_variance_ratio_)
-            # print(pca.singular_values_)
+            pca = decomposition.PCA(n_components=self.nb_features, random_state=123)
+            pca.fit(data)
+            joblib.dump(pca, pca_filename)
+            data = pca.transform(data)
+            print(pca.explained_variance_ratio_)
+            print(pca.singular_values_)
         else:
             scaler = joblib.load(scaler_filename)
-            # pca = joblib.load(pca_filename)
+            pca = joblib.load(pca_filename)
             data = scaler.transform(data)
-            # data = pca.transform(data)
+            data = pca.transform(data)
 
         return data, raw_price
 
@@ -74,18 +74,6 @@ class TradingEnv:
             return 0
         return 1 / (1 + math.exp(-x))
 
-    def get_noncash_reward(self, diff, direction):
-        risk_averse = 1
-        open_cost = 0
-        reward = direction * diff
-        if not self.order:
-            reward -= open_cost
-
-        if reward < 0:
-            reward = reward * risk_averse
-
-        return reward
-
     def act(self, action):
         current_price = self.prices[self.t]
         done = False
@@ -106,15 +94,20 @@ class TradingEnv:
                 self.budget += diff
                 self.side = None
                 self.order = 0
-                if diff > 50:
+                if diff > 200:
                     r = 0.5
 
         # create state
-        state = self.train_data[self.t-self.consecutive_frames:self.t]
-        state = state.flatten()
-        info = {'diff': round(diff, 2), 'order': 1 if self.order else 0,
-                'budget': round(self.budget, 2), 'waiting_time': self.waiting_time, 'end_ep': False}
-        state = np.append(state, [1 if self.order else 0, diff/500])
+        state1 = self.train_data[self.t-self.consecutive_frames:self.t]
+        # state = state.flatten()
+        info = {
+            'diff': round(diff, 2),
+            'order': 1 if self.order else 0,
+            'budget': round(self.budget, 2),
+            'waiting_time': self.waiting_time,
+            'end_ep': False
+        }
+        state2 = np.array([1 if self.order else 0, min(diff / 500, 1)])
         self.t += 1
         self.waiting_time += 1
 
@@ -122,7 +115,7 @@ class TradingEnv:
             done = True
             info['end_ep'] = True
 
-        return state, r, done, info
+        return state1, state2, r, done, info
 
     def reset(self):
         # if self.strategy == 'test':
@@ -139,10 +132,10 @@ class TradingEnv:
         self.waiting_time = 0
 
         inp1 = self.train_data[self.t-self.consecutive_frames:self.t]
-        inp1 = inp1.flatten()
-        inp1 = np.append(inp1, [0, 0])
+        # inp1 = inp1.flatten()
+        inp2 = np.array([0, 0])
         self.t += 1
-        return inp1
+        return inp1, inp2
 
 
 if __name__ == '__main__':

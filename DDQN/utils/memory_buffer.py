@@ -9,7 +9,7 @@ class MemoryBuffer(object):
     """ Memory Buffer Helper class for Experience Replay
     using a double-ended queue or a Sum Tree (for PER)
     """
-    def __init__(self, buffer_size, with_per = False):
+    def __init__(self, buffer_size, with_per=False):
         """ Initialization
         """
         # if(with_per):
@@ -24,23 +24,18 @@ class MemoryBuffer(object):
         self.with_per = with_per
         self.buffer_size = buffer_size
 
-    def memorize(self, state, action, reward, done, new_state, error=None):
+    def memorize(self, *data):
         """ Save an experience to memory, optionally with its TD-Error
         """
 
-        experience = (state, action, reward, done, new_state)
-        if(self.with_per):
-            priority = self.priority(error[0])
-            self.buffer.add(priority, experience)
+        experience = data
+        # Check if buffer is already full
+        if self.count < self.buffer_size:
+            self.buffer.append(experience)
             self.count += 1
         else:
-            # Check if buffer is already full
-            if self.count < self.buffer_size:
-                self.buffer.append(experience)
-                self.count += 1
-            else:
-                self.buffer.popleft()
-                self.buffer.append(experience)
+            self.buffer.popleft()
+            self.buffer.append(experience)
 
     def priority(self, error):
         """ Compute an experience priority, as per Schaul et al.
@@ -58,16 +53,8 @@ class MemoryBuffer(object):
         batch = []
 
         # Sample using prorities
-        if(self.with_per):
-            T = self.buffer.total() // batch_size
-            for i in range(batch_size):
-                a, b = T * i, T * (i + 1)
-                s = random.uniform(a, b)
-                idx, error, data = self.buffer.get(s)
-                batch.append((*data, idx))
-            idx = np.array([i[5] for i in batch])
         # Sample randomly from Buffer
-        elif self.count < batch_size:
+        if self.count < batch_size:
             idx = None
             batch = random.sample(self.buffer, self.count)
         else:
@@ -75,12 +62,14 @@ class MemoryBuffer(object):
             batch = random.sample(self.buffer, batch_size)
 
         # Return a batch of experience
-        s_batch = np.array([i[0] for i in batch])
-        a_batch = np.array([i[1] for i in batch])
-        r_batch = np.array([i[2] for i in batch])
-        d_batch = np.array([i[3] for i in batch])
-        new_s_batch = np.array([i[4] for i in batch])
-        return s_batch, a_batch, r_batch, d_batch, new_s_batch, idx
+        s1_batch = np.array([i[0] for i in batch])
+        s2_batch = np.array([i[1] for i in batch])
+        a_batch = np.array([i[2] for i in batch])
+        r_batch = np.array([i[3] for i in batch])
+        d_batch = np.array([i[4] for i in batch])
+        new_s1_batch = np.array([i[5] for i in batch])
+        new_s2_batch = np.array([i[6] for i in batch])
+        return s1_batch, s2_batch, a_batch, r_batch, d_batch, new_s1_batch, new_s2_batch, idx
 
     def update(self, idx, new_error):
         """ Update priority for idx (PER)

@@ -1,12 +1,10 @@
 import sys
 import numpy as np
 import keras.backend as K
-
+from keras import Model
 from keras.optimizers import Adam
-from keras.models import Model
-from keras.layers import Input, Dense, Flatten, Reshape, LSTM, Lambda
-from keras.regularizers import l2
-from utils.networks import conv_block
+from keras.layers import Input, Dense, Flatten, Reshape, LSTM, Lambda, concatenate, TimeDistributed, Dropout
+
 
 class Agent:
     """ Agent Class (Network) for DDQN
@@ -31,22 +29,31 @@ class Agent:
     def network(self, dueling):
         """ Build Deep Q-Network
         """
-        inp = Input((self.state_dim,))
+        inp = Input((10, 6))
+        x = LSTM(32, dropout=0.1, recurrent_dropout=0.3, return_sequences=True)(inp)
+        x = TimeDistributed(Dense(32))(x)
+        x = LSTM(32, dropout=0.1, recurrent_dropout=0.3, return_sequences=False)(x)
+        # x = TimeDistributed(Dense(32))(x)
+        # x = LSTM(128, dropout=0.1, recurrent_dropout=0.3)(x)
 
-        # Determine whether we are dealing with an image input (Atari) or not
-        # x = LSTM(128, dropout=0.1, recurrent_dropout=0.3)(inp)
-        x = Dense(128, activation='relu')(inp)
-        x = Dense(128, activation='relu')(x)
+        x = Dropout(0.25)(x)
         x = Dense(64, activation='relu')(x)
-        x = Dense(32, activation='relu')(x)
+
+        inp2 = Input((2,))
+        x2 = Dense(64, activation='relu')(inp2)
+
+        output = concatenate([x, x2])
+
+        output = Dense(128, activation='relu')(output)
 
         if dueling:
             # Have the network estimate the Advantage function as an intermediate layer
-            x = Dense(self.action_dim + 1, activation='linear')(x)
-            x = Lambda(lambda i: K.expand_dims(i[:,0],-1) + i[:,1:] - K.mean(i[:,1:], keepdims=True), output_shape=(self.action_dim,))(x)
+            output = Dense(self.action_dim + 1, activation='linear')(output)
+            output = Lambda(lambda i: K.expand_dims(i[:,0],-1) + i[:,1:] - K.mean(i[:,1:], keepdims=True), output_shape=(self.action_dim,))(output)
         else:
-            x = Dense(self.action_dim, activation='linear')(x)
-        return Model(inp, x)
+            output = Dense(self.action_dim, activation='linear')(output)
+        model = Model(inputs=[inp, inp2], output=output)
+        return model
 
     def transfer_weights(self):
         """ Transfer Weights from Model to Target at rate Tau
@@ -57,20 +64,20 @@ class Agent:
             tgt_W[i] = self.tau * W[i] + (1 - self.tau) * tgt_W[i]
         self.target_model.set_weights(tgt_W)
 
-    def fit(self, inp, targ):
+    def fit(self, inp1, inp2, targ):
         """ Perform one epoch of training
         """
-        self.model.fit(self.reshape(inp), targ, epochs=1, verbose=0)
+        self.model.fit(x=[inp1, inp2], y=targ, epochs=1, verbose=0)
 
-    def predict(self, inp):
+    def predict(self, inp1, inp2):
         """ Q-Value Prediction
         """
-        return self.model.predict(self.reshape(inp))
+        return self.model.predict(x=[inp1, inp2])
 
-    def target_predict(self, inp):
+    def target_predict(self, inp1, inp2):
         """ Q-Value Prediction (using target network)
         """
-        return self.target_model.predict(self.reshape(inp))
+        return self.target_model.predict(x=[inp1, inp2])
 
     def reshape(self, x):
         # if len(x.shape) < 4 and len(self.state_dim) > 2: return np.expand_dims(x, axis=0)

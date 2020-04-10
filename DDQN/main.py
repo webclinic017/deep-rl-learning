@@ -1,8 +1,5 @@
 import argparse
 import sys
-import os
-from tqdm import tqdm
-import tensorflow as tf
 from ddqn import DDQN
 from env import TradingEnv
 
@@ -18,9 +15,9 @@ def parse_args(args):
     parser.add_argument('--dueling', dest='dueling', action='store_true', help="Use a Dueling Architecture (DDQN)")
     #
     parser.add_argument('--nb_episodes', type=int, default=500, help="Number of training episodes")
-    parser.add_argument('--batch_size', type=int, default=64, help="Batch size (experience replay)")
-    parser.add_argument('--consecutive_frames', type=int, default=1, help="Number of consecutive frames (action repeat)")
-    parser.add_argument('--nb_features', type=int, default=72, help="Number of consecutive frames (action repeat)")
+    parser.add_argument('--batch_size', type=int, default=128, help="Batch size (experience replay)")
+    parser.add_argument('--consecutive_frames', type=int, default=10, help="Number of consecutive frames (action repeat)")
+    parser.add_argument('--nb_features', type=int, default=6, help="Number of consecutive frames (action repeat)")
     parser.add_argument('--training_interval', type=int, default=30, help="Network training frequency")
     parser.add_argument('--n_threads', type=int, default=8, help="Number of threads (A3C)")
     #
@@ -37,11 +34,15 @@ if __name__ == '__main__':
     args = sys.argv[1:]
     args = parse_args(args)
 
-    trading_env = TradingEnv(consecutive_frames=args.consecutive_frames, nb_features=args.nb_features, dataset='../data/train_1h.csv')
+    trading_env = TradingEnv(consecutive_frames=args.consecutive_frames,
+                             nb_features=args.nb_features, dataset='../data/train_1h.csv', strategy='train')
+    test_env = TradingEnv(consecutive_frames=args.consecutive_frames,
+                          nb_features=args.nb_features, dataset='../data/test_1h.csv', strategy='test')
+
     state_dim = args.nb_features * args.consecutive_frames + 2
     action_dim = 3
 
     trading_bot = DDQN(action_dim, state_dim, args)
-    trading_bot.train(trading_env, args)
+    trading_bot.train(trading_env, args, test_env)
 
     trading_bot.save_weights('models/new_nodel')
