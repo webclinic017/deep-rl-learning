@@ -91,7 +91,7 @@ class TradingEnv:
         done = False
 
         diff = current_price - self.order if self.order != 0 else 0
-        r = diff / 5000 if self.order else 0
+        r = -1
         if action not in self.get_valid_actions():
             r = -10
 
@@ -106,26 +106,15 @@ class TradingEnv:
                 self.budget += diff
                 self.side = None
                 self.order = 0
-                if diff > 500:
-                    r = 100
-
-        # if self.waiting_time >= 10 and self.budget >= 100 and self.strategy == 'train':
-        #     done = True
-        # if self.budget < -50:
-        #     self.budget = 100
-        #     self.side = None
-        #     self.order = 0
-        #     self.normalize_order = 0
-        #     self.done = True
-        #     self.waiting_time = 0
-        #     r = -11
+                if diff > 50:
+                    r = 0.5
 
         # create state
         state = self.train_data[self.t-self.consecutive_frames:self.t]
         state = state.flatten()
         info = {'diff': round(diff, 2), 'order': 1 if self.order else 0,
                 'budget': round(self.budget, 2), 'waiting_time': self.waiting_time, 'end_ep': False}
-        state = np.append(state, [1 if self.order else 0, diff/5000])
+        state = np.append(state, [1 if self.order else 0, diff/500])
         self.t += 1
         self.waiting_time += 1
 
