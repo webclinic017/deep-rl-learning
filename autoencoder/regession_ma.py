@@ -172,7 +172,7 @@ class RegressionMA:
                 plus_di > minus_di and \
                 adx > 25:
             # buy signal
-            # self.buy_margin()
+            self.buy_margin()
             self.reset_state = True
             self.order = close_p
             min_price = min(low_price[-10:])
@@ -185,6 +185,7 @@ class RegressionMA:
 
         elif self.order and (prev_adx - adx > 5 or adx < 25):
             # take profit
+            self.sell_margin()
             diff = close_p - self.order
             self.budget += diff
             self.reset()
