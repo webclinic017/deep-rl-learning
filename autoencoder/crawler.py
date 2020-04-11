@@ -11,9 +11,8 @@ logging.basicConfig(filename='../log/autotrade.log', filemode='w', format='%(nam
 
 class RegressionMA:
     def __init__(self):
-        self.client = MongoClient()
+        self.client = MongoClient(username='crypto', password='amyAFpNK', authSource='crypto')
         self.db = self.client.crypto
-        # self.db.btc_5minute_realtime.drop()
 
     def start_socket_5m(self):
         api_key = "9Hj6HLNNMGgkqj6ngouMZD1kjIbUb6RZmIpW5HLiZjtDT5gwhXAzc20szOKyQ3HW"
@@ -27,7 +26,7 @@ class RegressionMA:
 
     def process_message_5m(self, msg):
         msg['timestamp'] = time.time()
-        insert = self.db.btc_5m.insert_one(msg).inserted_id
+        insert = self.db.btc_5m_test.insert_one(msg).inserted_id
         print("Data 5m: {}".format(msg['k']['c']))
 
     def start_socket_1h(self):
@@ -42,7 +41,7 @@ class RegressionMA:
 
     def process_message_1h(self, msg):
         msg['k']['timestamp'] = time.time()
-        insert = self.db.btc_1h.insert_one(msg).inserted_id
+        insert = self.db.btc_1h_test.insert_one(msg).inserted_id
         print("Data 1h: {}".format(msg['k']['c']))
 
     def start_socket_15m(self):
@@ -57,7 +56,7 @@ class RegressionMA:
 
     def process_message_15m(self, msg):
         msg['timestamp'] = time.time()
-        insert = self.db.btc_15m.insert_one(msg).inserted_id
+        insert = self.db.btc_15m_test.insert_one(msg).inserted_id
         print("Data 15M: {}".format(msg['k']['c']))
 
 
