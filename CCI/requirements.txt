@@ -1,2 +1,4 @@
 git+git://github.com/matplotlib/mpl_finance/archive/master.zip
 pandas==0.18.0
+keras==2.1.6
+gym

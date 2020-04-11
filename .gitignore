@@ -20,3 +20,8 @@ CCI/models/
 CCI/tensorboard/
 DDPG/tensorboard_BreakoutNoFrameskip-v4/
 
+/DDQN/.idea/
+/DDQN/models/
+/DDQN/tensorboard_BTCUSDT/
+/CCI/logs/
+
