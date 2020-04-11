@@ -3,12 +3,11 @@ import time
 import json
 import logging
 import pandas as pd
-from binance.enums import KLINE_INTERVAL_1MINUTE, KLINE_INTERVAL_1HOUR, KLINE_INTERVAL_5MINUTE, SIDE_SELL, \
-    ORDER_TYPE_MARKET, SIDE_BUY
+from binance.enums import KLINE_INTERVAL_1HOUR, SIDE_SELL, ORDER_TYPE_MARKET, SIDE_BUY
+from binance.websockets import BinanceSocketManager
 from pymongo import MongoClient
-from talib._ta_lib import RSI, BBANDS, MA, MOM, MACD, DX, MINUS_DM, PLUS_DM, MINUS_DI, PLUS_DI, ADX
+from talib._ta_lib import MA, MACD, MINUS_DI, PLUS_DI, ADX
 from binance.client import Client
-# from binance.websockets import BinanceSocketManager
 import matplotlib.pyplot as plt
 from mailer import SendMail
 
@@ -39,7 +38,7 @@ class RegressionMA:
         self.api_key = "9Hj6HLNNMGgkqj6ngouMZD1kjIbUb6RZmIpW5HLiZjtDT5gwhXAzc20szOKyQ3HW"
         self.api_secret = "ioD0XICp0cFE99VVql5nuxiCJEb6GK8mh08NYnSYdIUfkiotd1SZqLTQsjFvrXwk"
         self.binace_client = Client(self.api_key, self.api_secret)
-        # self.bm = BinanceSocketManager(self.binace_client)
+        self.bm = BinanceSocketManager(self.binace_client)
         self.interval = KLINE_INTERVAL_1HOUR
         self.train_data = self.get_data()
 
@@ -56,19 +55,10 @@ class RegressionMA:
         api_key = "y9JKPpQ3B2zwIRD9GwlcoCXwvA3mwBLiNTriw6sCot13IuRvYKigigXYWCzCRiul"
         api_secret = "uUdxQdnVR48w5ypYxfsi7xK6e6W2v3GL8YrAZp5YeY1GicGbh3N5NI71Pss0crfJ"
         binaci_client = Client(api_key, api_secret)
-        klines = binaci_client.get_historical_klines("BTCUSDT", self.interval, "29 Jan, 2020")
+        klines = binaci_client.get_historical_klines("BTCUSDT", self.interval, "1 April, 2020")
         df = pd.DataFrame(klines, columns=['open_time', 'Open', 'High', 'Low', 'Close',
                                            'Volume', 'close_time', 'quote_asset_volume', 'number_of_trades',
                                            'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
-
-        # df['MA'] = MA(df.Close, timeperiod=14)
-        # df['MACD'], df['Signal'], df['Histogram'] = MACD(df.Close, 12, 26, 9)
-        # plt.plot(df.MA, label='MA')
-        # plt.plot(df.MACD, label='MACD', color='green')
-        # plt.plot(df.Signal, label='Signal', color="red")
-        # plt.plot(df.Histogram, label='Histogram', color="blue")
-        # plt.axhline(0)
-        # plt.legend()
         return df
 
     @classmethod
@@ -384,9 +374,9 @@ class RegressionMA:
 if __name__ == '__main__':
     bottrading = RegressionMA()
     # bottrading.plot_data()
-    # bottrading.get_data()
+    bottrading.get_data()
     # bottrading.test_trading()
-    bottrading.fake_socket()
-    # bottrading.start_socket()
+    # bottrading.fake_socket()
+    bottrading.start_socket()
     # bottrading.test_order()
     # bottrading.getStockDataVec()
