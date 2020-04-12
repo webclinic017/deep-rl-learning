@@ -173,7 +173,7 @@ class RegressionMA:
                 plus_di > minus_di and \
                 adx > 25:
             # buy signal
-            # self.buy_margin()
+            self.buy_margin()
             self.side = 'buy'
             self.order = close_p
             min_price = min(low_price[-10:])
@@ -184,24 +184,24 @@ class RegressionMA:
                                                                                       round(adx, 2),
                                                                                       round(self.stop_loss, 2)))
 
-        elif not self.order and \
-                plus_di < minus_di and \
-                adx > 25:
-            # buy signal
-            # self.buy_margin()
-            self.side = 'sell'
-            self.order = close_p
-            min_price = min(low_price[-10:])
-            max_price = max(high_price[-10:])
-            self.take_profit, self.stop_loss = self.fibonacci(max_price, min_price)
-            logging.warning("{} | Sell Order | Price {} | ADX {} | Stop Loss {}".format(current_time_readable,
-                                                                                      round(close_p, 2),
-                                                                                      round(adx, 2),
-                                                                                      round(self.stop_loss, 2)))
+        # elif not self.order and \
+        #         plus_di < minus_di and \
+        #         adx > 25:
+        #     # buy signal
+        #     # self.buy_margin()
+        #     self.side = 'sell'
+        #     self.order = close_p
+        #     min_price = min(low_price[-10:])
+        #     max_price = max(high_price[-10:])
+        #     self.take_profit, self.stop_loss = self.fibonacci(max_price, min_price)
+        #     logging.warning("{} | Sell Order | Price {} | ADX {} | Stop Loss {}".format(current_time_readable,
+        #                                                                               round(close_p, 2),
+        #                                                                               round(adx, 2),
+        #                                                                               round(self.stop_loss, 2)))
 
         elif self.side == 'buy' and self.order and (adx < 25 or plus_di < minus_di):
             # take profit
-            # self.sell_margin()
+            self.sell_margin()
             diff = close_p - self.order
             self.budget += diff
             self.side = None
@@ -209,15 +209,15 @@ class RegressionMA:
             logging.warning("{} | Close Order At {} | Budget {} | Diff {}".format(current_time_readable, round(close_p, 2),
                                                                                   round(self.budget, 2), round(diff, 2)))
 
-        elif self.side == 'sell' and self.order and (adx < 25 or plus_di > minus_di):
-            # take profit
-            # self.sell_margin()
-            diff = self.order - close_p
-            self.budget += diff
-            self.side = None
-            self.reset()
-            logging.warning("{} | Close Order At {} | Budget {} | Diff {}".format(current_time_readable, round(close_p, 2),
-                                                                                  round(self.budget, 2), round(diff, 2)))
+        # elif self.side == 'sell' and self.order and (adx < 25 or plus_di > minus_di):
+        #     # take profit
+        #     # self.sell_margin()
+        #     diff = self.order - close_p
+        #     self.budget += diff
+        #     self.side = None
+        #     self.reset()
+        #     logging.warning("{} | Close Order At {} | Budget {} | Diff {}".format(current_time_readable, round(close_p, 2),
+        #                                                                           round(self.budget, 2), round(diff, 2)))
 
     def reset(self):
         self.order = 0
@@ -386,9 +386,9 @@ class RegressionMA:
 if __name__ == '__main__':
     bottrading = RegressionMA()
     # bottrading.plot_data()
-    # bottrading.get_data()
+    bottrading.get_data()
     # bottrading.test_trading()
-    bottrading.fake_socket()
-    # bottrading.start_socket()
+    # bottrading.fake_socket()
+    bottrading.start_socket()
     # bottrading.test_order()
     # bottrading.getStockDataVec()
