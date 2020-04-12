@@ -4,7 +4,7 @@ import json
 import logging
 import pandas as pd
 from binance.enums import KLINE_INTERVAL_1HOUR, SIDE_SELL, ORDER_TYPE_MARKET, SIDE_BUY
-# from binance.websockets import BinanceSocketManager
+from binance.websockets import BinanceSocketManager
 from pymongo import MongoClient
 from talib._ta_lib import MA, MACD, MINUS_DI, PLUS_DI, ADX
 from binance.client import Client
@@ -38,7 +38,7 @@ class RegressionMA:
         self.api_key = "9Hj6HLNNMGgkqj6ngouMZD1kjIbUb6RZmIpW5HLiZjtDT5gwhXAzc20szOKyQ3HW"
         self.api_secret = "ioD0XICp0cFE99VVql5nuxiCJEb6GK8mh08NYnSYdIUfkiotd1SZqLTQsjFvrXwk"
         self.binace_client = Client(self.api_key, self.api_secret)
-        # self.bm = BinanceSocketManager(self.binace_client)
+        self.bm = BinanceSocketManager(self.binace_client)
         self.interval = KLINE_INTERVAL_1HOUR
         self.train_data = self.get_data()
 
