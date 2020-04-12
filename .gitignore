@@ -25,3 +25,7 @@ DDPG/tensorboard_BreakoutNoFrameskip-v4/
 /DDQN/tensorboard_BTCUSDT/
 /CCI/logs/
 
+/autoencoder/btc_1h.json
+/autoencoder/.idea/
+/autoencoder/log/
+/DDQN/log/
