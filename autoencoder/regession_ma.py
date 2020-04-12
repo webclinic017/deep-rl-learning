@@ -4,7 +4,7 @@ import json
 import logging
 import pandas as pd
 from binance.enums import KLINE_INTERVAL_1HOUR, SIDE_SELL, ORDER_TYPE_MARKET, SIDE_BUY
-from binance.websockets import BinanceSocketManager
+# from binance.websockets import BinanceSocketManager
 from pymongo import MongoClient
 from talib._ta_lib import MA, MACD, MINUS_DI, PLUS_DI, ADX
 from binance.client import Client
@@ -19,7 +19,7 @@ class RegressionMA:
         self.global_step = 0
         self.order = 0
         self.buy_mount = 0
-        self.reset_state = False  # can order
+        self.side = None  # can order
         with open("config.txt", "r") as file:
             order_data = file.readline()
             order_data = order_data.split(',')
@@ -28,7 +28,7 @@ class RegressionMA:
                 self.buy_mount = float(order_data[1])
         self.budget = 0
         self.prev_histogram = 0
-        self.max_diff = 0
+        self.max_profit = 0
         self.take_profit, self.stop_loss = 0, 0
         self.is_latest = False
         self.trade_amount = 0.5  # 50% currency you owned
@@ -38,7 +38,7 @@ class RegressionMA:
         self.api_key = "9Hj6HLNNMGgkqj6ngouMZD1kjIbUb6RZmIpW5HLiZjtDT5gwhXAzc20szOKyQ3HW"
         self.api_secret = "ioD0XICp0cFE99VVql5nuxiCJEb6GK8mh08NYnSYdIUfkiotd1SZqLTQsjFvrXwk"
         self.binace_client = Client(self.api_key, self.api_secret)
-        self.bm = BinanceSocketManager(self.binace_client)
+        # self.bm = BinanceSocketManager(self.binace_client)
         self.interval = KLINE_INTERVAL_1HOUR
         self.train_data = self.get_data()
 
@@ -75,11 +75,11 @@ class RegressionMA:
         self.bm.start()
 
     def fake_socket(self):
-        # data = self.db.btc_15m.find({}, {'_id': 0})
+        # data = self.db.btc_1h.find({}, {'_id': 0})
         # data = list(data)
-        # with open('data_15m.json', 'w') as outfile:
+        # with open('btc_1h.json', 'w') as outfile:
         #     json.dump(data, outfile, indent=4)
-        with open('data_1h.json') as json_file:
+        with open('btc_1h.json') as json_file:
             data = json.load(json_file)
             for msg in data:
                 self.global_step += 1
@@ -87,8 +87,8 @@ class RegressionMA:
         json_file.close()
 
     def process_message(self, msg):
-        if 'timestamp' not in msg:
-            msg['timestamp'] = time.time()
+        if 'timestamp' not in msg['k']:
+            msg['k']['timestamp'] = time.time()
 
         _open_time = msg['k']['t']
         _open = msg['k']['o']
@@ -102,7 +102,7 @@ class RegressionMA:
         _buy_base_asset_volume = msg['k']['V']
         _buy_quote_asset_volume = msg['k']['q']
         _ignore = msg['k']['B']
-        _timestamp = msg['timestamp']
+        _timestamp = msg['k']['timestamp']
 
         if self.is_latest:
             df = pd.DataFrame([[_open_time, _open, _high, _low, _close, _volume, _close_time,
@@ -148,15 +148,16 @@ class RegressionMA:
         histogram = histogram_data[-1]
         # prev_histogram = histogram_data[-2]
         prev_adx = adx_data[-2]
+        prev_prev_adx = adx_data[-3]
         # prev_plus_di = plus_di_data[-2]
         low_price = data.Low.astype('float64').values
         high_price = data.High.astype('float64').values
         open_time = data.open_time.values[-1]
         open_time_readable = datetime.datetime.fromtimestamp(open_time/1000).strftime('%Y-%m-%d %H:%M:%S')
         current_time_readable = datetime.datetime.fromtimestamp(_timestamp).strftime('%Y-%m-%d %H:%M:%S')
-        print("{} | Price {} | MA {} | DI- {} | DI+ {} | Histogram {}".format(current_time_readable, round(close_p, 2),
-                                                                              round(ma_h, 2), round(minus_di, 2),
-                                                                              round(plus_di, 2), round(histogram, 2)))
+        print("{} | Price {} | DI- {} | DI+ {} | ADX {}".format(current_time_readable, round(close_p, 2),
+                                                                round(minus_di, 2),
+                                                                round(plus_di, 2), round(adx, 2)))
 
         # if not self.order and \
         #         close_p > ma_h and \
@@ -172,41 +173,51 @@ class RegressionMA:
                 plus_di > minus_di and \
                 adx > 25:
             # buy signal
-            self.buy_margin()
-            self.reset_state = True
+            # self.buy_margin()
+            self.side = 'buy'
             self.order = close_p
             min_price = min(low_price[-10:])
             max_price = max(high_price[-10:])
             self.take_profit, self.stop_loss = self.fibonacci(max_price, min_price)
-            logging.warning("{} | Buy Order | Price {} | MA {} | Stop Loss {}".format(open_time_readable,
+            logging.warning("{} | Buy Order | Price {} | ADX {} | Stop Loss {}".format(current_time_readable,
                                                                                       round(close_p, 2),
-                                                                                      round(ma_h, 2),
+                                                                                      round(adx, 2),
                                                                                       round(self.stop_loss, 2)))
 
-        elif self.order and (prev_adx - adx > 5 or adx < 25):
+        elif not self.order and \
+                plus_di < minus_di and \
+                adx > 25:
+            # buy signal
+            # self.buy_margin()
+            self.side = 'sell'
+            self.order = close_p
+            min_price = min(low_price[-10:])
+            max_price = max(high_price[-10:])
+            self.take_profit, self.stop_loss = self.fibonacci(max_price, min_price)
+            logging.warning("{} | Sell Order | Price {} | ADX {} | Stop Loss {}".format(current_time_readable,
+                                                                                      round(close_p, 2),
+                                                                                      round(adx, 2),
+                                                                                      round(self.stop_loss, 2)))
+
+        elif self.side == 'buy' and self.order and (adx < 25 or plus_di < minus_di):
             # take profit
-            self.sell_margin()
+            # self.sell_margin()
             diff = close_p - self.order
             self.budget += diff
+            self.side = None
             self.reset()
-            logging.warning("{} | Close Order At {} | Budget {} | Diff {}".format(open_time_readable, round(close_p, 2),
+            logging.warning("{} | Close Order At {} | Budget {} | Diff {}".format(current_time_readable, round(close_p, 2),
                                                                                   round(self.budget, 2), round(diff, 2)))
 
-        # elif self.order and close_p <= self.stop_loss:
-        #     # self.sell_margin()
-        #     diff = close_p - self.order
-        #     self.budget += diff
-        #     self.reset()
-        #     logging.warning("{} | Stop loss At {} | Budget {} | Diff {}".format(open_time_readable, round(close_p, 2),
-        #                                                                         round(self.budget, 2), round(diff, 2)))
-
-        # elif self.order and prev_histogram - histogram > 0.5:
-        #     # self.sell_margin()
-        #     diff = close_p - self.order
-        #     self.budget += diff
-        #     self.reset()
-        #     logging.warning("{} | Close Order {} | Budget {} | Diff {}".format(open_time_readable, round(close_p, 2),
-        #                                                                        round(self.budget, 2), round(diff, 2)))
+        elif self.side == 'sell' and self.order and (adx < 25 or plus_di > minus_di):
+            # take profit
+            # self.sell_margin()
+            diff = self.order - close_p
+            self.budget += diff
+            self.side = None
+            self.reset()
+            logging.warning("{} | Close Order At {} | Budget {} | Diff {}".format(current_time_readable, round(close_p, 2),
+                                                                                  round(self.budget, 2), round(diff, 2)))
 
     def reset(self):
         self.order = 0
@@ -375,9 +386,9 @@ class RegressionMA:
 if __name__ == '__main__':
     bottrading = RegressionMA()
     # bottrading.plot_data()
-    bottrading.get_data()
+    # bottrading.get_data()
     # bottrading.test_trading()
-    # bottrading.fake_socket()
-    bottrading.start_socket()
+    bottrading.fake_socket()
+    # bottrading.start_socket()
     # bottrading.test_order()
     # bottrading.getStockDataVec()
