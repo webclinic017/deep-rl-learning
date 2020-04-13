@@ -12,7 +12,7 @@ from binance.client import Client
 import matplotlib.pyplot as plt
 from mailer import SendMail
 
-logging.basicConfig(filename='log/autotrade.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename='../log/autotrade.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
 
 class RegressionMA:
