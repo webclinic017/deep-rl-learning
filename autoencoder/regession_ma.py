@@ -3,10 +3,11 @@ import time
 import json
 import logging
 import pandas as pd
+import numpy as np
 from binance.enums import KLINE_INTERVAL_1HOUR, SIDE_SELL, ORDER_TYPE_MARKET, SIDE_BUY
 from binance.websockets import BinanceSocketManager
 from pymongo import MongoClient
-from talib._ta_lib import MA, MACD, MINUS_DI, PLUS_DI, ADX
+from talib._ta_lib import MA, MACD, MINUS_DI, PLUS_DI, ADX, BBANDS, MA_Type
 from binance.client import Client
 import matplotlib.pyplot as plt
 from mailer import SendMail
@@ -55,7 +56,7 @@ class RegressionMA:
         api_key = "y9JKPpQ3B2zwIRD9GwlcoCXwvA3mwBLiNTriw6sCot13IuRvYKigigXYWCzCRiul"
         api_secret = "uUdxQdnVR48w5ypYxfsi7xK6e6W2v3GL8YrAZp5YeY1GicGbh3N5NI71Pss0crfJ"
         binaci_client = Client(api_key, api_secret)
-        klines = binaci_client.get_historical_klines("BTCUSDT", self.interval, "1 April, 2020")
+        klines = binaci_client.get_historical_klines("BTCUSDT", self.interval, "10 April, 2020")
         df = pd.DataFrame(klines, columns=['open_time', 'Open', 'High', 'Low', 'Close',
                                            'Volume', 'close_time', 'quote_asset_volume', 'number_of_trades',
                                            'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
@@ -117,182 +118,113 @@ class RegressionMA:
             self.train_data.at[len(self.train_data) - 1, 'Close'] = _close
             self.train_data.at[len(self.train_data) - 1, 'High'] = _high
             self.train_data.at[len(self.train_data) - 1, 'Low'] = _low
-        self.is_latest = msg['k']['x']
 
-        if len(self.train_data) > 50:
+        self.is_latest = msg['k']['x']
+        if len(self.train_data) > 1:
             self.trading(float(_close), _timestamp)
 
     def trading(self, close_p, _timestamp):
         df = self.train_data.copy()
-        df['MA'] = MA(df.Close, timeperiod=14)
-        df['MACD'], df['Signal'], df['Histogram'] = MACD(df.Close, 12, 26, 9)
+        # df['MA'] = MA(df.Close, timeperiod=14)
+        # df['MACD'], df['Signal'], df['Histogram'] = MACD(df.Close, 12, 26, 9)
         df['MINUS_DI'] = MINUS_DI(df.High, df.Low, df.Close, timeperiod=14)
         df['PLUS_DI'] = PLUS_DI(df.High, df.Low, df.Close, timeperiod=14)
         df['ADX'] = ADX(df.High, df.Low, df.Close, timeperiod=14)
-        df['MA_High'] = MA(df.High, timeperiod=10)
-        df['MA_Low'] = MA(df.Low, timeperiod=10)
+        df['MA_High'] = MA(df.High, timeperiod=9)
+        df['MA_Low'] = MA(df.Low, timeperiod=9)
+        df['BAND_UPPER'], df['BAND_MIDDLE'], df['BAND_LOWER'] = BBANDS(df.Close, 20, 2, 2)
         data = df.dropna()
+
         # close_price = data.Close.astype('float64').values
         # close_p = close_price[-1]
         # ma_c = data.MA_Close.values[-1]
         # macd = data.MACD.values[-1]
         # signal = data.Signal.values[-1]
-        histogram_data = data.Histogram.values
+        # bollinger band
+        # upper_band = df.BAND_UPPER.astype('float64').values[-1]
+        # lower_band = df.BAND_LOWER.astype('float64').values[-1]
+        # histogram_data = data.Histogram.values
+        # low_price = data.Low.astype('float64').values
+        # high_price = data.High.astype('float64').values
+        # open_time_readable = datetime.datetime.fromtimestamp(open_time/1000).strftime('%Y-%m-%d %H:%M:%S')
+        # open_time = data.open_time.values[-1]
+
+        middle_band_data = data.BAND_MIDDLE.values
+        middle_band = middle_band_data[-1]
         plus_di_data = data.PLUS_DI.values
-
-        adx_data = data.ADX.values
-        adx = adx_data[-1]
-        minus_di = data.MINUS_DI.values[-1]
+        minus_di_data = data.MINUS_DI.values
+        adx = data.ADX.values[-1]
+        ma_high = data.MA_High.values[-1]
+        ma_low = data.MA_Low.values[-1]
+        minus_di = minus_di_data[-1]
+        prev_minus_di = minus_di_data[-2]
         plus_di = plus_di_data[-1]
-        ma_h = data.MA_High.values[-1]
-        histogram = histogram_data[-1]
-        # prev_histogram = histogram_data[-2]
-        prev_adx = adx_data[-2]
-        prev_prev_adx = adx_data[-3]
-        # prev_plus_di = plus_di_data[-2]
-        low_price = data.Low.astype('float64').values
-        high_price = data.High.astype('float64').values
-        open_time = data.open_time.values[-1]
-        open_time_readable = datetime.datetime.fromtimestamp(open_time/1000).strftime('%Y-%m-%d %H:%M:%S')
+        prev_plus_di = plus_di_data[-2]
         current_time_readable = datetime.datetime.fromtimestamp(_timestamp).strftime('%Y-%m-%d %H:%M:%S')
-        print("{} | Price {} | DI- {} | DI+ {} | ADX {}".format(current_time_readable, round(close_p, 2),
+        print("{} | Price {} | DI- {} | DI+ {} | ADX {}".format(current_time_readable,
+                                                                round(close_p, 2),
                                                                 round(minus_di, 2),
-                                                                round(plus_di, 2), round(adx, 2)))
-
-        # if not self.order and \
-        #         close_p > ma_h and \
-        #         plus_di > minus_di and \
-        #         histogram > prev_histogram and \
-        #         plus_di > 25 and \
-        #         adx > prev_adx and \
-        #         histogram > 0 and \
-        #         adx > 25 and \
-        #         plus_di > prev_plus_di:
+                                                                round(plus_di, 2),
+                                                                round(adx, 2)))
 
         if not self.order and \
                 plus_di > minus_di and \
-                adx > 25:
+                adx > 25 and \
+                plus_di > prev_plus_di and \
+                close_p > ma_high and \
+                close_p > middle_band:
             # buy signal
             self.buy_margin()
             self.side = 'buy'
             self.order = close_p
-            min_price = min(low_price[-10:])
-            max_price = max(high_price[-10:])
-            self.take_profit, self.stop_loss = self.fibonacci(max_price, min_price)
             logging.warning("{} | Buy Order | Price {} | ADX {} | Stop Loss {}".format(current_time_readable,
-                                                                                      round(close_p, 2),
-                                                                                      round(adx, 2),
-                                                                                      round(self.stop_loss, 2)))
+                                                                                       round(close_p, 2),
+                                                                                       round(adx, 2),
+                                                                                       round(self.stop_loss, 2)))
 
-        # elif not self.order and \
-        #         plus_di < minus_di and \
-        #         adx > 25:
-        #     # buy signal
-        #     # self.buy_margin()
-        #     self.side = 'sell'
-        #     self.order = close_p
-        #     min_price = min(low_price[-10:])
-        #     max_price = max(high_price[-10:])
-        #     self.take_profit, self.stop_loss = self.fibonacci(max_price, min_price)
-        #     logging.warning("{} | Sell Order | Price {} | ADX {} | Stop Loss {}".format(current_time_readable,
-        #                                                                               round(close_p, 2),
-        #                                                                               round(adx, 2),
-        #                                                                               round(self.stop_loss, 2)))
+        if not self.order and \
+                minus_di > plus_di and \
+                adx > 25 and \
+                minus_di > prev_minus_di and \
+                close_p < ma_low and \
+                close_p < middle_band:
+            self.side = 'sell'
+            self.order = close_p
+            logging.warning("{} | Sell Order | Price {} | ADX {} | Stop Loss {}".format(current_time_readable,
+                                                                                       round(close_p, 2),
+                                                                                       round(adx, 2),
+                                                                                       round(self.stop_loss, 2)))
 
-        elif self.side == 'buy' and self.order and (adx < 25 or plus_di < minus_di):
+        elif self.side == 'buy' and self.order and \
+                np.isclose([middle_band], [close_p], atol=5) and \
+                close_p < middle_band:
             # take profit
             self.sell_margin()
             diff = close_p - self.order
             self.budget += diff
+            self.reset()
+            logging.warning("{} | Close Buy Order At {} | Budget {} | Diff {}".format(current_time_readable,
+                                                                                  round(close_p, 2),
+                                                                                  round(self.budget, 2),
+                                                                                  round(diff, 2)))
+
+        elif self.side == 'sell' and self.order and \
+                np.isclose([middle_band], [close_p], atol=5) and \
+                close_p > middle_band:
+            # take profit
+            # self.sell_margin()
+            diff = self.order - close_p
+            self.budget += diff
             self.side = None
             self.reset()
-            logging.warning("{} | Close Order At {} | Budget {} | Diff {}".format(current_time_readable, round(close_p, 2),
+            logging.warning("{} | Close Sell Order At {} | Budget {} | Diff {}".format(current_time_readable, round(close_p, 2),
                                                                                   round(self.budget, 2), round(diff, 2)))
-
-        # elif self.side == 'sell' and self.order and (adx < 25 or plus_di > minus_di):
-        #     # take profit
-        #     # self.sell_margin()
-        #     diff = self.order - close_p
-        #     self.budget += diff
-        #     self.side = None
-        #     self.reset()
-        #     logging.warning("{} | Close Order At {} | Budget {} | Diff {}".format(current_time_readable, round(close_p, 2),
-        #                                                                           round(self.budget, 2), round(diff, 2)))
 
     def reset(self):
         self.order = 0
-        self.max_diff = 0
+        self.side = None
         self.take_profit = 0
         self.stop_loss = 0
-
-    def test_trading(self):
-        df = self.train_data
-        df['MA'] = MA(df.Close, timeperiod=14)
-        df['MACD'], df['Signal'], df['Histogram'] = MACD(df.Close, 12, 26, 9)
-        df['MINUS_DI'] = MINUS_DI(df.High, df.Low, df.Close, timeperiod=14)
-        df['PLUS_DI'] = PLUS_DI(df.High, df.Low, df.Close, timeperiod=14)
-        df['ADX'] = ADX(df.High, df.Low, df.Close, timeperiod=14)
-        df['MA_High'] = MA(df.High, timeperiod=10)
-        df['MA_Low'] = MA(df.Low, timeperiod=10)
-        data = df.dropna()
-        close_price = data.Close.astype('float64').values
-        high_price = data.High.astype('float64').values
-        low_price = data.Low.astype('float64').values
-        open_price = data.Open.astype('float64').values
-        ma_signal = data.MA.values
-        macd_data = data.MACD.values
-        signal_data = data.Signal.values
-        histogram_data = data.Histogram.values
-        minus_dm = data.MINUS_DI.values
-        plus_dm = data.PLUS_DI.values
-        adx_dm = data.ADX.values
-        ma_high = data.MA_High.values
-        ma_low = data.MA_Low.values
-        open_time_data = data.open_time.values
-
-        print("Start Price: {} Close Price: {}".format(close_price[0], close_price[-1]))
-        idx = 0
-        for open_p, close_p, ma, macd, signal, histogram, \
-            plus_di, minus_di, adx, ma_h, ma_l, open_time in \
-                zip(open_price, close_price, ma_signal, macd_data,
-                    signal_data, histogram_data, plus_dm,
-                    minus_dm, adx_dm, ma_high, ma_low, open_time_data):
-
-            readable = datetime.datetime.fromtimestamp(open_time/1000).strftime('%Y-%m-%d %H:%M:%S')
-            if 10 < idx < len(ma_low) - 2:
-                prev_histogram = histogram_data[idx-1]
-                prev_adx = adx_dm[idx-1]
-                prev_plus_di = plus_dm[idx-1]
-                if not self.order and \
-                        plus_di > minus_di and \
-                        adx > 25:
-
-                    # buy signal
-                    self.order = close_p
-                    min_price = min(low_price[idx-10:idx])
-                    max_price = max(high_price[idx-10:idx])
-                    self.take_profit, _ = self.fibonacci(max_price, min_price)
-                    self.stop_loss = close_p - 50
-                    logging.warning("{} | Buy Order: {} | Close Price {}".format(readable, ma_h, close_p))
-
-                elif self.order and (plus_di < minus_di or adx < 25):
-                    # take profit
-                    diff = close_p - self.order
-                    self.budget += diff
-                    self.reset()
-                    logging.warning(
-                        "{} | Close Order At {} | Budget {} | Diff {}".format(readable, round(close_p, 2),
-                                                                              round(self.budget, 2), round(diff, 2)))
-
-                elif self.order and close_p <= self.stop_loss:
-                    diff = close_p - self.order
-                    self.budget += diff
-                    self.reset()
-                    logging.warning("{} | Stop loss At {} | Budget {} | Diff {}".format(readable, close_p, self.budget, diff))
-
-            idx += 1
-
-        print(self.budget)
 
     def test_order(self):
         info = self.binace_client.get_margin_account()
@@ -305,8 +237,8 @@ class RegressionMA:
         print("Account Status: {}".format(info['tradeEnabled']))
 
         symbol = 'BTCUSDT'
-        # self.buy_margin()
-        # time.sleep(5)
+        self.buy_margin()
+        time.sleep(5)
         self.sell_margin()
 
         print("Test Done!!")
@@ -391,4 +323,3 @@ if __name__ == '__main__':
     # bottrading.fake_socket()
     bottrading.start_socket()
     # bottrading.test_order()
-    # bottrading.getStockDataVec()
