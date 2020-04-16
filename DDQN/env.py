@@ -110,7 +110,7 @@ class TradingEnv:
         diff = current_price - self.order if self.order != 0 else 0
         r = min(diff/100, 0.5)
         if action not in self.get_valid_actions():
-            r = -1
+            r = -10
 
         elif action == 1:
             # Buy
@@ -125,7 +125,7 @@ class TradingEnv:
                 self.order = 0
                 if diff > 50:
                     r = 1
-                    # done = True
+                    done = True
 
         #
         # create state
@@ -150,10 +150,10 @@ class TradingEnv:
         return state1, state2, r, done, info
 
     def reset(self):
-        if self.strategy == 'test':
-            self.t = self.consecutive_frames
+        # if self.strategy == 'test':
+        #     self.t = self.consecutive_frames
         # else:
-        # self.t = self.consecutive_frames
+        self.t = self.consecutive_frames
 
         self.budget = 100
         self.side = None

@@ -24,7 +24,7 @@ class DDQN:
         #
         self.lr = 1e-3
         self.gamma = 0.95
-        self.alpha = 0.5
+        self.alpha = 0.2
         self.delta = 0.95
         self.discount_rate = 0.95
         self.epsilon = 1
@@ -79,14 +79,13 @@ class DDQN:
         # q_targ = self.agent.target_predict(new_s1, new_s2)
 
         for i in range(s1.shape[0] - 1):
-            # if d[i]:
-            #     q[i, a[i]] += self.alpha * (r[i] - q[i, a[i]])
-            # else:
-            next_best_action = np.argmax(next_q[i,:])
-            td_target = r[i+1] + self.discount_rate * next_q[i][next_best_action]
-            td_delta = td_target - q[i, a[i]]
-            q[i, a[i]] += self.alpha * td_delta
-            # q[i, a[i]] = q[i, a[i]] + self.alpha * (r[i+1] + self.discount_rate * next_q[i, next_best_action] - q[i, a[i]])
+            if d[i]:
+                q[i, a[i]] += self.alpha * (r[i] - q[i, a[i]])
+            else:
+                next_best_action = np.argmax(next_q[i,:])
+                td_target = r[i+1] + self.discount_rate * next_q[i][next_best_action]
+                td_delta = td_target - q[i, a[i]]
+                q[i, a[i]] += self.alpha * td_delta
 
         # Train on batch
         self.agent.fit(s1, s2, q)
@@ -130,17 +129,16 @@ class DDQN:
             time, cumul_reward, done = 0, 0, False
             s1, s2 = train_env.reset()
 
-            while True:
+            while not done:
                 if args.render: train_env.render()
                 # Actor picks an action (following the policy)
                 a = self.policy_action(s1, s2)
                 # Retrieve new state, reward, and whether the state is terminal
                 new_s1, new_s2, r, done, info = train_env.act(a)
                 # logging.warning("actions: {}".format(a))
-                print("Actions: {} | Budget: {} | Steps: {} | Episode: {} | Diff: {}".format(
+                print("Actions: {} | Budget: {} | Steps: {} | Episode: {} | Diff: {} | Reward: {}".format(
                     a, round(info['budget'], 2),
-                    train_env.t, e, round(info['diff'], 2)
-                    )
+                    train_env.t, e, round(info['diff'], 2), round(r, 2))
                 )
                 # Memorize for experience replay
                 self.memorize(s1, s2, a, r, done, new_s1, new_s2)

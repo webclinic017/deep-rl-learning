@@ -5,14 +5,14 @@ import logging
 import pandas as pd
 import numpy as np
 from binance.enums import KLINE_INTERVAL_1HOUR, SIDE_SELL, ORDER_TYPE_MARKET, SIDE_BUY
-from binance.websockets import BinanceSocketManager
+# from binance.websockets import BinanceSocketManager
 from pymongo import MongoClient
-from talib._ta_lib import MA, MACD, MINUS_DI, PLUS_DI, ADX, BBANDS, MA_Type
+from talib._ta_lib import MA, MACD, MINUS_DI, PLUS_DI, ADX, BBANDS, MA_Type, STOCH
 from binance.client import Client
 import matplotlib.pyplot as plt
 from mailer import SendMail
 
-logging.basicConfig(filename='../log/autotrade.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename='log/autotrade.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
 
 class RegressionMA:
@@ -33,13 +33,13 @@ class RegressionMA:
         self.take_profit, self.stop_loss = 0, 0
         self.is_latest = False
         self.trade_amount = 0.5  # 50% currency you owned
-        self.client = MongoClient(host='149.28.129.64', username='crypto', password='amyAFpNK', authSource='crypto')
-        self.db = self.client.crypto
+        # self.client = MongoClient(host='149.28.129.64', username='crypto', password='amyAFpNK', authSource='crypto')
+        # self.db = self.client.crypto
         # self.db.btc_5minute_realtime.drop()
         self.api_key = "9Hj6HLNNMGgkqj6ngouMZD1kjIbUb6RZmIpW5HLiZjtDT5gwhXAzc20szOKyQ3HW"
         self.api_secret = "ioD0XICp0cFE99VVql5nuxiCJEb6GK8mh08NYnSYdIUfkiotd1SZqLTQsjFvrXwk"
         self.binace_client = Client(self.api_key, self.api_secret)
-        self.bm = BinanceSocketManager(self.binace_client)
+        # self.bm = BinanceSocketManager(self.binace_client)
         self.interval = KLINE_INTERVAL_1HOUR
         self.train_data = self.get_data()
 
@@ -51,6 +51,10 @@ class RegressionMA:
         self.fig = plt.figure()
         self.ax1 = self.fig.add_subplot(211, label='ax1')
         self.ax2 = self.fig.add_subplot(212, label='ax2')
+
+        # Global Config
+        self.bbw_threshold = 0.03
+        self.adx_threshold = 25
 
     def get_data(self):
         api_key = "y9JKPpQ3B2zwIRD9GwlcoCXwvA3mwBLiNTriw6sCot13IuRvYKigigXYWCzCRiul"
@@ -133,6 +137,7 @@ class RegressionMA:
         df['MA_High'] = MA(df.High, timeperiod=9)
         df['MA_Low'] = MA(df.Low, timeperiod=9)
         df['BAND_UPPER'], df['BAND_MIDDLE'], df['BAND_LOWER'] = BBANDS(df.Close, 20, 2, 2)
+        df['slowk'], df['slowd'] = STOCH(df.High, df.Low, df.Close)
         data = df.dropna()
 
         # close_price = data.Close.astype('float64').values
@@ -149,8 +154,16 @@ class RegressionMA:
         # open_time_readable = datetime.datetime.fromtimestamp(open_time/1000).strftime('%Y-%m-%d %H:%M:%S')
         # open_time = data.open_time.values[-1]
 
-        middle_band_data = data.BAND_MIDDLE.values
-        middle_band = middle_band_data[-1]
+        middle_band = data.BAND_MIDDLE.values[-1]
+        lower_band = data.BAND_LOWER.values[-1]
+        upper_band = data.BAND_UPPER.values[-1]
+        # Bollinger band width
+        bb_w = (upper_band - lower_band)/middle_band
+
+        # Stochastic
+        slowk = df.slowk.values[-1]
+        slowd = df.slowd.values[-1]
+
         plus_di_data = data.PLUS_DI.values
         minus_di_data = data.MINUS_DI.values
         adx = data.ADX.values[-1]
@@ -161,18 +174,21 @@ class RegressionMA:
         plus_di = plus_di_data[-1]
         prev_plus_di = plus_di_data[-2]
         current_time_readable = datetime.datetime.fromtimestamp(_timestamp).strftime('%Y-%m-%d %H:%M:%S')
-        print("{} | Price {} | DI- {} | DI+ {} | ADX {}".format(current_time_readable,
-                                                                round(close_p, 2),
-                                                                round(minus_di, 2),
-                                                                round(plus_di, 2),
-                                                                round(adx, 2)))
+        print("{} | Price {} | DI- {} | DI+ {} | ADX {} | BBW: {}".format(current_time_readable,
+                                                                          round(close_p, 2),
+                                                                          round(minus_di, 2),
+                                                                          round(plus_di, 2),
+                                                                          round(adx, 2),
+                                                                          round(bb_w, 4)))
 
+        # Place Buy Order
         if not self.order and \
                 plus_di > minus_di and \
-                adx > 25 and \
+                adx > self.adx_threshold and \
                 plus_di > prev_plus_di and \
-                close_p > ma_high and \
-                close_p > middle_band:
+                close_p > middle_band and \
+                bb_w > self.bbw_threshold and \
+                slowk > slowd:
             # buy signal
             self.buy_margin()
             self.side = 'buy'
@@ -181,25 +197,11 @@ class RegressionMA:
                                                                                        round(close_p, 2),
                                                                                        round(adx, 2),
                                                                                        round(self.stop_loss, 2)))
-
-        if not self.order and \
-                minus_di > plus_di and \
-                adx > 25 and \
-                minus_di > prev_minus_di and \
-                close_p < ma_low and \
-                close_p < middle_band:
-            self.side = 'sell'
-            self.order = close_p
-            logging.warning("{} | Sell Order | Price {} | ADX {} | Stop Loss {}".format(current_time_readable,
-                                                                                       round(close_p, 2),
-                                                                                       round(adx, 2),
-                                                                                       round(self.stop_loss, 2)))
-
+        # CLose Buy Order
         elif self.side == 'buy' and self.order and \
-                np.isclose([middle_band], [close_p], atol=5) and \
-                close_p < middle_band:
+                (close_p < middle_band or (slowd > slowk > 80)):
             # take profit
-            self.sell_margin()
+            # self.sell_margin()
             diff = close_p - self.order
             self.budget += diff
             self.reset()
@@ -208,11 +210,26 @@ class RegressionMA:
                                                                                   round(self.budget, 2),
                                                                                   round(diff, 2)))
 
+        # Place Sell Order
+        elif not self.order and \
+                minus_di > plus_di and \
+                adx > self.adx_threshold and \
+                minus_di > prev_minus_di and \
+                close_p < middle_band and \
+                bb_w > self.bbw_threshold and \
+                slowk < slowd:
+            self.side = 'sell'
+            self.order = close_p
+            logging.warning("{} | Sell Order | Price {} | ADX {} | Stop Loss {}".format(current_time_readable,
+                                                                                       round(close_p, 2),
+                                                                                       round(adx, 2),
+                                                                                       round(self.stop_loss, 2)))
+
+        # Close Sell Order
         elif self.side == 'sell' and self.order and \
-                np.isclose([middle_band], [close_p], atol=5) and \
-                close_p > middle_band:
+                (close_p > middle_band or 20 > slowk > slowd):
             # take profit
-            # self.sell_margin()
+            self.sell_margin()
             diff = self.order - close_p
             self.budget += diff
             self.side = None
