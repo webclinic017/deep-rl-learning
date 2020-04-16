@@ -22,10 +22,13 @@ class DDQN:
         self.action_dim = action_dim
         self.state_dim = state_dim
         #
-        self.lr = 2.5e-4
+        self.lr = 1e-3
         self.gamma = 0.95
+        self.alpha = 0.5
+        self.delta = 0.95
+        self.discount_rate = 0.95
         self.epsilon = 1
-        self.epsilon_min = 0.01
+        self.epsilon_min = 0.0
         self.epsilon_decay = 0.99
         self.buffer_size = 20000
         #
@@ -48,7 +51,19 @@ class DDQN:
             # logging.warning(self.agent.predict(s))
             s1 = np.expand_dims(s1, axis=0)
             s2 = np.expand_dims(s2, axis=0)
-            return np.argmax(self.agent.predict(s1, s2)[0])
+            policy_value = self.agent.predict(s1, s2)[0]
+            logging.warning(policy_value)
+            return np.argmax(policy_value)
+
+    def discount(self, r):
+        """ Compute the gamma-discounted rewards over an episode
+        """
+        discounted_r, cumul_r = np.zeros_like(r), 0
+        for t in reversed(range(0, len(r))):
+            reward = r[t]
+            cumul_r = reward + (cumul_r * self.discount_rate)
+            discounted_r[t] = cumul_r
+        return discounted_r
 
     def train_agent(self, batch_size):
         """ Train Q-network on batch sampled from the buffer
@@ -56,22 +71,30 @@ class DDQN:
         # Sample experience from memory buffer (optionally with PER)
         s1, s2, a, r, d, new_s1, new_s2, idx = self.buffer.sample_batch(batch_size)
 
+        discounted_rewards = self.discount(r)
+
         # Apply Bellman Equation on batch samples to train our DDQN
         q = self.agent.predict(s1, s2)
         next_q = self.agent.predict(new_s1, new_s2)
-        q_targ = self.agent.target_predict(new_s1, new_s2)
+        # q_targ = self.agent.target_predict(new_s1, new_s2)
 
-        for i in range(s1.shape[0]):
+        for i in range(s1.shape[0] - 1):
             # if d[i]:
-            #     q[i, a[i]] = r[i]
+            #     q[i, a[i]] += self.alpha * (r[i] - q[i, a[i]])
             # else:
             next_best_action = np.argmax(next_q[i,:])
-            q[i, a[i]] = r[i] + self.gamma * q_targ[i, next_best_action]
+            td_target = r[i+1] + self.discount_rate * next_q[i][next_best_action]
+            td_delta = td_target - q[i, a[i]]
+            q[i, a[i]] += self.alpha * td_delta
+            # q[i, a[i]] = q[i, a[i]] + self.alpha * (r[i+1] + self.discount_rate * next_q[i, next_best_action] - q[i, a[i]])
+
         # Train on batch
         self.agent.fit(s1, s2, q)
         # Decay epsilon
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
+
+        # self.buffer.clear()
 
     def test(self, env, args, step):
         """ Main DDQN Training Algorithm
@@ -102,18 +125,23 @@ class DDQN:
         results = []
         tqdm_e = tqdm(range(args.nb_episodes), desc='Score', leave=True, unit=" episodes")
 
-        for e in tqdm_e:
+        for e in range(args.nb_episodes):
             # Reset episode
             time, cumul_reward, done = 0, 0, False
             s1, s2 = train_env.reset()
 
-            while not done:
+            while True:
                 if args.render: train_env.render()
                 # Actor picks an action (following the policy)
                 a = self.policy_action(s1, s2)
                 # Retrieve new state, reward, and whether the state is terminal
                 new_s1, new_s2, r, done, info = train_env.act(a)
-                # logging.warning(info)
+                # logging.warning("actions: {}".format(a))
+                print("Actions: {} | Budget: {} | Steps: {} | Episode: {} | Diff: {}".format(
+                    a, round(info['budget'], 2),
+                    train_env.t, e, round(info['diff'], 2)
+                    )
+                )
                 # Memorize for experience replay
                 self.memorize(s1, s2, a, r, done, new_s1, new_s2)
                 # Update current state
@@ -122,16 +150,16 @@ class DDQN:
                 cumul_reward += r
                 time += 1
 
+                # tqdm_e.set_description("Budget: {} | Steps: {} | Actions: {}".format(round(info['budget'], 3), train_env.t, a))
+                # tqdm_e.refresh()
+
                 # Train DDQN and transfer weights to target network
-                if self.buffer.size() > args.batch_size:
+                if self.buffer.count >= args.batch_size:
                     self.train_agent(args.batch_size)
-                    self.agent.transfer_weights()
+                    # self.agent.transfer_weights()
 
-                tqdm_e.set_description("Budget: {} | Steps: {}".format(round(info['budget'], 3), train_env.t))
-                tqdm_e.refresh()
-
-            if e % 10 == 0:
-                self.test(test_env, args, e)
+            # if e % 100 == 0:
+            #     self.test(test_env, args, e)
             # Display score
             # total_profit = self.test(summary_writer, e)
 

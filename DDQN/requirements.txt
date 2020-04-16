@@ -1,0 +1,5 @@
+tensorflow-gpu==1.13.1
+ta
+scikit-learn
+tqdm
+keras==2.2.4

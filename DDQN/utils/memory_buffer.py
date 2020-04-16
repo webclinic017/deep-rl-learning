@@ -37,6 +37,9 @@ class MemoryBuffer(object):
             self.buffer.popleft()
             self.buffer.append(experience)
 
+    def clear_deqeue(self):
+        self.buffer.clear()
+
     def priority(self, error):
         """ Compute an experience priority, as per Schaul et al.
         """
@@ -61,6 +64,7 @@ class MemoryBuffer(object):
             idx = None
             batch = random.sample(self.buffer, batch_size)
 
+        # batch = self.buffer
         # Return a batch of experience
         s1_batch = np.array([i[0] for i in batch])
         s2_batch = np.array([i[1] for i in batch])
@@ -69,7 +73,7 @@ class MemoryBuffer(object):
         d_batch = np.array([i[4] for i in batch])
         new_s1_batch = np.array([i[5] for i in batch])
         new_s2_batch = np.array([i[6] for i in batch])
-        return s1_batch, s2_batch, a_batch, r_batch, d_batch, new_s1_batch, new_s2_batch, idx
+        return s1_batch, s2_batch, a_batch, r_batch, d_batch, new_s1_batch, new_s2_batch, None
 
     def update(self, idx, new_error):
         """ Update priority for idx (PER)

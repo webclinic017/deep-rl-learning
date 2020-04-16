@@ -3,7 +3,7 @@ import numpy as np
 import keras.backend as K
 from keras import Model
 from keras.optimizers import Adam
-from keras.layers import Input, Dense, Flatten, Reshape, LSTM, Lambda, concatenate, TimeDistributed, Dropout
+from keras.layers import Input, Dense, LSTM, Lambda, Dot, concatenate, TimeDistributed
 
 
 class Agent:
@@ -17,11 +17,11 @@ class Agent:
         self.dueling = dueling
         # Initialize Deep Q-Network
         self.model = self.network(dueling)
-        self.model.compile(Adam(lr), 'mse')
+        self.model.compile(Adam(), 'mse')
         # Build target Q-Network
-        self.target_model = self.network(dueling)
-        self.target_model.compile(Adam(lr), 'mse')
-        self.target_model.set_weights(self.model.get_weights())
+        # self.target_model = self.network(dueling)
+        # self.target_model.compile(Adam(lr), 'mse')
+        # self.target_model.set_weights(self.model.get_weights())
 
     def huber_loss(self, y_true, y_pred):
         return K.mean(K.sqrt(1 + K.square(y_pred - y_true)) - 1, axis=-1)
@@ -29,30 +29,29 @@ class Agent:
     def network(self, dueling):
         """ Build Deep Q-Network
         """
-        inp = Input((10, 6))
-        x = LSTM(32, dropout=0.1, recurrent_dropout=0.3, return_sequences=True)(inp)
-        x = TimeDistributed(Dense(32))(x)
-        x = LSTM(32, dropout=0.1, recurrent_dropout=0.3, return_sequences=False)(x)
-        # x = TimeDistributed(Dense(32))(x)
-        # x = LSTM(128, dropout=0.1, recurrent_dropout=0.3)(x)
-
-        x = Dropout(0.25)(x)
-        x = Dense(64, activation='relu')(x)
+        inp = Input((20, 16))
+        x1 = LSTM(128, dropout=0.1, recurrent_dropout=0.3, return_sequences=True)(inp)
+        x1 = LSTM(64, dropout=0.1, recurrent_dropout=0.3, return_sequences=True)(x1)
+        x1 = LSTM(32, dropout=0.1, recurrent_dropout=0.3)(x1)
+        x1 = Dense(32, activation='relu')(x1)
 
         inp2 = Input((2,))
-        x2 = Dense(64, activation='relu')(inp2)
+        x2 = Dense(32, activation='relu')(inp2)
 
-        output = concatenate([x, x2])
+        output = concatenate([x1, x2])
 
-        output = Dense(128, activation='relu')(output)
+        output = Dense(64, activation='relu')(output)
+        output = Dense(32, activation='relu')(output)
 
         if dueling:
             # Have the network estimate the Advantage function as an intermediate layer
             output = Dense(self.action_dim + 1, activation='linear')(output)
-            output = Lambda(lambda i: K.expand_dims(i[:,0],-1) + i[:,1:] - K.mean(i[:,1:], keepdims=True), output_shape=(self.action_dim,))(output)
+            output = Lambda(lambda i: K.expand_dims(i[:, 0], -1) + i[:, 1:] - K.mean(i[:, 1:], keepdims=True),
+                            output_shape=(self.action_dim,))(output)
         else:
             output = Dense(self.action_dim, activation='linear')(output)
         model = Model(inputs=[inp, inp2], output=output)
+        model.summary()
         return model
 
     def transfer_weights(self):
@@ -86,7 +85,7 @@ class Agent:
         return x
 
     def save(self, path):
-        if(self.dueling):
+        if (self.dueling):
             path += '_dueling'
         self.model.save_weights(path + '.h5')
 

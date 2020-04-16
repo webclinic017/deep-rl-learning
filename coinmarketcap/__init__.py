@@ -37,7 +37,7 @@ def convert_data(obj):
 
 
 # fetch test data
-klines = client.get_historical_klines("TCTBTC", Client.KLINE_INTERVAL_4HOUR, "1 Jan, 2020")
+klines = client.get_historical_klines("BTCUSDT", Client.KLINE_INTERVAL_4HOUR, "1 Jan, 2015")
 df_test = pd.DataFrame(klines, columns=['open_time', 'open', 'high', 'low', 'close',
                                         'volume', 'close_time', 'quote_asset_volume', 'number_of_trades',
                                         'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
