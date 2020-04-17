@@ -5,7 +5,7 @@ import logging
 import pandas as pd
 import numpy as np
 from binance.enums import KLINE_INTERVAL_1HOUR, SIDE_SELL, ORDER_TYPE_MARKET, SIDE_BUY
-from binance.websockets import BinanceSocketManager
+# from binance.websockets import BinanceSocketManager
 from pymongo import MongoClient
 from talib._ta_lib import MA, MACD, MINUS_DI, PLUS_DI, ADX, BBANDS, MA_Type, STOCH
 from binance.client import Client
@@ -39,7 +39,7 @@ class RegressionMA:
         self.api_key = "9Hj6HLNNMGgkqj6ngouMZD1kjIbUb6RZmIpW5HLiZjtDT5gwhXAzc20szOKyQ3HW"
         self.api_secret = "ioD0XICp0cFE99VVql5nuxiCJEb6GK8mh08NYnSYdIUfkiotd1SZqLTQsjFvrXwk"
         self.binace_client = Client(self.api_key, self.api_secret)
-        self.bm = BinanceSocketManager(self.binace_client)
+        # self.bm = BinanceSocketManager(self.binace_client)
         self.interval = KLINE_INTERVAL_1HOUR
         self.train_data = self.get_data()
 
@@ -187,10 +187,10 @@ class RegressionMA:
                 adx > self.adx_threshold and \
                 plus_di > prev_plus_di and \
                 close_p > middle_band and \
-                bb_w > self.bbw_threshold and \
-                slowk > slowd:
+                slowk > slowd and \
+                bb_w > self.bbw_threshold:
             # buy signal
-            self.buy_margin()
+            #self.buy_margin()
             self.side = 'buy'
             self.order = close_p
             logging.warning("{} | Buy Order | Price {} | ADX {} | Stop Loss {}".format(current_time_readable,
@@ -216,8 +216,8 @@ class RegressionMA:
                 adx > self.adx_threshold and \
                 minus_di > prev_minus_di and \
                 close_p < middle_band and \
-                bb_w > self.bbw_threshold and \
-                slowk < slowd:
+                slowk < slowd and \
+                bb_w > self.bbw_threshold:
             self.side = 'sell'
             self.order = close_p
             logging.warning("{} | Sell Order | Price {} | ADX {} | Stop Loss {}".format(current_time_readable,
@@ -229,7 +229,7 @@ class RegressionMA:
         elif self.side == 'sell' and self.order and \
                 (close_p > middle_band or 20 > slowk > slowd):
             # take profit
-            self.sell_margin()
+            #self.sell_margin()
             diff = self.order - close_p
             self.budget += diff
             self.side = None
@@ -335,8 +335,8 @@ class RegressionMA:
 if __name__ == '__main__':
     bottrading = RegressionMA()
     # bottrading.plot_data()
-    bottrading.get_data()
+    #bottrading.get_data()
     # bottrading.test_trading()
-    # bottrading.fake_socket()
-    bottrading.start_socket()
+    bottrading.fake_socket()
+    #bottrading.start_socket()
     # bottrading.test_order()

@@ -14,9 +14,9 @@ def parse_args(args):
     parser.add_argument('--with_PER', dest='with_per', action='store_true', help="Use Prioritized Experience Replay (DDQN + PER)")
     parser.add_argument('--dueling', dest='dueling', action='store_true', help="Use a Dueling Architecture (DDQN)")
     #
-    parser.add_argument('--nb_episodes', type=int, default=500, help="Number of training episodes")
+    parser.add_argument('--nb_episodes', type=int, default=50000, help="Number of training episodes")
     parser.add_argument('--batch_size', type=int, default=32, help="Batch size (experience replay)")
-    parser.add_argument('--consecutive_frames', type=int, default=20, help="Number of consecutive frames (action repeat)")
+    parser.add_argument('--consecutive_frames', type=int, default=5, help="Number of consecutive frames (action repeat)")
     parser.add_argument('--nb_features', type=int, default=16, help="Number of consecutive frames (action repeat)")
     parser.add_argument('--training_interval', type=int, default=30, help="Network training frequency")
     parser.add_argument('--n_threads', type=int, default=8, help="Number of threads (A3C)")

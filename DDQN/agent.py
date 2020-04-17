@@ -29,19 +29,19 @@ class Agent:
     def network(self, dueling):
         """ Build Deep Q-Network
         """
-        inp = Input((20, 16))
-        x1 = LSTM(128, dropout=0.1, recurrent_dropout=0.3, return_sequences=True)(inp)
-        x1 = LSTM(64, dropout=0.1, recurrent_dropout=0.3, return_sequences=True)(x1)
-        x1 = LSTM(32, dropout=0.1, recurrent_dropout=0.3)(x1)
-        x1 = Dense(32, activation='relu')(x1)
+        inp = Input((5, 16))
+        x1 = LSTM(1024, dropout=0.1, recurrent_dropout=0.3, return_sequences=True)(inp)
+        x1 = LSTM(512, dropout=0.1, recurrent_dropout=0.3, return_sequences=True)(x1)
+        x1 = LSTM(512, dropout=0.1, recurrent_dropout=0.3)(x1)
+        x1 = Dense(128, activation='relu')(x1)
 
         inp2 = Input((2,))
-        x2 = Dense(32, activation='relu')(inp2)
+        x2 = Dense(128, activation='relu')(inp2)
 
         output = concatenate([x1, x2])
 
-        output = Dense(64, activation='relu')(output)
-        output = Dense(32, activation='relu')(output)
+        output = Dense(128, activation='relu')(output)
+        output = Dense(128, activation='relu')(output)
 
         if dueling:
             # Have the network estimate the Advantage function as an intermediate layer

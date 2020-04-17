@@ -110,7 +110,7 @@ class TradingEnv:
         diff = current_price - self.order if self.order != 0 else 0
         r = min(diff/100, 0.5)
         if action not in self.get_valid_actions():
-            r = -10
+            r = -0.5
 
         elif action == 1:
             # Buy
