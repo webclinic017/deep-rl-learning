@@ -32,7 +32,7 @@ class RegressionMA:
         self.max_profit = 0
         self.take_profit, self.stop_loss = 0, 0
         self.is_latest = False
-        self.trade_amount = 0.75  # 75% currency you owned
+        self.trade_amount = 0.5  # 75% currency you owned
         self.api_key = "9Hj6HLNNMGgkqj6ngouMZD1kjIbUb6RZmIpW5HLiZjtDT5gwhXAzc20szOKyQ3HW"
         self.api_secret = "ioD0XICp0cFE99VVql5nuxiCJEb6GK8mh08NYnSYdIUfkiotd1SZqLTQsjFvrXwk"
         self.binace_client = Client(self.api_key, self.api_secret)
@@ -198,7 +198,7 @@ class RegressionMA:
         elif self.side == 'buy' and self.order and \
                 (close_p < middle_band or (slowd > slowk > 80)):
             # take profit
-            self.sell_margin()
+            self.close_buy_margin()
             diff = close_p - self.order
             self.budget += diff
             self.reset()
@@ -224,6 +224,7 @@ class RegressionMA:
                 round(adx, 2),
                 round(self.stop_loss, 2)
             )
+            self.borrow_btc()
             self.mailer.notification(txt)
             logging.warning(txt)
 
@@ -238,6 +239,7 @@ class RegressionMA:
                 current_time_readable, round(close_p, 2),
                 round(self.budget, 2), round(diff, 2)
             )
+            self.repay_btc()
             logging.warning(txt)
             self.mailer.notification(txt)
 
@@ -247,7 +249,7 @@ class RegressionMA:
         self.take_profit = 0
         self.stop_loss = 0
 
-    def test_order(self):
+    def test_buy_order(self):
         info = self.binace_client.get_margin_account()
         get_margin_asset = self.binace_client.get_margin_asset(asset='BTC')
 
@@ -257,12 +259,87 @@ class RegressionMA:
         print("Amount in BTC: {}".format(info['totalAssetOfBtc']))
         print("Account Status: {}".format(info['tradeEnabled']))
 
-        symbol = 'BTCUSDT'
         self.buy_margin()
-        time.sleep(5)
-        self.sell_margin()
+        time.sleep(1)
+        self.close_buy_margin()
 
         print("Test Done!!")
+
+    def test_sell_order(self):
+        self.borrow_btc()
+        time.sleep(1)
+        self.repay_btc()
+        info = self.binace_client.get_margin_account()
+        print("Margin Lever: {}".format(info['marginLevel']))
+        print("Amount in BTC: {}".format(info['totalAssetOfBtc']))
+        print("Account Status: {}".format(info['tradeEnabled']))
+        print("Test Done!!")
+
+    def borrow_btc(self):
+        """
+        Borrow BTC with amount = 0.5 * max amount
+        :return:
+        """
+        try:
+            # Borrow BTC
+            get_max_margin_loan = self.binace_client.get_max_margin_loan(asset='BTC')
+            amount = float(get_max_margin_loan['amount'])
+            precision = 5
+            amt_str = "{:0.0{}f}".format(amount * self.trade_amount, precision)
+            transaction = self.binace_client.create_margin_loan(asset='BTC', amount=amt_str)
+
+            # Sell borrowed BTC
+            symbol = 'BTCUSDT'
+            sell_order = self.binace_client.create_margin_order(
+                symbol=symbol,
+                side=SIDE_SELL,
+                type=ORDER_TYPE_MARKET,
+                quantity=amt_str
+            )
+            txt = 'You borrow: {}'.format(amt_str)
+            logging.warning(txt)
+            print(txt)
+        except Exception as ex:
+            self.mailer.notification(str(ex))
+
+    def repay_btc(self):
+        """
+        Trả lại số BTC đã vay bằng cách mua BTC sau đó mở lệnh repay
+        :return:
+        """
+        try:
+            # check amount you borrowed
+            symbol = 'BTCUSDT'
+            symbol_detail = 'BTC'
+            # check account info
+            info = self.binace_client.get_margin_account()
+            for market in info['userAssets']:
+                if market['asset'] == symbol_detail:
+                    btc_borrowed = market['borrowed']
+                    precision = 5
+                    amt_str = "{:0.0{}f}".format(float(btc_borrowed), precision)
+
+                    # # buy btc
+                    buy_order = self.binace_client.create_margin_order(
+                        symbol=symbol,
+                        side=SIDE_BUY,
+                        type=ORDER_TYPE_MARKET,
+                        quantity=amt_str
+                    )
+
+            info = self.binace_client.get_margin_account()
+            for market in info['userAssets']:
+                if market['asset'] == symbol_detail:
+                    btc_free = market['free']
+                    precision = 5
+                    amt_str = "{:0.0{}f}".format(float(btc_free), precision)
+                    # repay
+                    transaction = self.binace_client.repay_margin_loan(asset='BTC', amount=btc_free)
+                    txt = 'You repay : {} {}'.format(amt_str, symbol_detail)
+                    logging.warning(txt)
+                    print(txt)
+        except Exception as ex:
+            self.mailer.notification(str(ex))
 
     def buy_margin(self):
         try:
@@ -292,30 +369,39 @@ class RegressionMA:
             logging.warning(ex)
             return False
 
-    def sell_margin(self):
+    def close_buy_margin(self):
         try:
-            info = self.binace_client.get_margin_account()
             symbol = 'BTCUSDT'
-            amount = info['totalAssetOfBtc']
-            precision = 5
-            # amount = round(float(amount)*self.trade_amount, 3)
-            # amt_str = "{:0.0{}f}".format(amount, precision)
-            amt_str = self.buy_mount
-            price_index = self.binace_client.get_margin_price_index(symbol=symbol)
-            sell_order = self.binace_client.create_margin_order(
-                symbol=symbol,
-                side=SIDE_SELL,
-                type=ORDER_TYPE_MARKET,
-                quantity=amt_str)
+            symbol_detail = 'BTC'
+            amt_str = 0
+            # check account info
+            info = self.binace_client.get_margin_account()
 
+            for market in info['userAssets']:
+                if market['asset'] == symbol_detail:
+                    btc_free = market['free']
+                    precision = 5
+                    # amt_str = btc_free
+                    amt_str = "{:0.0{}f}".format(float(btc_free) - 0.0001, precision)
+
+                    # Sell btc
+                    buy_order = self.binace_client.create_margin_order(
+                        symbol=symbol,
+                        side=SIDE_SELL,
+                        type=ORDER_TYPE_MARKET,
+                        quantity=amt_str
+                    )
+
+            price_index = self.binace_client.get_margin_price_index(symbol=symbol)
             info = self.binace_client.get_margin_account()
             current_btc = info['totalAssetOfBtc']
             usdt = info['userAssets'][2]['free']
-            txt = "Sell successfully | Balance {} | Sell Amount {} | At Price {} | Owned In BTC {}".format(usdt,
-                                                                                                           amt_str,
-                                                                                                           price_index[
-                                                                                                               'price'],
-                                                                                                           current_btc)
+            txt = "Sell successfully | Balance {} | Sell Amount {} | At Price {} | Owned In BTC {}".format(
+                usdt,
+                amt_str,
+                price_index['price'],
+                current_btc
+            )
             logging.warning(txt)
             print(txt)
             self.mailer.notification(txt)
@@ -343,4 +429,5 @@ if __name__ == '__main__':
     # bottrading.test_trading()
     # bottrading.fake_socket()
     bottrading.start_socket()
-    # bottrading.test_order()
+    # bottrading.test_buy_order()
+    # bottrading.test_sell_order()
