@@ -11,8 +11,7 @@ logging.basicConfig(filename='log/crawler.log', filemode='w', format='%(name)s -
 
 class RegressionMA:
     def __init__(self):
-        self.client = MongoClient(host='66.42.37.163', username='admin',
-                                  password='jkahsduk12387a89sdjk@#', authSource='admin')
+        self.client = MongoClient(username='admin', password='jkahsduk12387a89sdjk@#', authSource='admin')
         self.db = self.client.crypto
         self.api_key = "9Hj6HLNNMGgkqj6ngouMZD1kjIbUb6RZmIpW5HLiZjtDT5gwhXAzc20szOKyQ3HW"
         self.api_secret = "ioD0XICp0cFE99VVql5nuxiCJEb6GK8mh08NYnSYdIUfkiotd1SZqLTQsjFvrXwk"
