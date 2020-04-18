@@ -36,8 +36,7 @@ class RegressionMA:
 
 
 if __name__ == '__main__':
-    bottrading = RegressionMA()
-    symbols_list = ['BTCUSDT', 'ZEC_BTC', 'DASH_BTC', 'BNB_BTC', 'LINK_BTC', 'XTZ_BTC', 'ONT_BTC', 'XRP_BTC', 'ADA_BTC',
-                    'XLM_BTC', 'EOS_BTC', 'NEO_BTC']
+    symbols_list = ['BTCUSDT']
     for symbol in symbols_list:
+        bottrading = RegressionMA()
         bottrading.start_socket(symbol)
