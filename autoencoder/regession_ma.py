@@ -303,14 +303,11 @@ class RegressionMA:
         willr = df.William.values[-1]
 
         current_time_readable = datetime.datetime.fromtimestamp(_timestamp).strftime('%d-%m-%Y %H:%M:%S')
-        log_txt = " Price {} | DI- {} | DI+ {} | ADX {} | SAR: {} | CCI {} | ROC {}".format(
+        log_txt = " Price {} | DI- {} | DI+ {} | ADX {} | SAR {} | CCI {} | ROC {} | %William {} | Histogram {} | Middle Band {}".format(
             round(close_p, 2),
-            round(minus_di, 2),
-            round(plus_di, 2),
-            round(adx, 2),
-            round(sar, 2),
-            round(cci, 2),
-            round(roc, 2)
+            round(minus_di, 2), round(plus_di, 2), round(adx, 2),
+            round(sar, 2), round(cci, 2), round(roc, 2),
+            round(willr, 2), round(histogram, 2), round(middle_band, 2)
         )
         # print(log_txt)
         console_logger.info(log_txt)
