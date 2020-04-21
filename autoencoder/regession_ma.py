@@ -3,16 +3,33 @@ import time
 import json
 import logging
 import pandas as pd
-import numpy as np
 from binance.enums import KLINE_INTERVAL_1HOUR, SIDE_SELL, ORDER_TYPE_MARKET, SIDE_BUY
 from binance.websockets import BinanceSocketManager
-# from pymongo import MongoClient
-from talib._ta_lib import MA, MACD, MINUS_DI, PLUS_DI, ADX, BBANDS, MA_Type, STOCH
+from pymongo import MongoClient
+from talib._ta_lib import MA, MACD, MINUS_DI, PLUS_DI, ADX, BBANDS, SAR, STOCHRSI, CCI, ROC, ROCR100, ROCP, WILLR
 from binance.client import Client
 import matplotlib.pyplot as plt
 from mailer import SendMail
 
-logging.basicConfig(filename='log/autotrade.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
+# create logger with 'spam_application'
+autotrade_logger = logging.getLogger('autotrade')
+autotrade_logger.setLevel(logging.INFO)
+console_logger = logging.getLogger('console')
+console_logger.setLevel(logging.INFO)
+# create file handler which logs even debug messages
+fh1 = logging.FileHandler('log/autotrade.log')
+fh1.setLevel(logging.INFO)
+fh2 = logging.FileHandler('log/console.log')
+fh2.setLevel(logging.INFO)
+# create formatter and add it to the handlers
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh1.setFormatter(formatter)
+fh2.setFormatter(formatter)
+# add the handlers to the logger
+autotrade_logger.addHandler(fh1)
+console_logger.addHandler(fh2)
+
+# logging.basicConfig(filename='log/autotrade.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
 
 class RegressionMA:
@@ -30,15 +47,19 @@ class RegressionMA:
         self.budget = 0
         self.prev_histogram = 0
         self.max_profit = 0
+        self.max_loss = 0
         self.take_profit, self.stop_loss = 0, 0
         self.is_latest = False
+        self.can_order = True
         self.trade_amount = 0.5  # 75% currency you owned
         self.api_key = "9Hj6HLNNMGgkqj6ngouMZD1kjIbUb6RZmIpW5HLiZjtDT5gwhXAzc20szOKyQ3HW"
         self.api_secret = "ioD0XICp0cFE99VVql5nuxiCJEb6GK8mh08NYnSYdIUfkiotd1SZqLTQsjFvrXwk"
         self.binace_client = Client(self.api_key, self.api_secret)
         self.bm = BinanceSocketManager(self.binace_client)
         self.interval = KLINE_INTERVAL_1HOUR
-        self.train_data = self.get_data()
+        self.train_data = pd.DataFrame(columns=['open_time', 'Open', 'High', 'Low', 'Close',
+                                                'Volume', 'close_time', 'quote_asset_volume', 'number_of_trades',
+                                                'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
 
         # Matplotlib
         self.exp4 = []
@@ -46,15 +67,21 @@ class RegressionMA:
         self.exp6 = []
         self.exp7 = []
         self.fig = plt.figure()
-        self.ax1 = self.fig.add_subplot(211, label='ax1')
-        self.ax2 = self.fig.add_subplot(212, label='ax2')
+        self.ax1 = self.fig.add_subplot(111, label='ax1')
+        # self.ax2 = self.fig.add_subplot(212, label='ax2')
 
         # Global Config
         self.bbw_threshold = 0.03
         self.adx_threshold = 25
+        self.ohcl = []
 
         # Email Services
         self.mailer = SendMail()
+
+        # MongoDB
+        self.client = MongoClient(host='66.42.37.163', username='admin', password='jkahsduk12387a89sdjk@#',
+                                  authSource='admin')
+        self.db = self.client.crypto
 
     def get_data(self):
         api_key = "y9JKPpQ3B2zwIRD9GwlcoCXwvA3mwBLiNTriw6sCot13IuRvYKigigXYWCzCRiul"
@@ -64,7 +91,7 @@ class RegressionMA:
         df = pd.DataFrame(klines, columns=['open_time', 'Open', 'High', 'Low', 'Close',
                                            'Volume', 'close_time', 'quote_asset_volume', 'number_of_trades',
                                            'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
-        return df
+        self.train_data = df
 
     @classmethod
     def fibonacci(cls, price_max, price_min):
@@ -80,20 +107,52 @@ class RegressionMA:
         self.bm.start()
 
     def fake_socket(self):
-        # data = self.db.btc_1h.find({}, {'_id': 0})
+        # data = self.db.BTCUSDT_1h.find({})
         # data = list(data)
-        # with open('btc_1h.json', 'w') as outfile:
+        # with open('BTCUSDT_1h.json', 'w') as outfile:
         #     json.dump(data, outfile, indent=4)
-        with open('btc_1h.json') as json_file:
+        with open('data/btc_1h_train_18-4-2020.json') as json_file:
             data = json.load(json_file)
             for msg in data:
-                self.global_step += 1
                 self.process_message(msg)
         json_file.close()
+        print(self.global_step)
+
+        # with open('data/Bitcoin240.csv') as json_file:
+        #     for line in json_file.readlines():
+        #         data = line.split(',')
+        #         date_data = "{} {}".format(data[0], data[1])
+        #         time_obj = datetime.datetime.strptime(date_data, "%Y.%m.%d %H:%M")
+        #         msg = {
+        #             "e": "kline",  # event type
+        #             "E": time_obj,  # event time
+        #             "s": "ETHBTC",  # symbol
+        #             "k": {
+        #                 "t": 1499404860000,  # start time of this bar
+        #                 "T": 1499404919999,  # end time of this bar
+        #                 "s": "ETHBTC",  # symbol
+        #                 "i": "1m",  # interval
+        #                 "f": 77462,  # first trade id
+        #                 "L": 77465,  # last trade id
+        #                 "o": data[2],  # open
+        #                 "c": data[5],  # close
+        #                 "h": data[3],  # high
+        #                 "l": data[4],  # low
+        #                 "v": data[6],  # volume
+        #                 "n": 4,  # number of trades
+        #                 "x": True,  # whether this bar is final
+        #                 "q": "1.79662878",  # quote volume
+        #                 "V": "2.34879839",  # volume of active buy
+        #                 "Q": "0.24142166",  # quote volume of active buy
+        #                 "B": "13279784.01349473"  # can be ignored
+        #             }
+        #         }
+        #         self.global_step += 1
+        #         self.process_message(msg)
 
     def process_message(self, msg):
-        if 'timestamp' not in msg['k']:
-            msg['k']['timestamp'] = time.time()
+        if 'timestamp' not in msg:
+            msg['timestamp'] = time.time()
 
         _open_time = msg['k']['t']
         _open = msg['k']['o']
@@ -107,7 +166,7 @@ class RegressionMA:
         _buy_base_asset_volume = msg['k']['V']
         _buy_quote_asset_volume = msg['k']['q']
         _ignore = msg['k']['B']
-        _timestamp = msg['k']['timestamp']
+        _timestamp = msg['timestamp']
 
         if self.is_latest:
             df = pd.DataFrame(
@@ -124,123 +183,230 @@ class RegressionMA:
                     'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'
                 ]
             )
+
+            self.can_order = True
+            self.global_step += 1
             self.train_data = self.train_data.append(df, ignore_index=True, sort=False)
 
         elif len(self.train_data) > 1:
             self.train_data.at[len(self.train_data) - 1, 'Close'] = _close
             self.train_data.at[len(self.train_data) - 1, 'High'] = _high
             self.train_data.at[len(self.train_data) - 1, 'Low'] = _low
+            self.train_data.at[len(self.train_data) - 1, 'Volume'] = _volume
 
         self.is_latest = msg['k']['x']
-        if len(self.train_data) > 1:
-            self.trading(float(_close), _timestamp)
 
-    def trading(self, close_p, _timestamp):
+        if len(self.train_data) > 100:
+            self.trading(float(_close), _timestamp, msg['k']['x'])
+
+    def cal_max_diff(self, close_p):
+        """
+        Tính toán max diff từ khi order
+        return True nếu diff < 0
+        :param close_p:
+        :return:
+        """
+        if self.order:
+            diff = close_p - self.order if self.side == 'buy' else self.order - close_p
+            if diff > self.max_profit:
+                self.max_profit = diff
+
+            elif diff < self.max_loss:
+                self.max_loss = diff
+
+    def check_loss(self, close_p):
+        """
+        Kiểm tra mức lỗ, nếu quá 38,2% so với mức lãi tối đa thì đóng order, bạn
+        chỉ có thể mở order ở timeframe tiếp theo
+        :param close_p:
+        :return: boolean
+        """
+        if self.order:
+            diff = close_p - self.order if self.side == 'buy' else self.order - close_p
+            # if self.max_profit != 0 and diff <= self.max_profit * 0.618:
+            #     # bạn đã lỗ 38,2% so với max profit
+            #     self.can_order = False
+            #     return True
+            if diff <= -50:
+                # bạn đã lỗ 38,2% so với max profit
+                self.can_order = False
+                return True
+
+        return False
+
+    def trading(self, close_p, _timestamp, is_latest):
         df = self.train_data.copy()
+        df['MACD'], df['SIGNAL'], df['HISTOGRAM'] = MACD(df.Close, fastperiod=12, slowperiod=26, signalperiod=9)
         df['MINUS_DI'] = MINUS_DI(df.High, df.Low, df.Close, timeperiod=14)
         df['PLUS_DI'] = PLUS_DI(df.High, df.Low, df.Close, timeperiod=14)
         df['ADX'] = ADX(df.High, df.Low, df.Close, timeperiod=14)
-        df['MA_High'] = MA(df.High, timeperiod=9)
-        df['MA_Low'] = MA(df.Low, timeperiod=9)
+        df['MA'] = MA(df.Close, timeperiod=9)
         df['BAND_UPPER'], df['BAND_MIDDLE'], df['BAND_LOWER'] = BBANDS(df.Close, 20, 2, 2)
-        df['slowk'], df['slowd'] = STOCH(df.High, df.Low, df.Close)
+        df['CCI'] = CCI(df.High, df.Low, df.Close, timeperiod=20)
+        df['SAR'] = SAR(df.High, df.Low)
+        df['ROC'] = ROC(df.Close, timeperiod=9)
+        df['William'] = WILLR(df.High, df.Low, df.Close)
         data = df.dropna()
 
+        # MACD
+        # macd_data = data.MACD.values
+        # sinal_data = data.SIGNAL.values
+        higtogram_data = data.HISTOGRAM.values
+
+        histogram = higtogram_data[-1]
+        # prev_histogram = higtogram_data[-2]
+        # macd = macd_data[-1]
+        # sinal = sinal_data[-1]
+
         # Bollinger band
-        middle_band = data.BAND_MIDDLE.values[-1]
-        lower_band = data.BAND_LOWER.values[-1]
-        upper_band = data.BAND_UPPER.values[-1]
+        band_middle_data = data.BAND_MIDDLE.values
+        # band_lower_data = data.BAND_LOWER.values
+        # band_upper_data = data.BAND_UPPER.values
+        middle_band = band_middle_data[-1]
+        # lower_band = band_lower_data[-1]
+        # upper_band = band_upper_data[-1]
+        # prev_middle_band = band_middle_data[-2]
+        # prev_lower_band = band_lower_data[-2]
+        # prev_upper_band = band_upper_data[-2]
 
         # Bollinger band width
-        bb_w = (upper_band - lower_band) / middle_band
+        # bb_w = (upper_band - lower_band) / middle_band
+        # prev_bb_w = (prev_upper_band - prev_lower_band) / prev_middle_band
 
-        # Stochastic
-        slowk = df.slowk.values[-1]
-        slowd = df.slowd.values[-1]
+        # Commodity Channel Index (Momentum Indicators)
+        cci_data = data.CCI.values
+        cci = cci_data[-1]
+        prev_cci = cci_data[-2]
+        # prev_prev_cci = cci_data[-2]
 
         # ADX DMI
         plus_di_data = data.PLUS_DI.values
         minus_di_data = data.MINUS_DI.values
-        adx = data.ADX.values[-1]
+        adx_data = data.ADX.values
+        adx = adx_data[-1]
+        # prev_adx = adx_data[-2]
         minus_di = minus_di_data[-1]
-        prev_minus_di = minus_di_data[-2]
+        # prev_minus_di = minus_di_data[-2]
         plus_di = plus_di_data[-1]
-        prev_plus_di = plus_di_data[-2]
-        current_time_readable = datetime.datetime.fromtimestamp(_timestamp).strftime('%Y-%m-%d %H:%M:%S')
-        print("{} | Price {} | DI- {} | DI+ {} | ADX {} | BBW: {}".format(
-            current_time_readable,
+        # prev_plus_di = plus_di_data[-2]
+
+        # Parabolic SAR
+        sar_data = data.SAR.values
+        sar = sar_data[-1]
+        # prev_sar = sar_data[-2]
+
+        # ROC
+        roc = df.ROC.values[-1]
+        # close_prices = df.Close.astype('float64').values
+
+        # WILLR
+        willr = df.William.values[-1]
+
+        current_time_readable = datetime.datetime.fromtimestamp(_timestamp).strftime('%d-%m-%Y %H:%M:%S')
+        log_txt = " Price {} | DI- {} | DI+ {} | ADX {} | SAR: {} | CCI {} | ROC {}".format(
             round(close_p, 2),
             round(minus_di, 2),
             round(plus_di, 2),
             round(adx, 2),
-            round(bb_w, 4)
+            round(sar, 2),
+            round(cci, 2),
+            round(roc, 2)
         )
-        )
+        # print(log_txt)
+        console_logger.info(log_txt)
 
+        # tính toán max diff, nếu như diff hiện tại nhỏ hơn 61,8% max profit thì force close order
+        # if is_latest:
+        #     self.cal_max_diff(close_p)
+
+        # force_close = self.check_loss(close_p)
+        # force_close = False
         # Place Buy Order
-        if not self.order and \
+        if not self.order and self.can_order and \
+                (adx > self.adx_threshold or plus_di > self.adx_threshold) and \
                 plus_di > minus_di and \
-                adx > self.adx_threshold and \
-                plus_di > prev_plus_di and \
                 close_p > middle_band and \
-                slowk > slowd and \
-                bb_w > self.bbw_threshold:
+                close_p > sar and \
+                cci > 110 and \
+                cci > prev_cci and \
+                roc > 2 and \
+                histogram > 5 and \
+                willr > -20:
             # buy signal
-            self.buy_margin()
+            # self.buy_margin()
             self.side = 'buy'
             self.order = close_p
-            logging.warning("{} | Buy Order | Price {} | ADX {} | %K: {} | %D {}".format(current_time_readable,
-                                                                                         round(close_p, 2),
-                                                                                         round(adx, 2),
-                                                                                         round(slowk, 2),
-                                                                                         round(slowd, 2)))
+            txt = "{} | Buy Order Price {} | DI- {} | DI+ {} | ADX {} | SAR: {} | CCI {} | ROC {}".format(
+                current_time_readable, round(close_p, 2), round(minus_di, 2),
+                round(plus_di, 2), round(adx, 2), round(sar, 2), round(cci, 2), round(roc, 2)
+            )
+            print(txt)
+            self.mailer.notification(txt)
+            autotrade_logger.info(txt)
+
         # CLose Buy Order
         elif self.side == 'buy' and self.order and \
-                (close_p < middle_band or (slowd > slowk > 80)):
+                (close_p < middle_band or close_p < sar):
             # take profit
-            self.close_buy_margin()
+            # self.close_buy_margin()
             diff = close_p - self.order
             self.budget += diff
             self.reset()
-            logging.warning("{} | Close Buy Order At {} | Budget {} | Diff {}".format(current_time_readable,
-                                                                                      round(close_p, 2),
-                                                                                      round(self.budget, 2),
-                                                                                      round(diff, 2)))
+            txt = "{} | Close Buy Order Price {} | DI- {} | DI+ {} | ADX {} | " \
+                  "SAR: {} | CCI {} | ROC {} | Diff {} | Budget {} | Max Diff {}".format(
+                current_time_readable,
+                round(close_p, 2), round(minus_di, 2), round(plus_di, 2), round(adx, 2), round(sar, 2),
+                round(cci, 2), round(roc, 2), round(diff, 2), round(self.budget, 2), round(self.max_profit, 2))
+            autotrade_logger.info(txt)
+            self.mailer.notification(txt)
+            self.max_profit = 0
 
         # Place Sell Order
-        elif not self.order and \
+        elif not self.order and self.can_order and \
+                (adx > self.adx_threshold or minus_di > self.adx_threshold) and \
                 minus_di > plus_di and \
-                adx > self.adx_threshold and \
-                minus_di > prev_minus_di and \
                 close_p < middle_band and \
-                slowk < slowd and \
-                bb_w > self.bbw_threshold:
+                close_p < sar and \
+                cci < -110 and \
+                prev_cci > cci and \
+                roc < -2 and \
+                histogram < -5 and \
+                willr < -80:
 
             self.side = 'sell'
             self.order = close_p
-            txt = "{} | Sell Order | Price {} | ADX {} | Stop Loss {}".format(
+            txt = "{} | Sell Order Price {} | DI- {} | DI+ {} | ADX {} | SAR: {} | CCI {} | ROC {}".format(
                 current_time_readable,
                 round(close_p, 2),
+                round(minus_di, 2),
+                round(plus_di, 2),
                 round(adx, 2),
-                round(self.stop_loss, 2)
+                round(sar, 2),
+                round(cci, 2),
+                round(roc, 2)
             )
-            self.borrow_btc()
+            # self.borrow_btc()
             self.mailer.notification(txt)
-            logging.warning(txt)
+            autotrade_logger.info(txt)
 
         # Close Sell Order
         elif self.side == 'sell' and self.order and \
-                (close_p > middle_band or 20 > slowk > slowd):
+                (close_p > middle_band or close_p > sar):
+
             diff = self.order - close_p
             self.budget += diff
             self.side = None
             self.reset()
-            txt = "{} | Close Sell Order At {} | Budget {} | Diff {}".format(
-                current_time_readable, round(close_p, 2),
-                round(self.budget, 2), round(diff, 2)
+            txt = "{} | Close Sell Order {} | DI- {} | DI+ {} | ADX {} | " \
+                  "SAR: {} | CCI {} | ROC {} | Diff {} | Budget {} | Max Diff {} ".format(
+                current_time_readable,
+                round(close_p, 2), round(minus_di, 2), round(plus_di, 2), round(adx, 2),
+                round(sar, 2), round(cci, 2), round(roc, 2), round(diff, 2), round(self.budget, 2),
+                round(self.max_profit, 2),
             )
-            self.repay_btc()
-            logging.warning(txt)
+            self.max_profit = 0
+            # self.repay_btc()
+            autotrade_logger.info(txt)
             self.mailer.notification(txt)
 
     def reset(self):
@@ -248,6 +414,7 @@ class RegressionMA:
         self.side = None
         self.take_profit = 0
         self.stop_loss = 0
+        self.can_order = False
 
     def test_buy_order(self):
         info = self.binace_client.get_margin_account()
@@ -297,9 +464,9 @@ class RegressionMA:
                 quantity=amt_str
             )
             txt = 'You borrow: {}'.format(amt_str)
-            logging.warning(txt)
-            print(txt)
+            autotrade_logger.info(txt)
         except Exception as ex:
+            autotrade_logger.error(ex)
             self.mailer.notification(str(ex))
 
     def repay_btc(self):
@@ -336,9 +503,9 @@ class RegressionMA:
                     # repay
                     transaction = self.binace_client.repay_margin_loan(asset='BTC', amount=btc_free)
                     txt = 'You repay : {} {}'.format(amt_str, symbol_detail)
-                    logging.warning(txt)
-                    print(txt)
+                    autotrade_logger.info(txt)
         except Exception as ex:
+            autotrade_logger.error(ex)
             self.mailer.notification(str(ex))
 
     def buy_margin(self):
@@ -351,22 +518,19 @@ class RegressionMA:
             precision = 5
             amt_str = "{:0.0{}f}".format(amount * self.trade_amount, precision)
             txt = "Buy successfully | Amount {} | Price {}".format(amt_str, price_index['price'])
-            print(txt)
             buy_order = self.binace_client.create_margin_order(
                 symbol=symbol,
                 side=SIDE_BUY,
                 type=ORDER_TYPE_MARKET,
                 quantity=amt_str)
-            self.mailer.notification(txt)
-            logging.warning(txt)
+            autotrade_logger.info(txt)
             self.buy_mount = amt_str
             with open("config.txt", "w") as file:
                 file.write("{},{}".format(price_index['price'], amt_str))
             return True
         except Exception as ex:
-            print(ex)
             self.mailer.notification(str(ex))
-            logging.warning(ex)
+            autotrade_logger.error(ex)
             return False
 
     def close_buy_margin(self):
@@ -382,7 +546,7 @@ class RegressionMA:
                     btc_free = market['free']
                     precision = 5
                     # amt_str = btc_free
-                    amt_str = "{:0.0{}f}".format(float(btc_free) - 0.0001, precision)
+                    amt_str = "{:0.0{}f}".format(float(btc_free) - 0.0002, precision)
 
                     # Sell btc
                     buy_order = self.binace_client.create_margin_order(
@@ -402,16 +566,13 @@ class RegressionMA:
                 price_index['price'],
                 current_btc
             )
-            logging.warning(txt)
-            print(txt)
-            self.mailer.notification(txt)
+            autotrade_logger.info(txt)
             with open("config.txt", "w") as file:
                 file.write("{},{}".format(0, 0))
             return True
         except Exception as ex:
-            print(ex)
             self.mailer.notification(str(ex))
-            logging.warning(ex)
+            autotrade_logger.error(ex)
             return False
 
     def plot_data(self):

@@ -3,3 +3,4 @@ numpy
 python-binance
 matplotlib
 TA-Lib
+mpl_finance
