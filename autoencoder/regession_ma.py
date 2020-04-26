@@ -29,8 +29,6 @@ fh2.setFormatter(formatter)
 autotrade_logger.addHandler(fh1)
 console_logger.addHandler(fh2)
 
-# logging.basicConfig(filename='log/autotrade.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
-
 
 class RegressionMA:
     def __init__(self):

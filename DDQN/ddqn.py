@@ -24,12 +24,12 @@ class DDQN:
         #
         self.lr = 1e-3
         self.gamma = 0.95
-        self.alpha = 0.2
+        self.alpha = 0.75
         self.delta = 0.95
-        self.discount_rate = 0.95
+        self.discount_rate = 0.99
         self.epsilon = 1
-        self.epsilon_min = 0.0
-        self.epsilon_decay = 0.99
+        self.epsilon_min = 0.01
+        self.epsilon_decay = 0.999
         self.buffer_size = 20000
         #
         # if(len(self.state_dim) < 3):
@@ -52,16 +52,25 @@ class DDQN:
             s1 = np.expand_dims(s1, axis=0)
             s2 = np.expand_dims(s2, axis=0)
             policy_value = self.agent.predict(s1, s2)[0]
-            logging.warning(policy_value)
             return np.argmax(policy_value)
+
+    def get_action(self, s1, s2):
+        """ Apply an espilon-greedy policy to pick next action
+        """
+        # logging.warning(self.agent.predict(s))
+        s1 = np.expand_dims(s1, axis=0)
+        s2 = np.expand_dims(s2, axis=0)
+        policy_value = self.agent.predict(s1, s2)[0]
+        logging.warning(policy_value)
+        return np.argmax(policy_value)
 
     def discount(self, r):
         """ Compute the gamma-discounted rewards over an episode
         """
         discounted_r, cumul_r = np.zeros_like(r), 0
-        for t in reversed(range(0, len(r))):
+        for t in range(0, len(r)):
             reward = r[t]
-            cumul_r = reward + (cumul_r * self.discount_rate)
+            cumul_r += cumul_r * pow(self.discount_rate, t) * reward
             discounted_r[t] = cumul_r
         return discounted_r
 
@@ -76,16 +85,24 @@ class DDQN:
         # Apply Bellman Equation on batch samples to train our DDQN
         q = self.agent.predict(s1, s2)
         next_q = self.agent.predict(new_s1, new_s2)
-        # q_targ = self.agent.target_predict(new_s1, new_s2)
+        q_targ = self.agent.target_predict(new_s1, new_s2)
 
+        # for i in range(s1.shape[0] - 1):
+            # if d[i]:
+            #     q[i, a[i]] += self.alpha * (r[i] + q[i, a[i]])
+            # else:
+            #     next_best_action = np.argmax(next_q[i,:])
+            #     td_target = r[i+1] + self.discount_rate * next_q[i][next_best_action]
+            #     td_delta = td_target - q[i, a[i]]
+            #     q[i, a[i]] += self.alpha * td_delta
+            #
         for i in range(s1.shape[0] - 1):
+            old_q = q[i, a[i]]
             if d[i]:
-                q[i, a[i]] += self.alpha * (r[i] - q[i, a[i]])
+                q[i, a[i]] = r[i]
             else:
-                next_best_action = np.argmax(next_q[i,:])
-                td_target = r[i+1] + self.discount_rate * next_q[i][next_best_action]
-                td_delta = td_target - q[i, a[i]]
-                q[i, a[i]] += self.alpha * td_delta
+                best_action = np.argmax(q[i, :])
+                q[i, a[i]] = r[i] + self.gamma * q[i, best_action]
 
         # Train on batch
         self.agent.fit(s1, s2, q)
@@ -105,7 +122,7 @@ class DDQN:
         while True:
             if args.render: env.render()
             # Actor picks an action (following the policy)
-            a = self.policy_action(s1, s2)
+            a = self.get_action(s1, s2)
             # Retrieve new state, reward, and whether the state is terminal
             n_s1, n_s2, r, done, info = env.act(a)
             s1 = n_s1
@@ -113,7 +130,7 @@ class DDQN:
             cumul_reward += r
             time += 1
             info['step'] = step
-            if info['end_ep']:
+            if info['end_ep'] or done:
                 logging.warning(info)
                 break
 
@@ -154,10 +171,10 @@ class DDQN:
                 # Train DDQN and transfer weights to target network
                 if self.buffer.count >= args.batch_size:
                     self.train_agent(args.batch_size)
-                    # self.agent.transfer_weights()
+                    self.agent.transfer_weights()
 
-            # if e % 100 == 0:
-            #     self.test(test_env, args, e)
+            if e % 50 == 0:
+                self.test(test_env, args, e)
             # Display score
             # total_profit = self.test(summary_writer, e)
 

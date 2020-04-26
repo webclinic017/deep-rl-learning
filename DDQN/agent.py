@@ -19,9 +19,9 @@ class Agent:
         self.model = self.network(dueling)
         self.model.compile(Adam(), 'mse')
         # Build target Q-Network
-        # self.target_model = self.network(dueling)
-        # self.target_model.compile(Adam(lr), 'mse')
-        # self.target_model.set_weights(self.model.get_weights())
+        self.target_model = self.network(dueling)
+        self.target_model.compile(Adam(lr), 'mse')
+        self.target_model.set_weights(self.model.get_weights())
 
     def huber_loss(self, y_true, y_pred):
         return K.mean(K.sqrt(1 + K.square(y_pred - y_true)) - 1, axis=-1)
@@ -29,19 +29,19 @@ class Agent:
     def network(self, dueling):
         """ Build Deep Q-Network
         """
-        inp = Input((5, 16))
-        x1 = LSTM(1024, dropout=0.1, recurrent_dropout=0.3, return_sequences=True)(inp)
-        x1 = LSTM(512, dropout=0.1, recurrent_dropout=0.3, return_sequences=True)(x1)
-        x1 = LSTM(512, dropout=0.1, recurrent_dropout=0.3)(x1)
+        inp = Input((10, 5))
+        x1 = LSTM(512, dropout=0.1, recurrent_dropout=0.3, return_sequences=True)(inp)
+        x1 = LSTM(256, dropout=0.1, recurrent_dropout=0.3, return_sequences=True)(x1)
+        x1 = LSTM(128, dropout=0.1, recurrent_dropout=0.3)(x1)
         x1 = Dense(128, activation='relu')(x1)
 
-        inp2 = Input((2,))
-        x2 = Dense(128, activation='relu')(inp2)
+        # inp2 = Input((2,))
+        # x2 = Dense(128, activation='relu')(inp2)
 
-        output = concatenate([x1, x2])
+        # output = concatenate([x1, x2])
 
-        output = Dense(128, activation='relu')(output)
-        output = Dense(128, activation='relu')(output)
+        # output = Dense(128, activation='relu')(output)
+        output = Dense(128, activation='relu')(x1)
 
         if dueling:
             # Have the network estimate the Advantage function as an intermediate layer
@@ -50,11 +50,12 @@ class Agent:
                             output_shape=(self.action_dim,))(output)
         else:
             output = Dense(self.action_dim, activation='linear')(output)
-        model = Model(inputs=[inp, inp2], output=output)
+        model = Model(inputs=inp, output=output)
         model.summary()
         return model
 
     def transfer_weights(self):
+
         """ Transfer Weights from Model to Target at rate Tau
         """
         W = self.model.get_weights()
@@ -66,17 +67,17 @@ class Agent:
     def fit(self, inp1, inp2, targ):
         """ Perform one epoch of training
         """
-        self.model.fit(x=[inp1, inp2], y=targ, epochs=1, verbose=0)
+        self.model.fit(x=inp1, y=targ, epochs=1, verbose=0)
 
     def predict(self, inp1, inp2):
         """ Q-Value Prediction
         """
-        return self.model.predict(x=[inp1, inp2])
+        return self.model.predict(x=inp1)
 
     def target_predict(self, inp1, inp2):
         """ Q-Value Prediction (using target network)
         """
-        return self.target_model.predict(x=[inp1, inp2])
+        return self.target_model.predict(x=inp1)
 
     def reshape(self, x):
         # if len(x.shape) < 4 and len(self.state_dim) > 2: return np.expand_dims(x, axis=0)
