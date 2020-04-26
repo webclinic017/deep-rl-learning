@@ -233,6 +233,7 @@ class RegressionMA:
         df['ADX'] = ADX(df.high, df.low, df.close, timeperiod=14)
         df['MA'] = MA(df.close, timeperiod=9)
         df['BAND_UPPER'], df['BAND_MIDDLE'], df['BAND_LOWER'] = BBANDS(df.close, 20, 2, 2)
+        df['BAND_WIDTH'] = (df['BAND_UPPER'] - df['BAND_LOWER']) / df['BAND_MIDDLE']
         df['CCI'] = CCI(df.high, df.low, df.close, timeperiod=20)
         df['SAR'] = SAR(df.high, df.low)
         df['ROC'] = ROC(df.close, timeperiod=9)
@@ -244,10 +245,13 @@ class RegressionMA:
         higtogram_data = data.HISTOGRAM.values
 
         histogram = higtogram_data[-1]
+        histogram_prev = higtogram_data[-11:-1]
 
         # Bollinger band
         band_middle_data = data.BAND_MIDDLE.values
         middle_band = band_middle_data[-1]
+        bb_w = data.BAND_WIDTH.values[-11:-1]
+        last_bb_w = data.BAND_WIDTH.values[-1]
 
         # Commodity Channel Index (Momentum Indicators)
         cci_data = data.CCI.values
@@ -297,9 +301,11 @@ class RegressionMA:
                 close_p > sar and \
                 cci > 110 and \
                 cci > prev_cci and \
-                roc > 2 and \
+                roc > 0.5 and \
                 histogram > 5 and \
-                willr > -20:
+                willr > -20 and \
+                all(last_bb_w > x for x in bb_w) and \
+                all(histogram > x for x in histogram_prev):
             # buy signal
             # self.buy_margin()
             self.side = 'buy'
@@ -352,9 +358,11 @@ class RegressionMA:
                 close_p < sar and \
                 cci < -110 and \
                 prev_cci > cci and \
-                roc < -2 and \
+                roc < -0.5 and \
                 histogram < -5 and \
-                willr < -80:
+                willr < -80 and \
+                all(last_bb_w > x for x in bb_w) and \
+                all(histogram < x for x in histogram_prev):
 
             self.side = 'sell'
             self.order = close_p

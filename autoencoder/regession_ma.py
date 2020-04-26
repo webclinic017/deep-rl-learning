@@ -49,6 +49,7 @@ class RegressionMA:
         self.take_profit, self.stop_loss = 0, 0
         self.is_latest = False
         self.can_order = True
+        self.force_close = False
         self.trade_amount = 0.5  # 75% currency you owned
         self.api_key = "9Hj6HLNNMGgkqj6ngouMZD1kjIbUb6RZmIpW5HLiZjtDT5gwhXAzc20szOKyQ3HW"
         self.api_secret = "ioD0XICp0cFE99VVql5nuxiCJEb6GK8mh08NYnSYdIUfkiotd1SZqLTQsjFvrXwk"
@@ -109,7 +110,7 @@ class RegressionMA:
         # data = list(data)
         # with open('BTCUSDT_1h.json', 'w') as outfile:
         #     json.dump(data, outfile, indent=4)
-        with open('data/btc_1h_train_18-4-2020.json') as json_file:
+        with open('BTCUSDT_1h.json') as json_file:
             data = json.load(json_file)
             for msg in data:
                 self.process_message(msg)
@@ -197,7 +198,7 @@ class RegressionMA:
         if len(self.train_data) > 100:
             self.trading(float(_close), _timestamp, msg['k']['x'])
 
-    def cal_max_diff(self, close_p):
+    def check_profit(self, close_p):
         """
         Tính toán max diff từ khi order
         return True nếu diff < 0
@@ -209,8 +210,9 @@ class RegressionMA:
             if diff > self.max_profit:
                 self.max_profit = diff
 
-            elif diff < self.max_loss:
-                self.max_loss = diff
+            if self.max_profit == 0:
+                self.can_order = False
+                self.force_close = True
 
     def check_loss(self, close_p):
         """
@@ -221,16 +223,14 @@ class RegressionMA:
         """
         if self.order:
             diff = close_p - self.order if self.side == 'buy' else self.order - close_p
-            # if self.max_profit != 0 and diff <= self.max_profit * 0.618:
-            #     # bạn đã lỗ 38,2% so với max profit
-            #     self.can_order = False
-            #     return True
-            if diff <= -50:
+            if self.max_profit != 0 and diff <= self.max_profit * 0.5:
                 # bạn đã lỗ 38,2% so với max profit
                 self.can_order = False
-                return True
-
-        return False
+                self.force_close = True
+            if diff <= -100:
+                # bạn đã lỗ $30
+                self.can_order = False
+                self.force_close = True
 
     def trading(self, close_p, _timestamp, is_latest):
         df = self.train_data.copy()
@@ -240,10 +240,11 @@ class RegressionMA:
         df['ADX'] = ADX(df.High, df.Low, df.Close, timeperiod=14)
         df['MA'] = MA(df.Close, timeperiod=9)
         df['BAND_UPPER'], df['BAND_MIDDLE'], df['BAND_LOWER'] = BBANDS(df.Close, 20, 2, 2)
+        df['BAND_WIDTH'] = (df['BAND_UPPER'] - df['BAND_LOWER']) / df['BAND_MIDDLE']
         df['CCI'] = CCI(df.High, df.Low, df.Close, timeperiod=20)
         df['SAR'] = SAR(df.High, df.Low)
-        df['ROC'] = ROC(df.Close, timeperiod=9)
-        df['William'] = WILLR(df.High, df.Low, df.Close)
+        df['ROC'] = ROC(df.Close, timeperiod=14)
+        df['William'] = WILLR(df.High, df.Low, df.Close, timeperiod=14)
         data = df.dropna()
 
         # MACD
@@ -252,6 +253,7 @@ class RegressionMA:
         higtogram_data = data.HISTOGRAM.values
 
         histogram = higtogram_data[-1]
+        histogram_prev = higtogram_data[-5:-1]
         # prev_histogram = higtogram_data[-2]
         # macd = macd_data[-1]
         # sinal = sinal_data[-1]
@@ -268,7 +270,8 @@ class RegressionMA:
         # prev_upper_band = band_upper_data[-2]
 
         # Bollinger band width
-        # bb_w = (upper_band - lower_band) / middle_band
+        bb_w = data.BAND_WIDTH.values[-5:-1]
+        last_bb_w = data.BAND_WIDTH.values[-1]
         # prev_bb_w = (prev_upper_band - prev_lower_band) / prev_middle_band
 
         # Commodity Channel Index (Momentum Indicators)
@@ -311,22 +314,26 @@ class RegressionMA:
         console_logger.info(log_txt)
 
         # tính toán max diff, nếu như diff hiện tại nhỏ hơn 61,8% max profit thì force close order
-        # if is_latest:
-        #     self.cal_max_diff(close_p)
+        if is_latest:
+            self.check_profit(close_p)
 
-        # force_close = self.check_loss(close_p)
+        if not self.force_close:
+            self.check_loss(close_p)
+
         # force_close = False
         # Place Buy Order
         if not self.order and self.can_order and \
-                (adx > self.adx_threshold or plus_di > self.adx_threshold) and \
+                (adx > self.adx_threshold and plus_di > self.adx_threshold) and \
                 plus_di > minus_di and \
                 close_p > middle_band and \
                 close_p > sar and \
-                cci > 110 and \
+                cci > 100 and \
                 cci > prev_cci and \
-                roc > 2 and \
+                roc > 1.5 and \
                 histogram > 5 and \
-                willr > -20:
+                willr > -20 and \
+                all(last_bb_w > x for x in bb_w) and \
+                all(histogram > x for x in histogram_prev):
             # buy signal
             # self.buy_margin()
             self.side = 'buy'
@@ -335,13 +342,13 @@ class RegressionMA:
                 current_time_readable, round(close_p, 2), round(minus_di, 2),
                 round(plus_di, 2), round(adx, 2), round(sar, 2), round(cci, 2), round(roc, 2)
             )
-            print(txt)
-            self.mailer.notification(txt)
+            # print(txt)
+            # self.mailer.notification(txt)
             autotrade_logger.info(txt)
 
         # CLose Buy Order
         elif self.side == 'buy' and self.order and \
-                (close_p < middle_band or close_p < sar):
+                (close_p < middle_band or close_p < sar or self.force_close):
             # take profit
             # self.close_buy_margin()
             diff = close_p - self.order
@@ -353,20 +360,22 @@ class RegressionMA:
                 round(close_p, 2), round(minus_di, 2), round(plus_di, 2), round(adx, 2), round(sar, 2),
                 round(cci, 2), round(roc, 2), round(diff, 2), round(self.budget, 2), round(self.max_profit, 2))
             autotrade_logger.info(txt)
-            self.mailer.notification(txt)
+            # self.mailer.notification(txt)
             self.max_profit = 0
 
         # Place Sell Order
         elif not self.order and self.can_order and \
-                (adx > self.adx_threshold or minus_di > self.adx_threshold) and \
+                (adx > self.adx_threshold and minus_di > self.adx_threshold) and \
                 minus_di > plus_di and \
                 close_p < middle_band and \
                 close_p < sar and \
-                cci < -110 and \
+                cci < -100 and \
                 prev_cci > cci and \
-                roc < -2 and \
+                roc < -1.5 and \
                 histogram < -5 and \
-                willr < -80:
+                willr < -80 and \
+                all(last_bb_w > x for x in bb_w) and \
+                all(histogram < x for x in histogram_prev):
 
             self.side = 'sell'
             self.order = close_p
@@ -381,12 +390,12 @@ class RegressionMA:
                 round(roc, 2)
             )
             # self.borrow_btc()
-            self.mailer.notification(txt)
+            # self.mailer.notification(txt)
             autotrade_logger.info(txt)
 
         # Close Sell Order
         elif self.side == 'sell' and self.order and \
-                (close_p > middle_band or close_p > sar):
+                (close_p > middle_band or close_p > sar or self.force_close):
 
             diff = self.order - close_p
             self.budget += diff
@@ -402,7 +411,7 @@ class RegressionMA:
             self.max_profit = 0
             # self.repay_btc()
             autotrade_logger.info(txt)
-            self.mailer.notification(txt)
+            # self.mailer.notification(txt)
 
     def reset(self):
         self.order = 0
@@ -410,6 +419,7 @@ class RegressionMA:
         self.take_profit = 0
         self.stop_loss = 0
         self.can_order = False
+        self.force_close = False
 
     def test_buy_order(self):
         info = self.binace_client.get_margin_account()
@@ -581,9 +591,9 @@ class RegressionMA:
 if __name__ == '__main__':
     bottrading = RegressionMA()
     # bottrading.plot_data()
-    bottrading.get_data()
+    # bottrading.get_data()
     # bottrading.test_trading()
-    # bottrading.fake_socket()
-    bottrading.start_socket()
+    bottrading.fake_socket()
+    # bottrading.start_socket()
     # bottrading.test_buy_order()
     # bottrading.test_sell_order()
