@@ -72,7 +72,7 @@ class RegressionMA:
         # Global Config
         self.bbw_threshold = 0.03
         self.adx_threshold = 25
-        self.ohcl = []
+        self.prev_frames = 5
 
         # Email Services
         self.mailer = SendMail()
@@ -108,14 +108,13 @@ class RegressionMA:
     def fake_socket(self):
         # data = self.db.BTCUSDT_1h.find({})
         # data = list(data)
-        # with open('BTCUSDT_1h.json', 'w') as outfile:
+        # with open('data/BTCUSDT_1h.json', 'w') as outfile:
         #     json.dump(data, outfile, indent=4)
-        with open('BTCUSDT_1h.json') as json_file:
+        with open('data/BTCUSDT_1h.json') as json_file:
             data = json.load(json_file)
             for msg in data:
                 self.process_message(msg)
         json_file.close()
-        print(self.global_step)
 
         # with open('data/Bitcoin240.csv') as json_file:
         #     for line in json_file.readlines():
@@ -150,8 +149,8 @@ class RegressionMA:
         #         self.process_message(msg)
 
     def process_message(self, msg):
-        if 'timestamp' not in msg:
-            msg['timestamp'] = time.time()
+        # if 'timestamp' not in msg:
+        #     msg['timestamp'] = time.time()
 
         _open_time = msg['k']['t']
         _open = msg['k']['o']
@@ -165,7 +164,7 @@ class RegressionMA:
         _buy_base_asset_volume = msg['k']['V']
         _buy_quote_asset_volume = msg['k']['q']
         _ignore = msg['k']['B']
-        _timestamp = msg['timestamp']
+        _timestamp = msg['E']/1000
 
         if self.is_latest:
             df = pd.DataFrame(
@@ -210,7 +209,7 @@ class RegressionMA:
             if diff > self.max_profit:
                 self.max_profit = diff
 
-            if self.max_profit == 0:
+            if self.max_profit <= 0:
                 self.can_order = False
                 self.force_close = True
 
@@ -224,10 +223,10 @@ class RegressionMA:
         if self.order:
             diff = close_p - self.order if self.side == 'buy' else self.order - close_p
             if self.max_profit != 0 and diff <= self.max_profit * 0.5:
-                # bạn đã lỗ 38,2% so với max profit
+                # bạn đã lỗ 38.2% so với max profit
                 self.can_order = False
                 self.force_close = True
-            if diff <= -100:
+            if diff <= -50:
                 # bạn đã lỗ $30
                 self.can_order = False
                 self.force_close = True
@@ -248,60 +247,44 @@ class RegressionMA:
         data = df.dropna()
 
         # MACD
-        # macd_data = data.MACD.values
-        # sinal_data = data.SIGNAL.values
+        macd_data = data.MACD.values
+        sinal_data = data.SIGNAL.values
         higtogram_data = data.HISTOGRAM.values
 
         histogram = higtogram_data[-1]
-        histogram_prev = higtogram_data[-5:-1]
-        # prev_histogram = higtogram_data[-2]
-        # macd = macd_data[-1]
-        # sinal = sinal_data[-1]
+        histogram_prev = higtogram_data[-self.prev_frames:-1]
+        macd = macd_data[-1]
+        sinal = sinal_data[-1]
 
         # Bollinger band
         band_middle_data = data.BAND_MIDDLE.values
-        # band_lower_data = data.BAND_LOWER.values
-        # band_upper_data = data.BAND_UPPER.values
         middle_band = band_middle_data[-1]
-        # lower_band = band_lower_data[-1]
-        # upper_band = band_upper_data[-1]
-        # prev_middle_band = band_middle_data[-2]
-        # prev_lower_band = band_lower_data[-2]
-        # prev_upper_band = band_upper_data[-2]
 
         # Bollinger band width
-        bb_w = data.BAND_WIDTH.values[-5:-1]
+        bb_w = data.BAND_WIDTH.values[-self.prev_frames:-1]
         last_bb_w = data.BAND_WIDTH.values[-1]
-        # prev_bb_w = (prev_upper_band - prev_lower_band) / prev_middle_band
 
         # Commodity Channel Index (Momentum Indicators)
         cci_data = data.CCI.values
         cci = cci_data[-1]
-        prev_cci = cci_data[-2]
-        # prev_prev_cci = cci_data[-2]
 
         # ADX DMI
         plus_di_data = data.PLUS_DI.values
         minus_di_data = data.MINUS_DI.values
         adx_data = data.ADX.values
         adx = adx_data[-1]
-        # prev_adx = adx_data[-2]
         minus_di = minus_di_data[-1]
-        # prev_minus_di = minus_di_data[-2]
         plus_di = plus_di_data[-1]
-        # prev_plus_di = plus_di_data[-2]
 
         # Parabolic SAR
         sar_data = data.SAR.values
         sar = sar_data[-1]
-        # prev_sar = sar_data[-2]
 
         # ROC
-        roc = df.ROC.values[-1]
-        # close_prices = df.Close.astype('float64').values
+        roc = data.ROC.values[-1]
 
         # WILLR
-        willr = df.William.values[-1]
+        willr = data.William.values[-1]
 
         current_time_readable = datetime.datetime.fromtimestamp(_timestamp).strftime('%d-%m-%Y %H:%M:%S')
         log_txt = " Price {} | DI- {} | DI+ {} | ADX {} | SAR {} | CCI {} | ROC {} | %William {} | Histogram {} | Middle Band {}".format(
@@ -328,9 +311,8 @@ class RegressionMA:
                 close_p > middle_band and \
                 close_p > sar and \
                 cci > 100 and \
-                cci > prev_cci and \
-                roc > 1.5 and \
-                histogram > 5 and \
+                roc > 1 and \
+                histogram > 5 and macd > sinal and \
                 willr > -20 and \
                 all(last_bb_w > x for x in bb_w) and \
                 all(histogram > x for x in histogram_prev):
@@ -370,9 +352,8 @@ class RegressionMA:
                 close_p < middle_band and \
                 close_p < sar and \
                 cci < -100 and \
-                prev_cci > cci and \
-                roc < -1.5 and \
-                histogram < -5 and \
+                roc < -1 and \
+                histogram < -5 and macd < sinal and \
                 willr < -80 and \
                 all(last_bb_w > x for x in bb_w) and \
                 all(histogram < x for x in histogram_prev):

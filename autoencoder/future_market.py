@@ -36,7 +36,7 @@ console_logger.addHandler(fh2)
 
 
 class RegressionMA:
-    def __init__(self):
+    def __init__(self, trading=False):
         self.global_step = 0
         self.order = 0
         self.buy_mount = 0
@@ -54,6 +54,7 @@ class RegressionMA:
         self.take_profit, self.stop_loss = 0, 0
         self.is_latest = False
         self.can_order = True
+        self.can_open_order = trading
         self.trade_amount = 0.1  # 10% currency you owned
         self.interval = KLINE_INTERVAL_1HOUR
         self.train_data = pd.DataFrame(columns=['openTime', 'open', 'high', 'low', 'close', 'volume', 'closeTime',
@@ -72,7 +73,8 @@ class RegressionMA:
         # Global Config
         self.bbw_threshold = 0.03
         self.adx_threshold = 25
-        self.ohcl = []
+        self.prev_frames = 5
+        self.force_close = False
 
         # Email Services
         self.mailer = SendMail()
@@ -111,18 +113,6 @@ class RegressionMA:
     @staticmethod
     def error(e: 'BinanceApiException'):
         print(e.error_code + e.error_message)
-
-    def fake_socket(self):
-        # data = self.db.BTCUSDT_1h.find({})
-        # data = list(data)
-        # with open('BTCUSDT_1h.json', 'w') as outfile:
-        #     json.dump(data, outfile, indent=4)
-        with open('data/btc_1h_train_18-4-2020.json') as json_file:
-            data = json.load(json_file)
-            for msg in data:
-                self.process_message(msg)
-        json_file.close()
-        print(self.global_step)
 
     def process_message(self, data_type: 'SubscribeMessageType', event: 'any'):
         if data_type == SubscribeMessageType.RESPONSE:
@@ -190,7 +180,7 @@ class RegressionMA:
         else:
             print("Unknown Data:")
 
-    def cal_max_diff(self, close_p):
+    def check_profit(self, close_p):
         """
         Tính toán max diff từ khi order
         return True nếu diff < 0
@@ -202,8 +192,9 @@ class RegressionMA:
             if diff > self.max_profit:
                 self.max_profit = diff
 
-            elif diff < self.max_loss:
-                self.max_loss = diff
+            if self.max_profit <= 0:
+                self.can_order = False
+                self.force_close = True
 
     def check_loss(self, close_p):
         """
@@ -214,49 +205,51 @@ class RegressionMA:
         """
         if self.order:
             diff = close_p - self.order if self.side == 'buy' else self.order - close_p
-            # if self.max_profit != 0 and diff <= self.max_profit * 0.618:
-            #     # bạn đã lỗ 38,2% so với max profit
-            #     self.can_order = False
-            #     return True
-            if diff <= -50:
-                # bạn đã lỗ 38,2% so với max profit
+            if self.max_profit != 0 and diff <= self.max_profit * 0.5:
+                # bạn đã lỗ 50% so với max profit
                 self.can_order = False
-                return True
-
-        return False
+                self.force_close = True
+            if diff <= -50:
+                # bạn đã lỗ $50
+                self.can_order = False
+                self.force_close = True
 
     def trading(self, close_p, _timestamp, is_latest):
         df = self.train_data.copy()
-        df['MACD'], df['SIGNAL'], df['HISTOGRAM'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
-        df['MINUS_DI'] = MINUS_DI(df.high, df.low, df.close, timeperiod=14)
-        df['PLUS_DI'] = PLUS_DI(df.high, df.low, df.close, timeperiod=14)
-        df['ADX'] = ADX(df.high, df.low, df.close, timeperiod=14)
-        df['MA'] = MA(df.close, timeperiod=9)
-        df['BAND_UPPER'], df['BAND_MIDDLE'], df['BAND_LOWER'] = BBANDS(df.close, 20, 2, 2)
+        df['MACD'], df['SIGNAL'], df['HISTOGRAM'] = MACD(df.Close, fastperiod=12, slowperiod=26, signalperiod=9)
+        df['MINUS_DI'] = MINUS_DI(df.High, df.Low, df.Close, timeperiod=14)
+        df['PLUS_DI'] = PLUS_DI(df.High, df.Low, df.Close, timeperiod=14)
+        df['ADX'] = ADX(df.High, df.Low, df.Close, timeperiod=14)
+        df['MA'] = MA(df.Close, timeperiod=9)
+        df['BAND_UPPER'], df['BAND_MIDDLE'], df['BAND_LOWER'] = BBANDS(df.Close, 20, 2, 2)
         df['BAND_WIDTH'] = (df['BAND_UPPER'] - df['BAND_LOWER']) / df['BAND_MIDDLE']
-        df['CCI'] = CCI(df.high, df.low, df.close, timeperiod=20)
-        df['SAR'] = SAR(df.high, df.low)
-        df['ROC'] = ROC(df.close, timeperiod=9)
-        df['ROCP'] = ROCP(df.close, timeperiod=9)
-        df['William'] = WILLR(df.high, df.low, df.close)
+        df['CCI'] = CCI(df.High, df.Low, df.Close, timeperiod=20)
+        df['SAR'] = SAR(df.High, df.Low)
+        df['ROC'] = ROC(df.Close, timeperiod=14)
+        df['William'] = WILLR(df.High, df.Low, df.Close, timeperiod=14)
         data = df.dropna()
 
         # MACD
+        macd_data = data.MACD.values
+        sinal_data = data.SIGNAL.values
         higtogram_data = data.HISTOGRAM.values
 
         histogram = higtogram_data[-1]
-        histogram_prev = higtogram_data[-11:-1]
+        histogram_prev = higtogram_data[-self.prev_frames:-1]
+        macd = macd_data[-1]
+        sinal = sinal_data[-1]
 
         # Bollinger band
         band_middle_data = data.BAND_MIDDLE.values
         middle_band = band_middle_data[-1]
-        bb_w = data.BAND_WIDTH.values[-11:-1]
+
+        # Bollinger band width
+        bb_w = data.BAND_WIDTH.values[-self.prev_frames:-1]
         last_bb_w = data.BAND_WIDTH.values[-1]
 
         # Commodity Channel Index (Momentum Indicators)
         cci_data = data.CCI.values
         cci = cci_data[-1]
-        prev_cci = cci_data[-2]
 
         # ADX DMI
         plus_di_data = data.PLUS_DI.values
@@ -271,38 +264,39 @@ class RegressionMA:
         sar = sar_data[-1]
 
         # ROC
-        roc = df.ROC.values[-1]
+        roc = data.ROC.values[-1]
 
         # WILLR
-        willr = df.William.values[-1]
+        willr = data.William.values[-1]
 
         current_time_readable = datetime.datetime.fromtimestamp(_timestamp).strftime('%d-%m-%Y %H:%M:%S')
         log_txt = " Price {} | DI- {} | DI+ {} | ADX {} | SAR {} | CCI {} |" \
-                  " ROC {} | %William {} | Histogram {} | Middle Band {}".format(
-            round(close_p, 2),
-            round(minus_di, 2), round(plus_di, 2), round(adx, 2),
-            round(sar, 2), round(cci, 2), round(roc, 2),
-            round(willr, 2), round(histogram, 2), round(middle_band, 2)
-        )
+                  " ROC {} | %William {} | Histogram {} | Middle Band {}".format(round(close_p, 2), round(minus_di, 2),
+                                                                                 round(plus_di, 2), round(adx, 2),
+                                                                                 round(sar, 2), round(cci, 2),
+                                                                                 round(roc, 2), round(willr, 2),
+                                                                                 round(histogram, 2),
+                                                                                 round(middle_band, 2))
         # print(log_txt)
         console_logger.info(log_txt)
 
-        # tính toán max diff, nếu như diff hiện tại nhỏ hơn 61,8% max profit thì force close order
-        # if is_latest:
-        #     self.cal_max_diff(close_p)
+        if is_latest:
+            self.check_profit(close_p)
 
-        # force_close = self.check_loss(close_p)
-        # force_close = False
+        # tính toán max diff, nếu như diff hiện tại nhỏ
+        # hơn 50% max profit thì force close order
+        if not self.force_close:
+            self.check_loss(close_p)
+
         # Place Buy Order
         if not self.order and self.can_order and \
-                (adx > self.adx_threshold or plus_di > self.adx_threshold) and \
+                (adx > self.adx_threshold and plus_di > self.adx_threshold) and \
                 plus_di > minus_di and \
                 close_p > middle_band and \
                 close_p > sar and \
-                cci > 110 and \
-                cci > prev_cci and \
-                roc > 0.5 and \
-                histogram > 5 and \
+                cci > 100 and \
+                roc > 1 and \
+                histogram > 5 and macd > sinal and \
                 willr > -20 and \
                 all(last_bb_w > x for x in bb_w) and \
                 all(histogram > x for x in histogram_prev):
@@ -316,98 +310,99 @@ class RegressionMA:
             )
             autotrade_logger.info(txt)
 
-            try:
-                self.request_client.post_order(symbol="BTCUSDT", side=OrderSide.BUY,
-                                               ordertype=OrderType.MARKET, quantity=self.trade_amount)
-                content = "Open Buy order at price: {}".format(close_p)
-                self.mailer.notification(content)
-            except Exception as ex:
-                autotrade_logger.error(ex)
+            if self.can_open_order:
+                try:
+                    self.request_client.post_order(symbol="BTCUSDT", side=OrderSide.BUY,
+                                                   ordertype=OrderType.MARKET, quantity=self.trade_amount)
+                    content = "Open Buy order at price: {}".format(close_p)
+                    self.mailer.notification(content)
+                except Exception as ex:
+                    autotrade_logger.error(ex)
 
         # CLose Buy Order
         elif self.side == 'buy' and self.order and \
-                (close_p < middle_band or close_p < sar):
+                (close_p < middle_band or close_p < sar or self.force_close):
             # take profit
             # self.close_buy_margin()
             diff = close_p - self.order
             self.budget += diff
             self.reset()
             txt = "{} | Close Buy Order Price {} | DI- {} | DI+ {} | ADX {} | " \
-                  "SAR: {} | CCI {} | ROC {} | Diff {} | Budget {} | Max Diff {}".format(
-                current_time_readable,
-                round(close_p, 2), round(minus_di, 2), round(plus_di, 2), round(adx, 2), round(sar, 2),
-                round(cci, 2), round(roc, 2), round(diff, 2), round(self.budget, 2), round(self.max_profit, 2))
+                  "SAR: {} | CCI {} | ROC {} | Diff {} | Budget {} | Max Diff {}".format\
+                (current_time_readable, round(close_p, 2), round(minus_di, 2), round(plus_di, 2), round(adx, 2),
+                 round(sar, 2), round(cci, 2), round(roc, 2), round(diff, 2), round(self.budget, 2),
+                 round(self.max_profit, 2))
             autotrade_logger.info(txt)
 
-            try:
-                self.request_client.post_order(symbol="BTCUSDT", side=OrderSide.SELL,
-                                               ordertype=OrderType.MARKET, quantity=self.trade_amount)
-                result = self.request_client.get_balance()
-                for res in result:
-                    if res.asset == 'USDT':
-                        content = "Close buy order at price: {}, Current balance: {}".format(close_p, res.balance)
-                        self.mailer.notification(content)
-            except Exception as ex:
-                autotrade_logger.error(ex)
+            if self.can_open_order:
+                try:
+                    self.request_client.post_order(symbol="BTCUSDT", side=OrderSide.SELL,
+                                                   ordertype=OrderType.MARKET, quantity=self.trade_amount)
+                    result = self.request_client.get_balance()
+                    for res in result:
+                        if res.asset == 'USDT':
+                            content = "Close buy order at price: {}, Current balance: {}".format(close_p, res.balance)
+                            self.mailer.notification(content)
+                except Exception as ex:
+                    autotrade_logger.error(ex)
 
         # Place Sell Order
         elif not self.order and self.can_order and \
-                (adx > self.adx_threshold or minus_di > self.adx_threshold) and \
+                (adx > self.adx_threshold and minus_di > self.adx_threshold) and \
                 minus_di > plus_di and \
                 close_p < middle_band and \
                 close_p < sar and \
-                cci < -110 and \
-                prev_cci > cci and \
-                roc < -0.5 and \
-                histogram < -5 and \
+                cci < -100 and \
+                roc < -1 and \
+                histogram < -5 and macd < sinal and \
                 willr < -80 and \
                 all(last_bb_w > x for x in bb_w) and \
                 all(histogram < x for x in histogram_prev):
 
             self.side = 'sell'
             self.order = close_p
-            txt = "{} | Sell Order Price {} | DI- {} | DI+ {} | ADX {} | SAR: {} | CCI {} | ROC {}".format(
+            txt = "{} | Open Sell Order Price {} | DI- {} | DI+ {} | ADX {} | SAR: {} | CCI {} | ROC {}".format(
                 current_time_readable,
                 round(close_p, 2), round(minus_di, 2), round(plus_di, 2),
                 round(adx, 2), round(sar, 2), round(cci, 2), round(roc, 2)
             )
             autotrade_logger.info(txt)
 
-            try:
-                self.request_client.post_order(symbol="BTCUSDT", side=OrderSide.SELL,
-                                               ordertype=OrderType.MARKET, quantity=self.trade_amount)
-                content = "Open Sell order at price: {}".format(close_p)
-                self.mailer.notification(content)
-            except Exception as ex:
-                autotrade_logger.error(ex)
+            if self.can_open_order:
+                try:
+                    self.request_client.post_order(symbol="BTCUSDT", side=OrderSide.SELL,
+                                                   ordertype=OrderType.MARKET, quantity=self.trade_amount)
+                    content = "Open Sell order at price: {}".format(close_p)
+                    self.mailer.notification(content)
+                except Exception as ex:
+                    autotrade_logger.error(ex)
 
         # Close Sell Order
         elif self.side == 'sell' and self.order and \
-                (close_p > middle_band or close_p > sar):
+                (close_p > middle_band or close_p > sar or self.force_close):
 
             diff = self.order - close_p
             self.budget += diff
             self.side = None
             self.reset()
             txt = "{} | Close Sell Order {} | DI- {} | DI+ {} | ADX {} | " \
-                  "SAR: {} | CCI {} | ROC {} | Diff {} | Budget {} | Max Diff {} ".format(
-                current_time_readable,
-                round(close_p, 2), round(minus_di, 2), round(plus_di, 2), round(adx, 2),
-                round(sar, 2), round(cci, 2), round(roc, 2), round(diff, 2), round(self.budget, 2),
-                round(self.max_profit, 2),
-            )
+                  "SAR: {} | CCI {} | ROC {} | Diff {} | Budget {} | Max Diff {} ".format\
+                    (current_time_readable, round(close_p, 2), round(minus_di, 2), round(plus_di, 2), round(adx, 2),
+                     round(sar, 2), round(cci, 2), round(roc, 2), round(diff, 2), round(self.budget, 2),
+                     round(self.max_profit, 2))
             autotrade_logger.info(txt)
 
-            try:
-                self.request_client.post_order(symbol="BTCUSDT", side=OrderSide.BUY,
-                                               ordertype=OrderType.MARKET, quantity=self.trade_amount)
-                result = self.request_client.get_balance()
-                for res in result:
-                    if res.asset == 'USDT':
-                        content = "Close sell order at price: {}, Current balance: {}".format(close_p, res.balance)
-                        self.mailer.notification(content)
-            except Exception as ex:
-                autotrade_logger.error(ex)
+            if self.can_open_order:
+                try:
+                    self.request_client.post_order(symbol="BTCUSDT", side=OrderSide.BUY,
+                                                   ordertype=OrderType.MARKET, quantity=self.trade_amount)
+                    result = self.request_client.get_balance()
+                    for res in result:
+                        if res.asset == 'USDT':
+                            content = "Close sell order at price: {}, Current balance: {}".format(close_p, res.balance)
+                            self.mailer.notification(content)
+                except Exception as ex:
+                    autotrade_logger.error(ex)
 
     def reset(self):
         self.order = 0
@@ -415,10 +410,11 @@ class RegressionMA:
         self.take_profit = 0
         self.stop_loss = 0
         self.can_order = False
+        self.force_close = False
         self.max_profit = 0
 
 
 if __name__ == '__main__':
-    bottrading = RegressionMA()
+    bottrading = RegressionMA(trading=True)
     bottrading.get_data()
     bottrading.start_socket()
