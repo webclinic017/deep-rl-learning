@@ -313,7 +313,7 @@ class RegressionMA:
             try:
                 self.request_client.post_order(symbol="BTCUSDT", side=OrderSide.BUY,
                                                ordertype=OrderType.MARKET, quantity=self.trade_amount)
-                content = "Open Sell order at price: {}".format(close_p)
+                content = "Open Buy order at price: {}".format(close_p)
                 self.mailer.notification(content)
             except Exception as ex:
                 autotrade_logger.error(ex)
