@@ -1,0 +1,4 @@
+*.pyc
+build/*
+dist/*
+binance_futures.egg-info/*
