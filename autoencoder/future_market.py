@@ -216,17 +216,17 @@ class RegressionMA:
 
     def trading(self, close_p, _timestamp, is_latest):
         df = self.train_data.copy()
-        df['MACD'], df['SIGNAL'], df['HISTOGRAM'] = MACD(df.Close, fastperiod=12, slowperiod=26, signalperiod=9)
-        df['MINUS_DI'] = MINUS_DI(df.High, df.Low, df.Close, timeperiod=14)
-        df['PLUS_DI'] = PLUS_DI(df.High, df.Low, df.Close, timeperiod=14)
-        df['ADX'] = ADX(df.High, df.Low, df.Close, timeperiod=14)
-        df['MA'] = MA(df.Close, timeperiod=9)
-        df['BAND_UPPER'], df['BAND_MIDDLE'], df['BAND_LOWER'] = BBANDS(df.Close, 20, 2, 2)
+        df['MACD'], df['SIGNAL'], df['HISTOGRAM'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
+        df['MINUS_DI'] = MINUS_DI(df.high, df.low, df.close, timeperiod=14)
+        df['PLUS_DI'] = PLUS_DI(df.high, df.low, df.close, timeperiod=14)
+        df['ADX'] = ADX(df.high, df.low, df.close, timeperiod=14)
+        df['MA'] = MA(df.close, timeperiod=9)
+        df['BAND_UPPER'], df['BAND_MIDDLE'], df['BAND_LOWER'] = BBANDS(df.close, 20, 2, 2)
         df['BAND_WIDTH'] = (df['BAND_UPPER'] - df['BAND_LOWER']) / df['BAND_MIDDLE']
-        df['CCI'] = CCI(df.High, df.Low, df.Close, timeperiod=20)
-        df['SAR'] = SAR(df.High, df.Low)
-        df['ROC'] = ROC(df.Close, timeperiod=14)
-        df['William'] = WILLR(df.High, df.Low, df.Close, timeperiod=14)
+        df['CCI'] = CCI(df.high, df.low, df.close, timeperiod=20)
+        df['SAR'] = SAR(df.high, df.low)
+        df['ROC'] = ROC(df.close, timeperiod=14)
+        df['William'] = WILLR(df.high, df.low, df.close, timeperiod=14)
         data = df.dropna()
 
         # MACD
