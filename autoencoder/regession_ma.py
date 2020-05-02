@@ -71,8 +71,8 @@ class RegressionMA:
 
         # Global Config
         self.bbw_threshold = 0.03
-        self.adx_threshold = 25
-        self.prev_frames = 5
+        self.adx_threshold = 22
+        self.prev_frames = 3
 
         # Email Services
         self.mailer = SendMail()
@@ -105,11 +105,11 @@ class RegressionMA:
         # then start the socket manager
         self.bm.start()
 
-    def fake_socket(self):
-        # data = self.db.BTCUSDT_1h.find({})
-        # data = list(data)
-        # with open('data/BTCUSDT_1h.json', 'w') as outfile:
-        #     json.dump(data, outfile, indent=4)
+    def fake_socket(self, crawler=False):
+        data = self.db.BTCUSDT_1h.find({})
+        data = list(data)
+        with open('data/BTCUSDT_1h.json', 'w') as outfile:
+            json.dump(data, outfile, indent=4)
         with open('data/BTCUSDT_1h.json') as json_file:
             data = json.load(json_file)
             for msg in data:
@@ -233,6 +233,10 @@ class RegressionMA:
 
     def trading(self, close_p, _timestamp, is_latest):
         df = self.train_data.copy()
+        df['Close'] = df['Close'].astype('float64')
+        df['High'] = df['High'].astype('float64')
+        df['Low'] = df['Low'].astype('float64')
+        df['Open'] = df['Open'].astype('float64')
         df['MACD'], df['SIGNAL'], df['HISTOGRAM'] = MACD(df.Close, fastperiod=12, slowperiod=26, signalperiod=9)
         df['MINUS_DI'] = MINUS_DI(df.High, df.Low, df.Close, timeperiod=14)
         df['PLUS_DI'] = PLUS_DI(df.High, df.Low, df.Close, timeperiod=14)
@@ -240,6 +244,7 @@ class RegressionMA:
         df['MA'] = MA(df.Close, timeperiod=9)
         df['BAND_UPPER'], df['BAND_MIDDLE'], df['BAND_LOWER'] = BBANDS(df.Close, 20, 2, 2)
         df['BAND_WIDTH'] = (df['BAND_UPPER'] - df['BAND_LOWER']) / df['BAND_MIDDLE']
+        df['BAND_B'] = (df['Close'] - df['BAND_LOWER']) / (df['BAND_UPPER'] - df['BAND_LOWER'])
         df['CCI'] = CCI(df.High, df.Low, df.Close, timeperiod=20)
         df['SAR'] = SAR(df.High, df.Low)
         df['ROC'] = ROC(df.Close, timeperiod=14)
@@ -263,6 +268,7 @@ class RegressionMA:
         # Bollinger band width
         bb_w = data.BAND_WIDTH.values[-self.prev_frames:-1]
         last_bb_w = data.BAND_WIDTH.values[-1]
+        bb_b = data.BAND_B.values[-1]
 
         # Commodity Channel Index (Momentum Indicators)
         cci_data = data.CCI.values
@@ -273,6 +279,7 @@ class RegressionMA:
         minus_di_data = data.MINUS_DI.values
         adx_data = data.ADX.values
         adx = adx_data[-1]
+        prev_adx = adx_data[-self.prev_frames:-1]
         minus_di = minus_di_data[-1]
         plus_di = plus_di_data[-1]
 
@@ -315,17 +322,17 @@ class RegressionMA:
                 histogram > 5 and macd > sinal and \
                 willr > -20 and \
                 all(last_bb_w > x for x in bb_w) and \
-                all(histogram > x for x in histogram_prev):
+                all(histogram > x for x in histogram_prev) and \
+                all(adx > x for x in prev_adx) and \
+                bb_b > 1:
             # buy signal
-            # self.buy_margin()
             self.side = 'buy'
             self.order = close_p
             txt = "{} | Buy Order Price {} | DI- {} | DI+ {} | ADX {} | SAR: {} | CCI {} | ROC {}".format(
                 current_time_readable, round(close_p, 2), round(minus_di, 2),
                 round(plus_di, 2), round(adx, 2), round(sar, 2), round(cci, 2), round(roc, 2)
             )
-            # print(txt)
-            # self.mailer.notification(txt)
+            print(txt)
             autotrade_logger.info(txt)
 
         # CLose Buy Order
@@ -342,7 +349,7 @@ class RegressionMA:
                 round(close_p, 2), round(minus_di, 2), round(plus_di, 2), round(adx, 2), round(sar, 2),
                 round(cci, 2), round(roc, 2), round(diff, 2), round(self.budget, 2), round(self.max_profit, 2))
             autotrade_logger.info(txt)
-            # self.mailer.notification(txt)
+            print(txt)
             self.max_profit = 0
 
         # Place Sell Order
@@ -356,7 +363,9 @@ class RegressionMA:
                 histogram < -5 and macd < sinal and \
                 willr < -80 and \
                 all(last_bb_w > x for x in bb_w) and \
-                all(histogram < x for x in histogram_prev):
+                all(histogram < x for x in histogram_prev) and \
+                all(adx > x for x in prev_adx) and \
+                bb_b < 0:
 
             self.side = 'sell'
             self.order = close_p
@@ -370,8 +379,7 @@ class RegressionMA:
                 round(cci, 2),
                 round(roc, 2)
             )
-            # self.borrow_btc()
-            # self.mailer.notification(txt)
+            print(txt)
             autotrade_logger.info(txt)
 
         # Close Sell Order
@@ -390,9 +398,8 @@ class RegressionMA:
                 round(self.max_profit, 2),
             )
             self.max_profit = 0
-            # self.repay_btc()
+            print(txt)
             autotrade_logger.info(txt)
-            # self.mailer.notification(txt)
 
     def reset(self):
         self.order = 0

@@ -55,7 +55,7 @@ class RegressionMA:
         self.is_latest = False
         self.can_order = True
         self.can_open_order = trading
-        self.trade_amount = 0.1  # 10% currency you owned
+        self.trade_amount = 0.2  # 20% currency you owned
         self.interval = KLINE_INTERVAL_1HOUR
         self.train_data = pd.DataFrame(columns=['openTime', 'open', 'high', 'low', 'close', 'volume', 'closeTime',
                                                 'quoteAssetVolume', 'numTrades', 'takerBuyBaseAssetVolume',
@@ -72,8 +72,8 @@ class RegressionMA:
 
         # Global Config
         self.bbw_threshold = 0.03
-        self.adx_threshold = 25
-        self.prev_frames = 5
+        self.adx_threshold = 22
+        self.prev_frames = 3
         self.force_close = False
 
         # Email Services
@@ -102,7 +102,7 @@ class RegressionMA:
     def fibonacci(cls, price_max, price_min):
         diff = price_max - price_min
         take_profit = price_max + 0.618 * diff
-        stop_loss = price_max - 0.382 * diff
+        stop_loss = price_min
         return take_profit, stop_loss
 
     def start_socket(self):
@@ -216,6 +216,10 @@ class RegressionMA:
 
     def trading(self, close_p, _timestamp, is_latest):
         df = self.train_data.copy()
+        df['close'] = df['close'].astype('float64')
+        df['high'] = df['high'].astype('float64')
+        df['low'] = df['low'].astype('float64')
+        df['open'] = df['open'].astype('float64')
         df['MACD'], df['SIGNAL'], df['HISTOGRAM'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
         df['MINUS_DI'] = MINUS_DI(df.high, df.low, df.close, timeperiod=14)
         df['PLUS_DI'] = PLUS_DI(df.high, df.low, df.close, timeperiod=14)
@@ -223,6 +227,7 @@ class RegressionMA:
         df['MA'] = MA(df.close, timeperiod=9)
         df['BAND_UPPER'], df['BAND_MIDDLE'], df['BAND_LOWER'] = BBANDS(df.close, 20, 2, 2)
         df['BAND_WIDTH'] = (df['BAND_UPPER'] - df['BAND_LOWER']) / df['BAND_MIDDLE']
+        df['BAND_B'] = (df['close'] - df['BAND_LOWER']) / (df['BAND_UPPER'] - df['BAND_LOWER'])
         df['CCI'] = CCI(df.high, df.low, df.close, timeperiod=20)
         df['SAR'] = SAR(df.high, df.low)
         df['ROC'] = ROC(df.close, timeperiod=14)
@@ -246,6 +251,7 @@ class RegressionMA:
         # Bollinger band width
         bb_w = data.BAND_WIDTH.values[-self.prev_frames:-1]
         last_bb_w = data.BAND_WIDTH.values[-1]
+        bb_b = data.BAND_B.values[-1]
 
         # Commodity Channel Index (Momentum Indicators)
         cci_data = data.CCI.values
@@ -256,6 +262,7 @@ class RegressionMA:
         minus_di_data = data.MINUS_DI.values
         adx_data = data.ADX.values
         adx = adx_data[-1]
+        prev_adx = adx_data[-self.prev_frames:-1]
         minus_di = minus_di_data[-1]
         plus_di = plus_di_data[-1]
 
@@ -277,13 +284,14 @@ class RegressionMA:
                                                                                  round(roc, 2), round(willr, 2),
                                                                                  round(histogram, 2),
                                                                                  round(middle_band, 2))
-        # print(log_txt)
+
         console_logger.info(log_txt)
 
+        # tính toán max diff
         if is_latest:
             self.check_profit(close_p)
 
-        # tính toán max diff, nếu như diff hiện tại nhỏ
+        # nếu như diff hiện tại nhỏ
         # hơn 50% max profit thì force close order
         if not self.force_close:
             self.check_loss(close_p)
@@ -299,7 +307,9 @@ class RegressionMA:
                 histogram > 5 and macd > sinal and \
                 willr > -20 and \
                 all(last_bb_w > x for x in bb_w) and \
-                all(histogram > x for x in histogram_prev):
+                all(histogram > x for x in histogram_prev) and \
+                all(adx > x for x in prev_adx) and \
+                bb_b > 1:
             # buy signal
             # self.buy_margin()
             self.side = 'buy'
@@ -357,7 +367,9 @@ class RegressionMA:
                 histogram < -5 and macd < sinal and \
                 willr < -80 and \
                 all(last_bb_w > x for x in bb_w) and \
-                all(histogram < x for x in histogram_prev):
+                all(histogram < x for x in histogram_prev) and \
+                all(adx > x for x in prev_adx) and \
+                bb_b < 0:
 
             self.side = 'sell'
             self.order = close_p
