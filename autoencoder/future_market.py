@@ -72,7 +72,7 @@ class RegressionMA:
 
         # Global Config
         self.bbw_threshold = 0.03
-        self.adx_threshold = 22
+        self.adx_threshold = 23
         self.prev_frames = 3
         self.force_close = False
 
@@ -192,10 +192,6 @@ class RegressionMA:
             if diff > self.max_profit:
                 self.max_profit = diff
 
-            if self.max_profit <= 0:
-                self.can_order = False
-                self.force_close = True
-
     def check_loss(self, close_p):
         """
         Kiểm tra mức lỗ, nếu quá 38,2% so với mức lãi tối đa thì đóng order, bạn
@@ -206,11 +202,11 @@ class RegressionMA:
         if self.order:
             diff = close_p - self.order if self.side == 'buy' else self.order - close_p
             if self.max_profit != 0 and diff <= self.max_profit * 0.5:
-                # bạn đã lỗ 50% so với max profit
+                # bạn đã lỗ 38.2% so với max profit
                 self.can_order = False
                 self.force_close = True
             if diff <= -50:
-                # bạn đã lỗ $50
+                # bạn đã lỗ $30
                 self.can_order = False
                 self.force_close = True
 

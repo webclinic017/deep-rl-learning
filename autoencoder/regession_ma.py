@@ -71,7 +71,7 @@ class RegressionMA:
 
         # Global Config
         self.bbw_threshold = 0.03
-        self.adx_threshold = 22
+        self.adx_threshold = 23
         self.prev_frames = 3
 
         # Email Services
@@ -209,10 +209,6 @@ class RegressionMA:
             if diff > self.max_profit:
                 self.max_profit = diff
 
-            if self.max_profit <= 0:
-                self.can_order = False
-                self.force_close = True
-
     def check_loss(self, close_p):
         """
         Kiểm tra mức lỗ, nếu quá 38,2% so với mức lãi tối đa thì đóng order, bạn
@@ -318,7 +314,6 @@ class RegressionMA:
                 close_p > middle_band and \
                 close_p > sar and \
                 cci > 100 and \
-                roc > 1 and \
                 histogram > 5 and macd > sinal and \
                 willr > -20 and \
                 all(last_bb_w > x for x in bb_w) and \
@@ -359,7 +354,6 @@ class RegressionMA:
                 close_p < middle_band and \
                 close_p < sar and \
                 cci < -100 and \
-                roc < -1 and \
                 histogram < -5 and macd < sinal and \
                 willr < -80 and \
                 all(last_bb_w > x for x in bb_w) and \
