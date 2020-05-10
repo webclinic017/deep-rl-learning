@@ -31,41 +31,22 @@ class TradingEnv:
     def get_data(self, csv_path):
         df = pd.read_csv(csv_path, sep=',')
         df = df.drop(columns=['quote_asset_volume', 'number_of_trades',
-                              'buy_base_asset_volume', 'buy_quote_asset_volume', 'open_time', 'close_time'], axis=1)
-        # df = ta.utils.dropna(df)
+                              'buy_base_asset_volume', 'buy_quote_asset_volume'], axis=1)
+        df = ta.utils.dropna(df)
         train_data = df.copy()
-        # indicator_bb = volatility.BollingerBands(close=df.close, n=20, ndev=2)
-        # df['bb_bbm'] = indicator_bb.bollinger_mavg()
-        # df['bb_bbh'] = indicator_bb.bollinger_hband()
-        # df['bb_bbl'] = indicator_bb.bollinger_lband()
-        # df['bb_bbw'] = indicator_bb.bollinger_wband()
-        #
-        # indicator_ichimoku_cloud = trend.IchimokuIndicator(high=df.high, low=df.low)
-        # df['ichimoku_a'] = indicator_ichimoku_cloud.ichimoku_a()
-        # df['ichimoku_b'] = indicator_ichimoku_cloud.ichimoku_a()
-        #
-        # adx_indicator = trend.ADXIndicator(high=df.high, low=df.low, close=df.close)
-        #
-        # df['adx'] = adx_indicator.adx()
-        # df['minus_di'] = adx_indicator.adx_neg()
-        # df['plus_di'] = adx_indicator.adx_pos()
-        #
-        # indicator_stochastic = momentum.StochasticOscillator(high=df.high, low=df.low, close=df.close)
-        #
-        # df['stoch'] = indicator_stochastic.stoch()
-        # df['stoch_signal'] = indicator_stochastic.stoch_signal()
+
         data = ta.add_all_ta_features(
             train_data, open='open', high='high', low='low',
             close='close', volume='volume', fillna=True
         )
 
         raw_price = data.close.astype('float64').values
-        # data = data.drop(columns=['open', 'high', 'low', 'close', 'volume'], axis=1)
+        data = data.drop(columns=['open', 'high', 'low', 'close', 'volume'], axis=1)
 
         scaler_filename = 'scaler.pkl'
         pca_filename = 'pca.pkl'
         if self.strategy == 'train':
-            scaler = MinMaxScaler(feature_range=(0, 1))
+            scaler = MinMaxScaler(feature_range=(-1, 1))
             scaler.fit(data)
             data = scaler.transform(data)
             joblib.dump(scaler, scaler_filename)
@@ -81,7 +62,7 @@ class TradingEnv:
             scaler = joblib.load(scaler_filename)
             pca = joblib.load(pca_filename)
             data = scaler.transform(data)
-            data = data[27:].copy()
+            # data = data[27:].copy()
             data = pca.transform(data)
 
         return data, raw_price
@@ -107,32 +88,28 @@ class TradingEnv:
         return 1 / (1 + math.exp(-x))
 
     def act(self, action):
-        current_price = self.prices[self.t-1]
-        next_price = self.prices[self.t+5]
+        current_price = self.prices[self.t]
         done = False
 
-        diff = next_price - current_price
-        r = min(diff/500, 0.5)
-        if action not in self.get_valid_actions():
-            r = -1
+        diff = current_price - self.order if self.order else 0
+        r = -1
+        # if action not in self.get_valid_actions():
+        #     r = -1
         #     done = True
 
-        elif action == 1:
+        if action == 1:
             # Buy
-            if not self.order:
-                self.order = current_price
-                self.side = 'buy'
+            self.order = current_price
+            self.side = 'buy'
 
         elif action == 2:
-            if self.order:
-                self.budget += current_price - self.order
-                self.side = None
-                self.order = 0
-                if self.budget > 200:
-                    r = 10
-                    done = True
+            self.budget += diff
+            self.side = None
+            self.order = 0
+            if diff > 100:
+                r = 0.5
+                done = True
 
-        #
         # create state
         state1 = self.train_data[self.t-self.consecutive_frames:self.t]
 

@@ -14,7 +14,7 @@ def parse_args(args):
     parser.add_argument('--with_PER', dest='with_per', action='store_true', help="Use Prioritized Experience Replay (DDQN + PER)")
     parser.add_argument('--dueling', dest='dueling', action='store_true', help="Use a Dueling Architecture (DDQN)")
     #
-    parser.add_argument('--nb_episodes', type=int, default=50000, help="Number of training episodes")
+    parser.add_argument('--nb_episodes', type=int, default=500, help="Number of training episodes")
     parser.add_argument('--batch_size', type=int, default=128, help="Batch size (experience replay)")
     parser.add_argument('--consecutive_frames', type=int, default=10, help="Number of consecutive frames (action repeat)")
     parser.add_argument('--nb_features', type=int, default=5, help="Number of consecutive frames (action repeat)")
@@ -35,9 +35,9 @@ if __name__ == '__main__':
     args = parse_args(args)
 
     trading_env = TradingEnv(consecutive_frames=args.consecutive_frames,
-                             nb_features=args.nb_features, dataset='../data/test_1h.csv', strategy='train')
+                             nb_features=args.nb_features, dataset='../data/test_5m.csv', strategy='train')
     test_env = TradingEnv(consecutive_frames=args.consecutive_frames,
-                          nb_features=args.nb_features, dataset='../data/test_1h.csv', strategy='test')
+                          nb_features=args.nb_features, dataset='../data/test_5m.csv', strategy='test')
 
     state_dim = args.nb_features * args.consecutive_frames + 2
     action_dim = 3

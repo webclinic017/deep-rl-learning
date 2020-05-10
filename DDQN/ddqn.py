@@ -40,7 +40,6 @@ class DDQN:
         self.agent = Agent(self.state_dim, action_dim, self.lr, self.tau, args.dueling)
         # Memory Buffer for Experience Replay
         self.buffer = MemoryBuffer(self.buffer_size, args.with_per)
-        self.temp_buffer = list()
 
     def policy_action(self, s1, s2):
         """ Apply an espilon-greedy policy to pick next action
@@ -48,10 +47,10 @@ class DDQN:
         if random() <= self.epsilon:
             return randrange(self.action_dim)
         else:
-            # logging.warning(self.agent.predict(s))
             s1 = np.expand_dims(s1, axis=0)
             s2 = np.expand_dims(s2, axis=0)
             policy_value = self.agent.predict(s1, s2)[0]
+            logging.warning(policy_value)
             return np.argmax(policy_value)
 
     def get_action(self, s1, s2):
@@ -68,9 +67,8 @@ class DDQN:
         """ Compute the gamma-discounted rewards over an episode
         """
         discounted_r, cumul_r = np.zeros_like(r), 0
-        for t in range(0, len(r)):
-            reward = r[t]
-            cumul_r += cumul_r * pow(self.discount_rate, t) * reward
+        for t in reversed(range(0, len(r))):
+            cumul_r = r[t] + cumul_r * self.gamma
             discounted_r[t] = cumul_r
         return discounted_r
 
@@ -87,30 +85,20 @@ class DDQN:
         next_q = self.agent.predict(new_s1, new_s2)
         q_targ = self.agent.target_predict(new_s1, new_s2)
 
-        # for i in range(s1.shape[0] - 1):
-            # if d[i]:
-            #     q[i, a[i]] += self.alpha * (r[i] + q[i, a[i]])
-            # else:
-            #     next_best_action = np.argmax(next_q[i,:])
-            #     td_target = r[i+1] + self.discount_rate * next_q[i][next_best_action]
-            #     td_delta = td_target - q[i, a[i]]
-            #     q[i, a[i]] += self.alpha * td_delta
-            #
-        for i in range(s1.shape[0] - 1):
+        for i in range(s1.shape[0]):
             old_q = q[i, a[i]]
             if d[i]:
                 q[i, a[i]] = r[i]
             else:
-                best_action = np.argmax(q[i, :])
-                q[i, a[i]] = r[i] + self.gamma * q[i, best_action]
-
+                next_best_action = np.argmax(next_q[i, :])
+                q[i, a[i]] = r[i] + self.gamma * q_targ[i, next_best_action]
+            if self.with_per:
+                # Update PER Sum Tree
+                self.buffer.update(idx[i], abs(old_q - q[i, a[i]]))
         # Train on batch
         self.agent.fit(s1, s2, q)
         # Decay epsilon
-        if self.epsilon > self.epsilon_min:
-            self.epsilon *= self.epsilon_decay
-
-        # self.buffer.clear()
+        self.epsilon *= self.epsilon_decay
 
     def test(self, env, args, step):
         """ Main DDQN Training Algorithm
@@ -167,9 +155,9 @@ class DDQN:
 
                 # tqdm_e.set_description("Budget: {} | Steps: {} | Actions: {}".format(round(info['budget'], 3), train_env.t, a))
                 # tqdm_e.refresh()
-
+                # print("buffer count: {} batch size {}".format(self.buffer.count, args.batch_size))
                 # Train DDQN and transfer weights to target network
-                if self.buffer.count >= args.batch_size:
+                if self.buffer.count > args.batch_size:
                     self.train_agent(args.batch_size)
                     self.agent.transfer_weights()
 
@@ -190,11 +178,24 @@ class DDQN:
     def memorize(self, state1, state2, action, reward, done, new_state1, new_state2):
         """ Store experience in memory buffer
         """
-        td_error = 0
+        if self.with_per:
+            s1 = np.expand_dims(state1, axis=0)
+            s2 = np.expand_dims(state2, axis=0)
+            n_s1 = np.expand_dims(new_state1, axis=0)
+            n_s2 = np.expand_dims(new_state2, axis=0)
+            q_val = self.agent.predict(s1, s2)
+            q_val_t = self.agent.target_predict(n_s1, n_s2)
+            next_best_action = np.argmax(q_val)
+            new_val = reward + self.gamma * q_val_t[0, next_best_action]
+            td_error = abs(new_val - q_val)[0]
+        else:
+            td_error = 0
         self.buffer.memorize(state1, state2, action, reward, done, new_state1, new_state2, td_error)
 
     def save_weights(self, path):
         path += '_LR_{}'.format(self.lr)
+        if self.with_per:
+            path += '_PER'
         self.agent.save(path)
 
     def load_weights(self, path):
