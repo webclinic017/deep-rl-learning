@@ -75,7 +75,7 @@ class RegressionMA:
         # Global Config
         self.bbw_threshold = 0.03
         self.adx_threshold = 23
-        self.prev_frames = 3
+        self.prev_frames = 5
 
         # Email Services
         self.mailer = SendMail()
@@ -108,10 +108,10 @@ class RegressionMA:
         self.bm.start()
 
     def fake_socket(self, crawler=False):
-        # data = self.db.BTCUSDT_5m.find({})
-        # data = list(data)
-        # with open('data/BTCUSDT_5m.json', 'w') as outfile:
-        #     json.dump(data, outfile, indent=4)
+        data = self.db.BTCUSDT_1h.find({})
+        data = list(data)
+        with open('data/BTCUSDT_1h.json', 'w') as outfile:
+            json.dump(data, outfile, indent=4)
         with open('data/BTCUSDT_1h.json') as json_file:
             data = json.load(json_file)
             for msg in data:
@@ -199,22 +199,23 @@ class RegressionMA:
         if len(self.train_data) > 100:
             self.trading(float(_close), _timestamp, msg['k']['x'])
 
-    def check_profit(self, close_p):
+    def check_profit(self, close_p, is_latest):
         """
         Kiểm tra mức lỗ, nếu quá 38,2% so với mức lãi tối đa thì đóng order, bạn
         chỉ có thể mở order ở timeframe tiếp theo
         :param close_p:
+        :param is_latest:
         :return: boolean
         """
         if self.order:
             if self.side == 'buy':
                 diff = close_p - self.order
-                if close_p > self.higher_price:
+                if close_p > self.higher_price and is_latest:
                     self.higher_price = close_p
                     self.max_profit = diff
             else:
                 diff = self.order - close_p
-                if close_p < self.lower_price:
+                if close_p < self.lower_price and is_latest:
                     self.lower_price = close_p
                     self.max_profit = diff
 
@@ -300,24 +301,9 @@ class RegressionMA:
             round(sar, 2), round(cci, 2), round(roc, 2),
             round(willr, 2), round(histogram, 2), round(middle_band, 2)
         )
-        # print(log_txt)
+
         console_logger.info(log_txt)
-        # if is_latest:
-        self.check_profit(close_p)
-        # tính toán max diff, nếu như diff hiện tại nhỏ hơn 61,8% max profit thì force close order
-        # if is_latest and self.order:
-        #     if self.side == 'buy':
-        #         higher_high = high_p[-1]
-        #         if higher_high > self.higher_price:
-        #             self.higher_price = higher_high
-        #         lower_price = self.order
-        #         self.stop_loss = self.fibonacci(self.higher_price, lower_price, side='buy')
-        #     else:
-        #         higher_price = self.order
-        #         lower_low = low_p[-1]
-        #         if lower_low < self.lower_price:
-        #             self.lower_price = lower_low
-        #         self.stop_loss = self.fibonacci(higher_price, self.lower_price, side='sell')
+        self.check_profit(close_p, is_latest)
 
         # Place Buy Order
         if not self.order and self.can_order and \
@@ -332,6 +318,7 @@ class RegressionMA:
                 all(last_bb_w > x for x in bb_w) and \
                 all(histogram > x for x in histogram_prev) and \
                 all(adx > x for x in prev_adx) and \
+                all(obv > x for x in prev_obv) and \
                 bb_b > 1:
             # buy signal
             self.side = 'buy'
@@ -373,20 +360,15 @@ class RegressionMA:
                 all(last_bb_w > x for x in bb_w) and \
                 all(histogram < x for x in histogram_prev) and \
                 all(adx > x for x in prev_adx) and \
+                all(obv > x for x in prev_obv) and \
                 bb_b < 0:
 
             self.side = 'sell'
             self.order = close_p
             self.order_time = _timestamp
             txt = "{} | Sell Order Price {} | DI- {} | DI+ {} | ADX {} | SAR: {} | CCI {} | Stop Loss {}".format(
-                current_time_readable,
-                round(close_p, 2),
-                round(minus_di, 2),
-                round(plus_di, 2),
-                round(adx, 2),
-                round(sar, 2),
-                round(cci, 2),
-                round(self.stop_loss, 2)
+                current_time_readable, round(close_p, 2), round(minus_di, 2), round(plus_di, 2),
+                round(adx, 2), round(sar, 2), round(cci, 2), round(self.stop_loss, 2)
             )
             print(txt)
             autotrade_logger.info(txt)
