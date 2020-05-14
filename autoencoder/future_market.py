@@ -55,7 +55,7 @@ class RegressionMA:
         self.is_latest = False
         self.can_order = True
         self.can_open_order = trading
-        self.trade_amount = 0.4  # 20% currency you owned
+        self.trade_amount = 0.5  # 20% currency you owned
         self.interval = KLINE_INTERVAL_1HOUR
         self.train_data = pd.DataFrame(columns=['openTime', 'open', 'high', 'low', 'close', 'volume', 'closeTime',
                                                 'quoteAssetVolume', 'numTrades', 'takerBuyBaseAssetVolume',

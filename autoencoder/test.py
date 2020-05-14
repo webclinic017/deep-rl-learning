@@ -108,10 +108,10 @@ class RegressionMA:
         self.bm.start()
 
     def fake_socket(self, crawler=False):
-        data = self.db.BTCUSDT_1h.find({})
-        data = list(data)
-        with open('data/BTCUSDT_1h.json', 'w') as outfile:
-            json.dump(data, outfile, indent=4)
+        # data = self.db.BTCUSDT_1h.find({})
+        # data = list(data)
+        # with open('data/BTCUSDT_1h.json', 'w') as outfile:
+        #     json.dump(data, outfile, indent=4)
         with open('data/BTCUSDT_1h.json') as json_file:
             data = json.load(json_file)
             for msg in data:
