@@ -324,6 +324,7 @@ class RegressionMA:
                     self.mailer.notification(content)
                 except Exception as ex:
                     autotrade_logger.error(ex)
+                    self.mailer.notification(ex)
 
         # CLose Buy Order
         elif self.side == 'buy' and self.order and \
@@ -384,6 +385,7 @@ class RegressionMA:
                     self.mailer.notification(content)
                 except Exception as ex:
                     autotrade_logger.error(ex)
+                    self.mailer.notification(ex)
 
         # Close Sell Order
         elif self.side == 'sell' and self.order and \
