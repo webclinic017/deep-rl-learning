@@ -199,27 +199,31 @@ class RegressionMA:
         if len(self.train_data) > 100:
             self.trading(float(_close), _timestamp, msg['k']['x'])
 
-    def check_profit(self, close_p, is_latest):
+    def check_profit(self, close_p, high_p, low_p, is_latest):
         """
         Kiểm tra mức lỗ, nếu quá 38,2% so với mức lãi tối đa thì đóng order, bạn
         chỉ có thể mở order ở timeframe tiếp theo
         :param close_p:
         :param is_latest:
+        :param high_p:
+        :param low_p:
         :return: boolean
         """
         if self.order:
             if self.side == 'buy':
-                diff = close_p - self.order
-                if close_p > self.higher_price and is_latest:
-                    self.higher_price = close_p
+                diff = high_p - self.order
+                current_diff = close_p - self.order
+                if high_p > self.higher_price and is_latest:
+                    self.higher_price = high_p
                     self.max_profit = diff
             else:
-                diff = self.order - close_p
-                if close_p < self.lower_price and is_latest:
-                    self.lower_price = close_p
+                diff = self.order - low_p
+                current_diff = self.order - close_p
+                if low_p < self.lower_price and is_latest:
+                    self.lower_price = low_p
                     self.max_profit = diff
 
-            if diff < -30 or (self.max_profit and diff <= self.max_profit * 0.5):
+            if current_diff < -50 or (self.max_profit and current_diff <= self.max_profit * 0.5):
                 self.force_close = True
 
     def trading(self, close_p, _timestamp, is_latest):
@@ -303,7 +307,7 @@ class RegressionMA:
         )
 
         console_logger.info(log_txt)
-        self.check_profit(close_p, is_latest)
+        self.check_profit(close_p, high_p, low_p, is_latest)
 
         # Place Buy Order
         if not self.order and self.can_order and \
@@ -379,7 +383,6 @@ class RegressionMA:
 
             diff = self.order - close_p
             self.budget += diff
-            self.side = None
             self.reset()
             txt = "{} | Close Sell Order {} | DI- {} | DI+ {} | ADX {} | " \
                   "SAR: {} | CCI {} | ROC {} | Diff {} | Budget {} | Max Diff {} ".format(
