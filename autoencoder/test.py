@@ -74,7 +74,7 @@ class RegressionMA:
 
         # Global Config
         self.bbw_threshold = 0.03
-        self.adx_threshold = 23
+        self.adx_threshold = 24
         self.prev_frames = 5
 
         # Email Services
