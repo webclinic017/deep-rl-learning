@@ -74,8 +74,8 @@ class RegressionMA:
 
         # Global Config
         self.bbw_threshold = 0.03
-        self.adx_threshold = 24
-        self.prev_frames = 5
+        self.adx_threshold = 23
+        self.prev_frames = 3
 
         # Email Services
         self.mailer = SendMail()
@@ -151,9 +151,6 @@ class RegressionMA:
         #         self.process_message(msg)
 
     def process_message(self, msg):
-        # if 'timestamp' not in msg:
-        #     msg['timestamp'] = time.time()
-
         _open_time = msg['k']['t']
         _open = msg['k']['o']
         _high = msg['k']['h']
