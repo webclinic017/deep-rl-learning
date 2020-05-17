@@ -35,9 +35,9 @@ if __name__ == '__main__':
     args = parse_args(args)
 
     trading_env = TradingEnv(consecutive_frames=args.consecutive_frames,
-                             nb_features=args.nb_features, dataset='../data/test_5m.csv', strategy='train')
+                             nb_features=args.nb_features, dataset='../data/test_1h.csv', strategy='train')
     test_env = TradingEnv(consecutive_frames=args.consecutive_frames,
-                          nb_features=args.nb_features, dataset='../data/test_5m.csv', strategy='test')
+                          nb_features=args.nb_features, dataset='../data/test_1h.csv', strategy='test')
 
     state_dim = args.nb_features * args.consecutive_frames + 2
     action_dim = 3

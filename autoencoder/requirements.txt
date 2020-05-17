@@ -3,3 +3,4 @@ numpy
 python-binance
 matplotlib
 mpl_finance
+pymongo

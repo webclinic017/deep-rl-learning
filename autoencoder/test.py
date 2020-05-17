@@ -6,7 +6,8 @@ import pandas as pd
 from binance.enums import KLINE_INTERVAL_1HOUR, SIDE_SELL, ORDER_TYPE_MARKET, SIDE_BUY
 from binance.websockets import BinanceSocketManager
 from pymongo import MongoClient
-from talib._ta_lib import MA, MACD, MINUS_DI, PLUS_DI, ADX, BBANDS, SAR, STOCHRSI, CCI, ROC, ROCR100, ROCP, WILLR, OBV
+from talib._ta_lib import MA, MACD, MINUS_DI, PLUS_DI, ADX, BBANDS, SAR, STOCHRSI, CCI, ROC, ROCR100, ROCP, WILLR, OBV, \
+    RSI
 from binance.client import Client
 import matplotlib.pyplot as plt
 from mailer import SendMail
@@ -74,7 +75,7 @@ class RegressionMA:
 
         # Global Config
         self.bbw_threshold = 0.03
-        self.adx_threshold = 23
+        self.adx_threshold = 25
         self.prev_frames = 3
 
         # Email Services
@@ -108,47 +109,16 @@ class RegressionMA:
         self.bm.start()
 
     def fake_socket(self, crawler=False):
-        # data = self.db.BTCUSDT_1h.find({})
-        # data = list(data)
-        # with open('data/BTCUSDT_1h.json', 'w') as outfile:
-        #     json.dump(data, outfile, indent=4)
+        if crawler:
+            data = self.db.BTCUSDT_1h.find({})
+            data = list(data)
+            with open('data/BTCUSDT_1h.json', 'w') as outfile:
+                json.dump(data, outfile, indent=4)
         with open('data/BTCUSDT_1h.json') as json_file:
             data = json.load(json_file)
             for msg in data:
                 self.process_message(msg)
         json_file.close()
-
-        # with open('data/Bitcoin240.csv') as json_file:
-        #     for line in json_file.readlines():
-        #         data = line.split(',')
-        #         date_data = "{} {}".format(data[0], data[1])
-        #         time_obj = datetime.datetime.strptime(date_data, "%Y.%m.%d %H:%M")
-        #         msg = {
-        #             "e": "kline",  # event type
-        #             "E": time_obj,  # event time
-        #             "s": "ETHBTC",  # symbol
-        #             "k": {
-        #                 "t": 1499404860000,  # start time of this bar
-        #                 "T": 1499404919999,  # end time of this bar
-        #                 "s": "ETHBTC",  # symbol
-        #                 "i": "1m",  # interval
-        #                 "f": 77462,  # first trade id
-        #                 "L": 77465,  # last trade id
-        #                 "o": data[2],  # open
-        #                 "c": data[5],  # close
-        #                 "h": data[3],  # high
-        #                 "l": data[4],  # low
-        #                 "v": data[6],  # volume
-        #                 "n": 4,  # number of trades
-        #                 "x": True,  # whether this bar is final
-        #                 "q": "1.79662878",  # quote volume
-        #                 "V": "2.34879839",  # volume of active buy
-        #                 "Q": "0.24142166",  # quote volume of active buy
-        #                 "B": "13279784.01349473"  # can be ignored
-        #             }
-        #         }
-        #         self.global_step += 1
-        #         self.process_message(msg)
 
     def process_message(self, msg):
         _open_time = msg['k']['t']
@@ -220,7 +190,7 @@ class RegressionMA:
                     self.lower_price = low_p
                     self.max_profit = diff
 
-            if current_diff < -50 or (self.max_profit and current_diff <= self.max_profit * 0.5):
+            if current_diff < -50:
                 self.force_close = True
 
     def trading(self, close_p, _timestamp, is_latest):
@@ -242,6 +212,7 @@ class RegressionMA:
         df['ROC'] = ROC(df.Close, timeperiod=14)
         df['William'] = WILLR(df.High, df.Low, df.Close, timeperiod=14)
         df['OBV'] = OBV(df.Close, df.Volume)
+        df['RSI'] = RSI(df.Close)
         data = df.dropna()
 
         # MACD
@@ -262,10 +233,12 @@ class RegressionMA:
         bb_w = data.BAND_WIDTH.values[-self.prev_frames:-1]
         last_bb_w = data.BAND_WIDTH.values[-1]
         bb_b = data.BAND_B.values[-1]
+        prev_bb_b = data.BAND_B.values[-2]
 
         # Commodity Channel Index (Momentum Indicators)
         cci_data = data.CCI.values
         cci = cci_data[-1]
+        prev_cci = cci_data[-2]
 
         # ADX DMI
         plus_di_data = data.PLUS_DI.values
@@ -295,6 +268,9 @@ class RegressionMA:
         high_p = df.High.values[-1]
         low_p = df.Low.values[-1]
 
+        # RSI
+        rsi = df.RSI.values[-1]
+
         current_time_readable = datetime.datetime.fromtimestamp(_timestamp).strftime('%d-%m-%Y %H:%M:%S')
         log_txt = " Price {} | DI- {} | DI+ {} | ADX {} | SAR {} | CCI {} | ROC {} | %William {} | Histogram {} | Middle Band {}".format(
             round(close_p, 2),
@@ -311,16 +287,16 @@ class RegressionMA:
                 (adx > self.adx_threshold and plus_di > self.adx_threshold) and \
                 plus_di > minus_di and \
                 close_p > middle_band and \
-                close_p > sar and \
-                cci > 100 and \
+                cci > 100 and\
                 roc > 1 and \
                 histogram > 5 and \
                 willr > -20 and \
-                all(last_bb_w > x for x in bb_w) and \
+                all(last_bb_w > x for x in bb_w) and last_bb_w > self.bbw_threshold and \
                 all(histogram > x for x in histogram_prev) and \
                 all(adx > x for x in prev_adx) and \
                 all(obv > x for x in prev_obv) and \
-                bb_b > 1:
+                bb_b > 1 and \
+                rsi > 70:
             # buy signal
             self.side = 'buy'
             self.order = close_p
@@ -334,7 +310,7 @@ class RegressionMA:
 
         # CLose Buy Order
         elif self.side == 'buy' and self.order and \
-                (close_p < middle_band or close_p < sar or cci < 100 or self.force_close):
+                (close_p < middle_band or self.force_close):
             # take profit
             diff = close_p - self.order
             self.budget += diff
@@ -353,17 +329,16 @@ class RegressionMA:
                 (adx > self.adx_threshold and minus_di > self.adx_threshold) and \
                 minus_di > plus_di and \
                 close_p < middle_band and \
-                close_p < sar and \
-                cci < -100 and \
+                cci < -100 and\
                 roc < -1 and \
                 histogram < -5 and \
                 willr < -80 and \
-                all(last_bb_w > x for x in bb_w) and \
+                all(last_bb_w > x for x in bb_w) and last_bb_w > self.bbw_threshold and  \
                 all(histogram < x for x in histogram_prev) and \
                 all(adx > x for x in prev_adx) and \
-                all(obv > x for x in prev_obv) and \
-                bb_b < 0:
-
+                all(obv < x for x in prev_obv) and \
+                bb_b < 0 and \
+                rsi < 30:
             self.side = 'sell'
             self.order = close_p
             self.order_time = _timestamp
@@ -376,7 +351,7 @@ class RegressionMA:
 
         # Close Sell Order
         elif self.side == 'sell' and self.order and \
-                (close_p > middle_band or close_p > sar or cci > -100 or self.force_close):
+                (close_p > middle_band or self.force_close):
 
             diff = self.order - close_p
             self.budget += diff
@@ -575,7 +550,7 @@ if __name__ == '__main__':
     # bottrading.plot_data()
     # bottrading.get_data()
     # bottrading.test_trading()
-    bottrading.fake_socket()
+    bottrading.fake_socket(crawler=False)
     # bottrading.start_socket()
     # bottrading.test_buy_order()
     # bottrading.test_sell_order()

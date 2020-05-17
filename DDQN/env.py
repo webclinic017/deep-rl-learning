@@ -31,7 +31,7 @@ class TradingEnv:
     def get_data(self, csv_path):
         df = pd.read_csv(csv_path, sep=',')
         df = df.drop(columns=['quote_asset_volume', 'number_of_trades',
-                              'buy_base_asset_volume', 'buy_quote_asset_volume'], axis=1)
+                              'buy_base_asset_volume', 'buy_quote_asset_volume', 'open_time', 'close_time', 'ignore'], axis=1)
         df = ta.utils.dropna(df)
         train_data = df.copy()
 
@@ -92,12 +92,11 @@ class TradingEnv:
         done = False
 
         diff = current_price - self.order if self.order else 0
-        r = -1
-        # if action not in self.get_valid_actions():
-        #     r = -1
-        #     done = True
+        r = min(diff / 1000, 1) if diff else 0
+        if action not in self.get_valid_actions():
+            r = -10
 
-        if action == 1:
+        elif action == 1:
             # Buy
             self.order = current_price
             self.side = 'buy'
@@ -107,11 +106,10 @@ class TradingEnv:
             self.side = None
             self.order = 0
             if diff > 100:
-                r = 0.5
-                done = True
+                r = 10
 
         # create state
-        state1 = self.train_data[self.t-self.consecutive_frames:self.t]
+        state1 = self.train_data[self.t-self.consecutive_frames:self.t+1]
 
         info = {
             'diff': round(diff, 2),
@@ -124,7 +122,7 @@ class TradingEnv:
         self.t += 1
         self.waiting_time += 1
 
-        if self.t >= len(self.prices) - 500:
+        if self.t >= len(self.prices) - 20:
             done = True
             self.t = self.consecutive_frames
             info['end_ep'] = True
@@ -142,7 +140,7 @@ class TradingEnv:
         self.done = False
         self.waiting_time = 0
 
-        inp1 = self.train_data[self.t-self.consecutive_frames:self.t]
+        inp1 = self.train_data[self.t-self.consecutive_frames:self.t+1]
         inp2 = np.array([0, 0])
         self.t += 1
         return inp1, inp2

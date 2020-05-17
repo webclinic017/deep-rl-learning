@@ -29,19 +29,19 @@ class Agent:
     def network(self, dueling):
         """ Build Deep Q-Network
         """
-        inp = Input((10, 5))
+        inp = Input((11, 5))
         x1 = LSTM(128, dropout=0.1, recurrent_dropout=0.3, return_sequences=True)(inp)
         x1 = LSTM(128, dropout=0.1, recurrent_dropout=0.3, return_sequences=True)(x1)
         x1 = LSTM(128, dropout=0.1, recurrent_dropout=0.3)(x1)
         x1 = Dense(32, activation='relu')(x1)
 
-        # inp2 = Input((2,))
-        # x2 = Dense(128, activation='relu')(inp2)
+        inp2 = Input((2,))
+        x2 = Dense(128, activation='relu')(inp2)
 
-        # output = concatenate([x1, x2])
+        output = concatenate([x1, x2])
 
-        # output = Dense(128, activation='relu')(output)
-        output = Dense(32, activation='relu')(x1)
+        output = Dense(128, activation='relu')(output)
+        output = Dense(32, activation='relu')(output)
 
         if dueling:
             # Have the network estimate the Advantage function as an intermediate layer
@@ -50,7 +50,7 @@ class Agent:
                             output_shape=(self.action_dim,))(output)
         else:
             output = Dense(self.action_dim, activation='linear')(output)
-        model = Model(inputs=inp, output=output)
+        model = Model(inputs=[inp, inp2], output=output)
         model.summary()
         return model
 
@@ -67,17 +67,17 @@ class Agent:
     def fit(self, inp1, inp2, targ):
         """ Perform one epoch of training
         """
-        self.model.fit(x=inp1, y=targ, epochs=1, verbose=0)
+        self.model.fit(x=[inp1, inp2], y=targ, epochs=1, verbose=0)
 
     def predict(self, inp1, inp2):
         """ Q-Value Prediction
         """
-        return self.model.predict(x=inp1)
+        return self.model.predict(x=[inp1, inp2])
 
     def target_predict(self, inp1, inp2):
         """ Q-Value Prediction (using target network)
         """
-        return self.target_model.predict(x=inp1)
+        return self.target_model.predict(x=[inp1, inp2])
 
     def reshape(self, x):
         # if len(x.shape) < 4 and len(self.state_dim) > 2: return np.expand_dims(x, axis=0)
