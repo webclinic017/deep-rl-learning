@@ -110,11 +110,11 @@ class RegressionMA:
 
     def fake_socket(self, crawler=False):
         if crawler:
-            data = self.db.BTCUSDT_1h.find({})
+            data = self.db.BTCUSDT_15m.find({})
             data = list(data)
-            with open('data/BTCUSDT_5m.json', 'w') as outfile:
+            with open('data/BTCUSDT_15m.json', 'w') as outfile:
                 json.dump(data, outfile, indent=4)
-        with open('data/BTCUSDT_5m.json') as json_file:
+        with open('data/BTCUSDT_15m.json') as json_file:
             data = json.load(json_file)
             for msg in data:
                 self.process_message(msg)
@@ -163,7 +163,7 @@ class RegressionMA:
 
         self.is_latest = msg['k']['x']
 
-        if len(self.train_data) > 100:
+        if len(self.train_data) > 50 and float(_close) != 0:
             self.trading(float(_close), _timestamp, msg['k']['x'])
 
     def check_profit(self, close_p, high_p, low_p, is_latest):
@@ -282,14 +282,12 @@ class RegressionMA:
         )
 
         console_logger.info(log_txt)
-        self.check_profit(close_p, high_p, low_p, is_latest)
+        # self.check_profit(close_p, high_p, low_p, is_latest)
 
         # Place Buy Order
         if not self.order and self.can_order and \
                 bb_b > 1 and \
-                cci > 100 and \
-                roc > 0.5 and \
-                all(last_volume > x for x in compare_volume):
+                cci > 100:
             # buy signal
             self.side = 'buy'
             self.order = close_p
@@ -308,7 +306,7 @@ class RegressionMA:
             diff = close_p - self.order
             self.budget += diff
             self.reset()
-            txt = "{} | Close Buy Order Price {} | bb_b {} | CCI {} Diff {} | Budget {} | Max Diff {}".format(
+            txt = "{} | Close Buy Order Price {} | bb_b {} | CCI {} | Diff {} | Budget {} | Max Diff {}".format(
                 current_time_readable,
                 round(close_p, 2), round(bb_b, 2), round(cci, 2),
                 round(diff, 2), round(self.budget, 2), round(self.max_profit, 2))
@@ -319,9 +317,7 @@ class RegressionMA:
         # Place Sell Order
         elif not self.order and self.can_order and \
                 bb_b < 0 and \
-                cci < -100 and \
-                roc < -0.5 and \
-                all(last_volume > x for x in compare_volume):
+                cci < -100:
             self.side = 'sell'
             self.order = close_p
             self.order_time = _timestamp
@@ -340,8 +336,7 @@ class RegressionMA:
             self.reset()
             txt = "{} | Close Sell Order {} | bb_b {} | CCI {} | Diff {} | Budget {} | Max Diff {} ".format(
                 current_time_readable,
-                round(close_p, 2), round(minus_di, 2), round(plus_di, 2), round(adx, 2),
-                round(sar, 2), round(cci, 2), round(roc, 2), round(diff, 2), round(self.budget, 2),
+                round(close_p, 2), round(bb_b, 2), round(cci, 2), round(diff, 2), round(self.budget, 2),
                 round(self.max_profit, 2),
             )
             self.max_profit = 0
@@ -531,7 +526,7 @@ if __name__ == '__main__':
     # bottrading.plot_data()
     # bottrading.get_data()
     # bottrading.test_trading()
-    bottrading.fake_socket(crawler=False)
+    bottrading.fake_socket(crawler=True)
     # bottrading.start_socket()
     # bottrading.test_buy_order()
     # bottrading.test_sell_order()
