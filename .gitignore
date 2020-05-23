@@ -31,3 +31,4 @@ DDPG/tensorboard_BreakoutNoFrameskip-v4/
 /DDQN/log/
 /autoencoder/data/
 /data/
+/autoencoder/models/
