@@ -10,7 +10,6 @@ from talib._ta_lib import MA, MACD, MINUS_DI, PLUS_DI, ADX, BBANDS, SAR, STOCHRS
     RSI
 from binance.client import Client
 import matplotlib.pyplot as plt
-from mailer import SendMail
 
 # create logger with 'spam_application'
 autotrade_logger = logging.getLogger('autotrade')
@@ -78,9 +77,6 @@ class RegressionMA:
         self.adx_threshold = 25
         self.prev_frames = 3
 
-        # Email Services
-        self.mailer = SendMail()
-
         # MongoDB
         self.client = MongoClient(host='66.42.37.163', username='admin', password='jkahsduk12387a89sdjk@#',
                                   authSource='admin')
@@ -110,11 +106,11 @@ class RegressionMA:
 
     def fake_socket(self, crawler=False):
         if crawler:
-            data = self.db.BTCUSDT_15m.find({})
+            data = self.db.BTCUSDT_1h.find({})
             data = list(data)
-            with open('data/BTCUSDT_15m.json', 'w') as outfile:
+            with open('data/BTCUSDT_1h.json', 'w') as outfile:
                 json.dump(data, outfile, indent=4)
-        with open('data/BTCUSDT_15m.json') as json_file:
+        with open('data/BTCUSDT_1h.json') as json_file:
             data = json.load(json_file)
             for msg in data:
                 self.process_message(msg)
@@ -286,8 +282,18 @@ class RegressionMA:
 
         # Place Buy Order
         if not self.order and self.can_order and \
-                bb_b > 1 and \
-                cci > 100:
+                (adx > self.adx_threshold and plus_di > self.adx_threshold) and \
+                plus_di > minus_di and \
+                close_p > middle_band and \
+                close_p > sar and \
+                cci > 100 and \
+                roc > 1 and \
+                histogram > 5 and \
+                willr > -20 and \
+                all(last_bb_w > x for x in bb_w) and \
+                all(histogram > x for x in histogram_prev) and \
+                all(adx > x for x in prev_adx) and \
+                bb_b > 1:
             # buy signal
             self.side = 'buy'
             self.order = close_p
@@ -301,7 +307,7 @@ class RegressionMA:
 
         # CLose Buy Order
         elif self.side == 'buy' and self.order and \
-                (bb_b < 1 or cci < 100 or self.force_close):
+                (close_p < middle_band or close_p < sar or self.force_close):
             # take profit
             diff = close_p - self.order
             self.budget += diff
@@ -316,8 +322,18 @@ class RegressionMA:
 
         # Place Sell Order
         elif not self.order and self.can_order and \
-                bb_b < 0 and \
-                cci < -100:
+                (adx > self.adx_threshold and minus_di > self.adx_threshold) and \
+                minus_di > plus_di and \
+                close_p < middle_band and \
+                close_p < sar and \
+                cci < -100 and \
+                roc < -1 and \
+                histogram < -5 and \
+                willr < -80 and \
+                all(last_bb_w > x for x in bb_w) and \
+                all(histogram < x for x in histogram_prev) and \
+                all(adx > x for x in prev_adx) and \
+                bb_b < 0:
             self.side = 'sell'
             self.order = close_p
             self.order_time = _timestamp
@@ -329,7 +345,7 @@ class RegressionMA:
 
         # Close Sell Order
         elif self.side == 'sell' and self.order and \
-                (bb_b > 0 or cci > -100 or self.force_close):
+                (close_p > middle_band or close_p > sar or self.force_close):
 
             diff = self.order - close_p
             self.budget += diff
