@@ -19,7 +19,7 @@ class Critic(Agent):
     def addHead(self, network):
         """ Assemble Critic network to predict value of each state
         """
-        x = Dense(512, activation='relu')(network.output)
+        x = Dense(128, activation='relu')(network.output)
         out = Dense(1, activation='linear')(x)
         return Model(network.input, out)
 
@@ -28,7 +28,7 @@ class Critic(Agent):
         """
         critic_loss = K.mean(K.square(self.discounted_r - self.model.output))
         updates = self.rms_optimizer.get_updates(self.model.trainable_weights, [], critic_loss)
-        return K.function([self.model.input[0], self.model.input[1], self.discounted_r], [], updates=updates)
+        return K.function([self.model.input, self.discounted_r], [], updates=updates)
 
     def save(self, path):
         self.model.save_weights(path + '_critic.h5')

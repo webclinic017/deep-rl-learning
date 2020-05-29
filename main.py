@@ -5,25 +5,20 @@ import os
 import sys
 import time
 
-import gym
 import argparse
 import tensorflow as tf
 
 from A2C.a2c import A2C
-from A3C.a3c import A3C
-from DDQN.ddqn import DDQN
-from DDPG.ddpg import DDPG
 
 from keras.backend.tensorflow_backend import set_session
 
+from A2C.env import TradingEnv
 from utils.atari_environment import AtariEnvironment
 # from utils.continuous_environments import Environment
 from utils.networks import get_session
 import matplotlib.pyplot as plt
 from utils.environment import Environment
 
-
-gym.logger.set_level(40)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
@@ -40,7 +35,7 @@ def parse_args(args):
     #
     parser.add_argument('--nb_episodes', type=int, default=50000, help="Number of training episodes")
     parser.add_argument('--batch_size', type=int, default=64, help="Batch size (experience replay)")
-    parser.add_argument('--consecutive_frames', type=int, default=11,
+    parser.add_argument('--consecutive_frames', type=int, default=1,
                         help="Number of consecutive frames (action repeat)")
     parser.add_argument('--training_interval', type=int, default=30, help="Network training frequency")
     parser.add_argument('--n_threads', type=int, default=32, help="Number of threads (A3C)")
@@ -71,21 +66,12 @@ def main(args=None):
     set_session(get_session())
     summary_writer = tf.summary.FileWriter(args.type + "/tensorboard_" + args.env)
 
-    env = Environment(start_step=11, windows=args.consecutive_frames, dataset='train1hour')
+    env = TradingEnv(consecutive_frames=args.consecutive_frames)
     env.reset()
     state_dim = (1,)
     action_dim = 3
     act_range = 2
-
-    # Pick algorithm to train
-    if args.type == "DDQN":
-        algo = DDQN(action_dim, state_dim, args)
-    elif args.type == "A2C":
-        algo = A2C(action_dim, state_dim, args.consecutive_frames)
-    elif args.type == "A3C":
-        algo = A3C(action_dim, state_dim, args.consecutive_frames)
-    elif args.type == "DDPG":
-        algo = DDPG(action_dim, state_dim, act_range, args.consecutive_frames)
+    algo = A2C(action_dim, state_dim, args.consecutive_frames)
 
     # Train
     stats = algo.train(env, args, summary_writer)

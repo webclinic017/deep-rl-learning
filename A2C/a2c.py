@@ -25,7 +25,7 @@ class A2C:
         """
         # Environment and A2C parameters
         self.act_dim = act_dim
-        self.env_dim = (k,) + env_dim
+        self.env_dim = (2,)
         self.gamma = gamma
         self.lr = lr
         self.epsilon = 0.3
@@ -41,25 +41,25 @@ class A2C:
         """ Assemble shared layers
         """
         inp = Input((self.env_dim))
-        x = LSTM(128, dropout=0.1, recurrent_dropout=0.3)(inp)
-        x = Dense(128, activation='relu')(x)
+        x = Dense(128, activation='relu')(inp)
         x = Dense(128, activation='relu')(x)
         x = Dense(64, activation='relu')(x)
         x = Dense(32, activation='relu')(x)
         return Model(inp, x)
 
-    def policy_action(self, inp1, inp2):
+    def policy_action(self, inp1):
         """ Use the actor to predict the next action to take, using the policy
         """
-        p = self.actor.predict(inp1, inp2)
+        inp1 = np.expand_dims(inp1, axis=0)
+        p = self.actor.predict(inp1)
         action = np.random.choice(np.arange(self.act_dim), 1, p=p.ravel())[0]
         logging.warning("a: {}, p: {}".format(action, p))
         return action
 
-    def random_actions(self, inp1, inp2):
+    def random_actions(self, inp1):
         if np.random.uniform() > self.epsilon:
             # forward feed the observation and get q value for every actions
-            actions_value = self.actor.predict(inp1, inp2)
+            actions_value = self.actor.predict(inp1)
             action = np.argmax(actions_value)
             logging.warning("action: {} values: {}".format(action, actions_value))
         else:
@@ -82,15 +82,13 @@ class A2C:
         """
         # Compute discounted rewards and Advantage (TD. Error)
         discounted_rewards = self.discount(rewards, done, actions)
-        s1 = np.array([x[0][0] for x in states])
-        s2 = np.array([x[1][0] for x in states])
-        state_values = self.critic.predict(s1, s2)
+        state_values = self.critic.predict(np.array(states))
 
         advantages = discounted_rewards - np.reshape(state_values, len(state_values))
         # Networks optimization
 
-        self.a_opt([s1, s2, actions, advantages])
-        self.c_opt([s1, s2, discounted_rewards])
+        self.a_opt([states, actions, advantages])
+        self.c_opt([states, discounted_rewards])
 
     def train(self, env, args, summary_writer):
         """ Main A2C Training Algorithm
@@ -132,11 +130,11 @@ class A2C:
             # if(args.gather_stats):
             #     mean, stdev = gather_stats(self, env)
             #     results.append([e, mean, stdev])
-            tqdm_e.set_description("Profit: " + str(info['total_profit']))
+            tqdm_e.set_description("budget: " + str(info['budget']))
             tqdm_e.refresh()
             # Export results for Tensorboard
             score = tfSummary('score', cumul_reward)
-            budget = tfSummary('budget', info['total_profit'])
+            budget = tfSummary('budget', info['budget'])
             summary_writer.add_summary(score, global_step=e)
             summary_writer.add_summary(budget, global_step=e)
             summary_writer.flush()
