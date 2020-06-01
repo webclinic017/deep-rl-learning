@@ -24,7 +24,7 @@ class TradingEnv:
         current_price = self.prices[self.t]
 
         diff = current_price - self.order if self.order else 0
-        r = 0
+        r = min(diff/1000, 1) if diff else 0
         done = False
 
         if action == 0:
@@ -41,7 +41,7 @@ class TradingEnv:
                 self.order = 0
                 self.budget += diff
                 if diff > 500:
-                    r = 10
+                    r = 100
                     done = True
 
         state = self.train_data[self.t]
@@ -59,6 +59,7 @@ class TradingEnv:
         self.waiting_time = 0
 
         inp1 = self.train_data[self.t]
+        self.t += 1
         return inp1
 
     def get_state_size(self):

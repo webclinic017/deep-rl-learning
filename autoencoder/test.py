@@ -74,13 +74,16 @@ class RegressionMA:
 
         # Global Config
         self.bbw_threshold = 0.03
-        self.adx_threshold = 25
-        self.prev_frames = 3
+        self.adx_threshold = 20
+        self.prev_frames = 2
 
         # MongoDB
         self.client = MongoClient(host='66.42.37.163', username='admin', password='jkahsduk12387a89sdjk@#',
                                   authSource='admin')
         self.db = self.client.crypto
+
+        # classify_data
+        self.cld = list()
 
     def get_data(self):
         api_key = "y9JKPpQ3B2zwIRD9GwlcoCXwvA3mwBLiNTriw6sCot13IuRvYKigigXYWCzCRiul"
@@ -159,7 +162,7 @@ class RegressionMA:
 
         self.is_latest = msg['k']['x']
 
-        if len(self.train_data) > 50 and float(_close) != 0:
+        if len(self.train_data) > 50:
             self.trading(float(_close), _timestamp, msg['k']['x'])
 
     def check_profit(self, close_p, high_p, low_p, is_latest):
@@ -174,20 +177,23 @@ class RegressionMA:
         """
         if self.order:
             if self.side == 'buy':
-                diff = high_p - self.order
+                max_profit = high_p - self.order
                 current_diff = close_p - self.order
-                if (high_p > self.higher_price or self.higher_price == 0) and is_latest:
+                if (high_p > self.higher_price or not self.higher_price) and is_latest:
                     self.higher_price = high_p
-                    self.max_profit = diff
+                    self.max_profit = max_profit
             else:
-                diff = self.order - low_p
+                max_profit = self.order - low_p
                 current_diff = self.order - close_p
-                if (low_p < self.lower_price or self.lower_price == 0) and is_latest:
+                if (low_p < self.lower_price or not self.lower_price) and is_latest:
                     self.lower_price = low_p
-                    self.max_profit = diff
+                    self.max_profit = max_profit
 
-            if current_diff < -50 or (self.max_profit and current_diff <= self.max_profit * 0.618):
+            if (current_diff < -50 and not self.max_profit) or \
+                    (self.max_profit and current_diff <= self.max_profit * 0.618) or \
+                    (self.max_profit and current_diff < 0):
                 self.force_close = True
+                self.can_order = False
 
     def trading(self, close_p, _timestamp, is_latest):
         df = self.train_data.copy()
@@ -227,10 +233,9 @@ class RegressionMA:
         middle_band = band_middle_data[-1]
 
         # Bollinger band width
-        bb_w = data.BAND_WIDTH.values[-self.prev_frames:-1]
-        last_bb_w = data.BAND_WIDTH.values[-1]
+        prev_bb_w = data.BAND_WIDTH.values[-self.prev_frames:-1]
+        bb_w = data.BAND_WIDTH.values[-1]
         bb_b = data.BAND_B.values[-1]
-        prev_bb_b = data.BAND_B.values[-2]
 
         # Commodity Channel Index (Momentum Indicators)
         cci_data = data.CCI.values
@@ -259,7 +264,7 @@ class RegressionMA:
         # OBV
         obv_data = data.OBV.values
         obv = obv_data[-1]
-        prev_obv = obv_data[-self.prev_frames:-1]
+        prev_obv = obv_data[-10:-1]
 
         # price data
         high_p = df.High.values[-1]
@@ -278,7 +283,7 @@ class RegressionMA:
         )
 
         console_logger.info(log_txt)
-        # self.check_profit(close_p, high_p, low_p, is_latest)
+        self.check_profit(close_p, high_p, low_p, is_latest)
 
         # Place Buy Order
         if not self.order and self.can_order and \
@@ -290,7 +295,7 @@ class RegressionMA:
                 roc > 1 and \
                 histogram > 5 and \
                 willr > -20 and \
-                all(last_bb_w > x for x in bb_w) and \
+                all(bb_w > x for x in prev_bb_w) and \
                 all(histogram > x for x in histogram_prev) and \
                 all(adx > x for x in prev_adx) and \
                 bb_b > 1:
@@ -298,24 +303,23 @@ class RegressionMA:
             self.side = 'buy'
             self.order = close_p
             self.order_time = _timestamp
-            txt = "{} | Buy Order Price {} | bb_b {} | CCI {} | roc {}".format(
+            txt = "{} | Buy Order Price {} | bb_b {} | CCI {} | roc {} | willr {} | DI+ {} | DI- {} | ADX {}".format(
                 current_time_readable, round(close_p, 2), round(bb_b, 2),
-                round(cci, 2), round(roc, 2)
+                round(cci, 2), round(roc, 2), round(willr, 2), round(plus_di, 2), round(minus_di, 2), round(adx, 2)
             )
             print(txt)
             autotrade_logger.info(txt)
 
         # CLose Buy Order
         elif self.side == 'buy' and self.order and \
-                (close_p < middle_band or close_p < sar or self.force_close):
+                (close_p < sar or close_p < middle_band or self.force_close):
             # take profit
             diff = close_p - self.order
             self.budget += diff
             self.reset()
-            txt = "{} | Close Buy Order Price {} | bb_b {} | CCI {} | Diff {} | Budget {} | Max Diff {}".format(
-                current_time_readable,
-                round(close_p, 2), round(bb_b, 2), round(cci, 2),
-                round(diff, 2), round(self.budget, 2), round(self.max_profit, 2))
+            txt = "{} | Profit {} | Close Buy Order Price {} | Budget {} | Max Diff {}".format(
+                current_time_readable, round(diff, 2),
+                round(close_p, 2), round(self.budget, 2), round(self.max_profit, 2))
             autotrade_logger.info(txt)
             print(txt)
             self.max_profit = 0
@@ -330,37 +334,37 @@ class RegressionMA:
                 roc < -1 and \
                 histogram < -5 and \
                 willr < -80 and \
-                all(last_bb_w > x for x in bb_w) and \
+                all(bb_w > x for x in prev_bb_w) and \
                 all(histogram < x for x in histogram_prev) and \
                 all(adx > x for x in prev_adx) and \
                 bb_b < 0:
             self.side = 'sell'
             self.order = close_p
             self.order_time = _timestamp
-            txt = "{} | Sell Order Price {} | bb_b {} | CCI {} | ROC: {}".format(
-                current_time_readable, round(close_p, 2), round(bb_b, 2), round(cci, 2), round(roc, 2)
+            txt = "{} | Sell Order Price {} | bb_b {} | CCI {} | ROC {} | willr {} | DI+ {} | DI- {} | ADX {}".format(
+                current_time_readable, round(close_p, 2), round(bb_b, 2), round(cci, 2), round(roc, 2),
+                round(willr, 2), round(plus_di, 2), round(minus_di, 2), round(adx, 2)
             )
             print(txt)
             autotrade_logger.info(txt)
 
         # Close Sell Order
         elif self.side == 'sell' and self.order and \
-                (close_p > middle_band or close_p > sar or self.force_close):
+                (close_p > sar or close_p > middle_band or self.force_close):
 
             diff = self.order - close_p
             self.budget += diff
             self.reset()
-            txt = "{} | Close Sell Order {} | bb_b {} | CCI {} | Diff {} | Budget {} | Max Diff {} ".format(
-                current_time_readable,
-                round(close_p, 2), round(bb_b, 2), round(cci, 2), round(diff, 2), round(self.budget, 2),
+            txt = "{} | Profit {} | Close Sell Order {} | Budget {} | Max Diff {} ".format(
+                current_time_readable, round(diff, 2),
+                round(close_p, 2), round(self.budget, 2),
                 round(self.max_profit, 2),
             )
-            self.max_profit = 0
             print(txt)
             autotrade_logger.info(txt)
 
     def reset(self):
-        self.order = 0
+        self.order = None
         self.side = None
         self.take_profit = 0
         self.stop_loss = 0
@@ -369,6 +373,7 @@ class RegressionMA:
         self.order_time = None
         self.lower_price = 0
         self.higher_price = 0
+        self.max_profit = 0
 
     def test_buy_order(self):
         info = self.binace_client.get_margin_account()
@@ -542,7 +547,7 @@ if __name__ == '__main__':
     # bottrading.plot_data()
     # bottrading.get_data()
     # bottrading.test_trading()
-    bottrading.fake_socket(crawler=True)
+    bottrading.fake_socket(crawler=False)
     # bottrading.start_socket()
     # bottrading.test_buy_order()
     # bottrading.test_sell_order()
