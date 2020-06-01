@@ -62,6 +62,7 @@ class RegressionMA:
         self.train_data = pd.DataFrame(columns=['open_time', 'Open', 'High', 'Low', 'Close',
                                                 'Volume', 'close_time', 'quote_asset_volume', 'number_of_trades',
                                                 'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
+        self.order_point = []
 
         # Matplotlib
         self.exp4 = []
@@ -117,6 +118,20 @@ class RegressionMA:
             data = json.load(json_file)
             for msg in data:
                 self.process_message(msg)
+
+        close_price = self.train_data.Close.astype('float64').values
+        plt.plot(self.train_data.Close.astype('float64'), label='MA')
+        area = 10
+        for point in self.order_point:
+            index = point['index']
+            side = point['side']
+            if side == 'buy':
+                plt.scatter(index, close_price[index], s=area, c='green', alpha=1)
+            elif side == 'sell':
+                plt.scatter(index, close_price[index], s=area, c='red', alpha=1)
+            elif side == 'close':
+                plt.scatter(index, close_price[index], s=area, c='blue', alpha=1)
+        plt.show()
         json_file.close()
 
     def process_message(self, msg):
@@ -179,13 +194,13 @@ class RegressionMA:
             if self.side == 'buy':
                 max_profit = high_p - self.order
                 current_diff = close_p - self.order
-                if (high_p > self.higher_price or not self.higher_price) and is_latest:
+                if (high_p > self.higher_price or self.higher_price == 0) and is_latest:
                     self.higher_price = high_p
                     self.max_profit = max_profit
             else:
                 max_profit = self.order - low_p
                 current_diff = self.order - close_p
-                if (low_p < self.lower_price or not self.lower_price) and is_latest:
+                if (low_p < self.lower_price or self.lower_price == 0) and is_latest:
                     self.lower_price = low_p
                     self.max_profit = max_profit
 
@@ -309,6 +324,7 @@ class RegressionMA:
             )
             print(txt)
             autotrade_logger.info(txt)
+            self.order_point.append({'side': 'buy', 'index': self.global_step})
 
         # CLose Buy Order
         elif self.side == 'buy' and self.order and \
@@ -323,6 +339,7 @@ class RegressionMA:
             autotrade_logger.info(txt)
             print(txt)
             self.max_profit = 0
+            self.order_point.append({'side': 'close', 'index': self.global_step})
 
         # Place Sell Order
         elif not self.order and self.can_order and \
@@ -347,6 +364,7 @@ class RegressionMA:
             )
             print(txt)
             autotrade_logger.info(txt)
+            self.order_point.append({'side': 'sell', 'index': self.global_step})
 
         # Close Sell Order
         elif self.side == 'sell' and self.order and \
@@ -362,6 +380,7 @@ class RegressionMA:
             )
             print(txt)
             autotrade_logger.info(txt)
+            self.order_point.append({'side': 'close', 'index': self.global_step})
 
     def reset(self):
         self.order = None
