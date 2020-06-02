@@ -2,12 +2,13 @@ import datetime
 import time
 import json
 import logging
+from functools import wraps
+
 import pandas as pd
 from binance.enums import KLINE_INTERVAL_1HOUR, SIDE_SELL, ORDER_TYPE_MARKET, SIDE_BUY
 from binance.websockets import BinanceSocketManager
 from pymongo import MongoClient
-from talib._ta_lib import MA, MACD, MINUS_DI, PLUS_DI, ADX, BBANDS, SAR, STOCHRSI, CCI, ROC, ROCR100, ROCP, WILLR, OBV, \
-    RSI
+from talib._ta_lib import MA, MACD, MINUS_DI, PLUS_DI, ADX, BBANDS, SAR, CCI, ROC, WILLR, OBV, RSI
 from binance.client import Client
 import matplotlib.pyplot as plt
 
@@ -28,6 +29,17 @@ fh2.setFormatter(formatter)
 # add the handlers to the logger
 autotrade_logger.addHandler(fh1)
 console_logger.addHandler(fh2)
+
+
+def timethis(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        result = func(*args, **kwargs)
+        end = time.time()
+        print(func.__name__, end - start)
+        return result
+    return wrapper
 
 
 class RegressionMA:
@@ -75,7 +87,7 @@ class RegressionMA:
 
         # Global Config
         self.bbw_threshold = 0.03
-        self.adx_threshold = 20
+        self.adx_threshold = 22
         self.prev_frames = 2
 
         # MongoDB
@@ -136,11 +148,11 @@ class RegressionMA:
 
     def process_message(self, msg):
         _open_time = msg['k']['t']
-        _open = msg['k']['o']
-        _high = msg['k']['h']
-        _low = msg['k']['l']
-        _close = msg['k']['c']
-        _volume = msg['k']['v']
+        _open = float(msg['k']['o'])
+        _high = float(msg['k']['h'])
+        _low = float(msg['k']['l'])
+        _close = float(msg['k']['c'])
+        _volume = float(msg['k']['v'])
         _close_time = msg['k']['T']
         _quote_asset_volume = msg['k']['Q']
         _number_of_trades = msg['k']['n']
@@ -191,37 +203,31 @@ class RegressionMA:
         :return: boolean
         """
         if self.order:
-            if self.side == 'buy':
+            if self.side is 'buy':
                 max_profit = high_p - self.order
                 current_diff = close_p - self.order
-                if (high_p > self.higher_price or self.higher_price == 0) and is_latest:
+                if (high_p > self.higher_price or not self.higher_price) and is_latest:
                     self.higher_price = high_p
                     self.max_profit = max_profit
             else:
                 max_profit = self.order - low_p
                 current_diff = self.order - close_p
-                if (low_p < self.lower_price or self.lower_price == 0) and is_latest:
+                if (low_p < self.lower_price or not self.lower_price) and is_latest:
                     self.lower_price = low_p
                     self.max_profit = max_profit
 
-            if (current_diff < -50 and not self.max_profit) or \
+            if (is_latest and not self.max_profit) or \
                     (self.max_profit and current_diff <= self.max_profit * 0.618) or \
                     (self.max_profit and current_diff < 0):
                 self.force_close = True
                 self.can_order = False
 
     def trading(self, close_p, _timestamp, is_latest):
-        df = self.train_data.copy()
-        df['Close'] = df['Close'].astype('float64')
-        df['High'] = df['High'].astype('float64')
-        df['Low'] = df['Low'].astype('float64')
-        df['Open'] = df['Open'].astype('float64')
-        df['Volume'] = df['Volume'].astype('float64')
-        df['MACD'], df['SIGNAL'], df['HISTOGRAM'] = MACD(df.Close, fastperiod=12, slowperiod=26, signalperiod=9)
+        df = self.train_data
+        _, _, df['HISTOGRAM'] = MACD(df.Close, fastperiod=12, slowperiod=26, signalperiod=9)
         df['MINUS_DI'] = MINUS_DI(df.High, df.Low, df.Close, timeperiod=14)
         df['PLUS_DI'] = PLUS_DI(df.High, df.Low, df.Close, timeperiod=14)
         df['ADX'] = ADX(df.High, df.Low, df.Close, timeperiod=14)
-        df['MA'] = MA(df.Close, timeperiod=9)
         df['BAND_UPPER'], df['BAND_MIDDLE'], df['BAND_LOWER'] = BBANDS(df.Close, 20, 2, 2)
         df['BAND_WIDTH'] = (df['BAND_UPPER'] - df['BAND_LOWER']) / df['BAND_MIDDLE']
         df['BAND_B'] = (df['Close'] - df['BAND_LOWER']) / (df['BAND_UPPER'] - df['BAND_LOWER'])
@@ -229,75 +235,49 @@ class RegressionMA:
         df['SAR'] = SAR(df.High, df.Low)
         df['ROC'] = ROC(df.Close, timeperiod=14)
         df['William'] = WILLR(df.High, df.Low, df.Close, timeperiod=14)
-        df['OBV'] = OBV(df.Close, df.Volume)
-        df['RSI'] = RSI(df.Close)
-        data = df.dropna()
 
         # MACD
-        # macd_data = data.MACD.values
-        # sinal_data = data.SIGNAL.values
-        higtogram_data = data.HISTOGRAM.values
-
-        histogram = higtogram_data[-1]
-        histogram_prev = higtogram_data[-self.prev_frames:-1]
-        # macd = macd_data[-1]
-        # sinal = sinal_data[-1]
+        histogram = df.HISTOGRAM.iat[-1]
+        histogram_prev = df.HISTOGRAM.iloc[-self.prev_frames:-1].to_list()
 
         # Bollinger band
-        band_middle_data = data.BAND_MIDDLE.values
-        middle_band = band_middle_data[-1]
+        middle_band = df.BAND_MIDDLE.iat[-1]
 
         # Bollinger band width
-        prev_bb_w = data.BAND_WIDTH.values[-self.prev_frames:-1]
-        bb_w = data.BAND_WIDTH.values[-1]
-        bb_b = data.BAND_B.values[-1]
+        prev_bb_w = df.BAND_WIDTH.iloc[-self.prev_frames:-1].to_list()
+        bb_w = df.BAND_WIDTH.iat[-1]
+        bb_b = df.BAND_B.iat[-1]
 
         # Commodity Channel Index (Momentum Indicators)
-        cci_data = data.CCI.values
-        cci = cci_data[-1]
-        prev_cci = cci_data[-2]
+        cci = df.CCI.iat[-1]
+        prev_cci = df.CCI.iloc[-self.prev_frames:-1].to_list()
 
         # ADX DMI
-        plus_di_data = data.PLUS_DI.values
-        minus_di_data = data.MINUS_DI.values
-        adx_data = data.ADX.values
-        adx = adx_data[-1]
-        prev_adx = adx_data[-self.prev_frames:-1]
-        minus_di = minus_di_data[-1]
-        plus_di = plus_di_data[-1]
+        adx = df.ADX.iat[-1]
+        prev_adx = df.ADX.iloc[-self.prev_frames:-1].to_list()
+        minus_di = df.MINUS_DI.iat[-1]
+        plus_di = df.PLUS_DI.iat[-1]
 
         # Parabolic SAR
-        sar_data = data.SAR.values
-        sar = sar_data[-1]
+        sar = df.SAR.iat[-1]
 
         # ROC
-        roc = data.ROC.values[-1]
+        roc = df.ROC.iat[-1]
 
         # WILLR
-        willr = data.William.values[-1]
-
-        # OBV
-        obv_data = data.OBV.values
-        obv = obv_data[-1]
-        prev_obv = obv_data[-10:-1]
+        willr = df.William.iat[-1]
 
         # price data
-        high_p = df.High.values[-1]
-        low_p = df.Low.values[-1]
-
-        # RSI
-        rsi = df.RSI.values[-1]
-        volumes = df.Volume.values
-        last_volume = volumes[-1]
-        compare_volume = volumes[-self.prev_frames:-1]
+        high_p = df.High.iat[-1]
+        low_p = df.Low.iat[-1]
 
         current_time_readable = datetime.datetime.fromtimestamp(_timestamp).strftime('%d-%m-%Y %H:%M:%S')
-        log_txt = " Price {} | bb_b- {} | cci+ {} | roc {}".format(
-            round(close_p, 2), round(bb_b, 2),
-            round(cci, 2), round(roc, 2)
-        )
+        # log_txt = " Price {} | bb_b- {} | cci+ {} | roc {}".format(
+        #     round(close_p, 2), round(bb_b, 2),
+        #     round(cci, 2), round(roc, 2)
+        # )
 
-        console_logger.info(log_txt)
+        # console_logger.info(log_txt)
         self.check_profit(close_p, high_p, low_p, is_latest)
 
         # Place Buy Order
@@ -313,32 +293,33 @@ class RegressionMA:
                 all(bb_w > x for x in prev_bb_w) and \
                 all(histogram > x for x in histogram_prev) and \
                 all(adx > x for x in prev_adx) and \
+                all(cci > x for x in prev_cci) and \
                 bb_b > 1:
             # buy signal
             self.side = 'buy'
             self.order = close_p
             self.order_time = _timestamp
-            txt = "{} | Buy Order Price {} | bb_b {} | CCI {} | roc {} | willr {} | DI+ {} | DI- {} | ADX {}".format(
+            txt = "{} | Buy Order Price {} | BB_%B {} | CCI {} | ROC {} | Willr {} | DI+ {} | DI- {} | ADX {} | BBW : {}".format(
                 current_time_readable, round(close_p, 2), round(bb_b, 2),
-                round(cci, 2), round(roc, 2), round(willr, 2), round(plus_di, 2), round(minus_di, 2), round(adx, 2)
+                round(cci, 2), round(roc, 2), round(willr, 2), round(plus_di, 2), round(minus_di, 2), round(adx, 2),
+                round(bb_w, 2)
             )
             print(txt)
             autotrade_logger.info(txt)
             self.order_point.append({'side': 'buy', 'index': self.global_step})
 
         # CLose Buy Order
-        elif self.side == 'buy' and self.order and \
+        elif self.side is 'buy' and self.order and \
                 (close_p < sar or close_p < middle_band or self.force_close):
             # take profit
             diff = close_p - self.order
             self.budget += diff
-            self.reset()
             txt = "{} | Profit {} | Close Buy Order Price {} | Budget {} | Max Diff {}".format(
                 current_time_readable, round(diff, 2),
                 round(close_p, 2), round(self.budget, 2), round(self.max_profit, 2))
             autotrade_logger.info(txt)
             print(txt)
-            self.max_profit = 0
+            self.reset()
             self.order_point.append({'side': 'close', 'index': self.global_step})
 
         # Place Sell Order
@@ -354,31 +335,32 @@ class RegressionMA:
                 all(bb_w > x for x in prev_bb_w) and \
                 all(histogram < x for x in histogram_prev) and \
                 all(adx > x for x in prev_adx) and \
+                all(cci < x for x in prev_cci) and \
                 bb_b < 0:
             self.side = 'sell'
             self.order = close_p
             self.order_time = _timestamp
-            txt = "{} | Sell Order Price {} | bb_b {} | CCI {} | ROC {} | willr {} | DI+ {} | DI- {} | ADX {}".format(
+            txt = "{} | Sell Order Price {} | bb_b {} | CCI {} | ROC {} | willr {} | DI+ {} | DI- {} | ADX {} | BBW {}".format(
                 current_time_readable, round(close_p, 2), round(bb_b, 2), round(cci, 2), round(roc, 2),
-                round(willr, 2), round(plus_di, 2), round(minus_di, 2), round(adx, 2)
+                round(willr, 2), round(plus_di, 2), round(minus_di, 2), round(adx, 2), round(bb_w, 2)
             )
             print(txt)
             autotrade_logger.info(txt)
             self.order_point.append({'side': 'sell', 'index': self.global_step})
 
         # Close Sell Order
-        elif self.side == 'sell' and self.order and \
+        elif self.side is 'sell' and self.order and \
                 (close_p > sar or close_p > middle_band or self.force_close):
 
             diff = self.order - close_p
             self.budget += diff
-            self.reset()
             txt = "{} | Profit {} | Close Sell Order {} | Budget {} | Max Diff {} ".format(
                 current_time_readable, round(diff, 2),
                 round(close_p, 2), round(self.budget, 2),
                 round(self.max_profit, 2),
             )
             print(txt)
+            self.reset()
             autotrade_logger.info(txt)
             self.order_point.append({'side': 'close', 'index': self.global_step})
 

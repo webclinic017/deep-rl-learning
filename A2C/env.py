@@ -7,7 +7,7 @@ from sklearn import decomposition
 
 class TradingEnv:
     def __init__(self, consecutive_frames=40):
-        self.t = 120
+        self.t = 10
         self.budget = 0
         self.order = 0
         self.normalize_order = 0
@@ -27,10 +27,7 @@ class TradingEnv:
         r = min(diff/1000, 1) if diff else 0
         done = False
 
-        if action == 0:
-            pass
-
-        elif action == 1:
+        if action == 1:
             # Buy
             if not self.order:
                 self.order = current_price
@@ -42,16 +39,18 @@ class TradingEnv:
                 self.budget += diff
                 if diff > 500:
                     r = 100
-                    done = True
 
+                done = True
         state = self.train_data[self.t]
         info = {'diff': diff, 'order': 1 if self.order else 0, 'budget': self.budget, 'waiting_time': self.waiting_time}
         self.t += 1
         self.waiting_time += 1
+        if self.t >= len(self.train_data) - 10:
+            self.t = 10
+            done = True
         return state, r, done, info
 
     def reset(self):
-        self.t = 120
         self.budget = 0
         self.order = 0
         self.normalize_order = 0
