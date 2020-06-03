@@ -216,7 +216,7 @@ class RegressionMA:
                     self.lower_price = low_p
                     self.max_profit = max_profit
 
-            if (is_latest and not self.max_profit) or \
+            if (is_latest and not self.max_profit) or (current_diff < -50 and not self.max_profit) or \
                     (self.max_profit and current_diff <= self.max_profit * 0.618) or \
                     (self.max_profit and current_diff < 0):
                 self.force_close = True
