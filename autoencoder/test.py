@@ -126,7 +126,7 @@ class RegressionMA:
             data = list(data)
             with open('data/BTCUSDT_1h.json', 'w') as outfile:
                 json.dump(data, outfile, indent=4)
-        with open('data/BTCUSDT_1h.json') as json_file:
+        with open('data/output.json') as json_file:
             data = json.load(json_file)
             for msg in data:
                 self.process_message(msg)
@@ -217,7 +217,7 @@ class RegressionMA:
                     self.max_profit = max_profit
 
             if (is_latest and not self.max_profit) or (current_diff < -50 and not self.max_profit) or \
-                    (self.max_profit and current_diff <= self.max_profit * 0.618) or \
+                    (self.max_profit and current_diff <= self.max_profit * 0.382) or \
                     (self.max_profit and current_diff < 0):
                 self.force_close = True
                 self.can_order = False

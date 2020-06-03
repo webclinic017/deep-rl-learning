@@ -1,2 +1,2 @@
 "C:\Users\Administrator\miniconda3\envs\p36\python" regession_ma.py
-pause
+ mongoexport -u admin -p jkahsduk12387a89sdjk@# --db crypto --collection BTCUSDT_1h --jsonArray --pretty --out output.json --authenticationDatabase admin
