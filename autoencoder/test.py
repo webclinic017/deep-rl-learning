@@ -216,9 +216,9 @@ class RegressionMA:
                     self.lower_price = low_p
                     self.max_profit = max_profit
 
-            if (is_latest and not self.max_profit) or (current_diff < -50 and not self.max_profit) or \
-                    (self.max_profit and current_diff <= self.max_profit * 0.382) or \
-                    (self.max_profit and current_diff < 0):
+            if (is_latest and not self.max_profit) or \
+                    (current_diff < -100 and not self.max_profit) or \
+                    (self.max_profit and current_diff <= self.max_profit * 0.382):
                 self.force_close = True
                 self.can_order = False
 
@@ -272,12 +272,12 @@ class RegressionMA:
         low_p = df.Low.iat[-1]
 
         current_time_readable = datetime.datetime.fromtimestamp(_timestamp).strftime('%d-%m-%Y %H:%M:%S')
-        # log_txt = " Price {} | bb_b- {} | cci+ {} | roc {}".format(
-        #     round(close_p, 2), round(bb_b, 2),
-        #     round(cci, 2), round(roc, 2)
-        # )
+        log_txt = " Price {} | bb_b- {} | cci+ {} | roc {}".format(
+            round(close_p, 2), round(bb_b, 2),
+            round(cci, 2), round(roc, 2)
+        )
 
-        # console_logger.info(log_txt)
+        console_logger.info(log_txt)
         self.check_profit(close_p, high_p, low_p, is_latest)
 
         # Place Buy Order
@@ -310,7 +310,7 @@ class RegressionMA:
 
         # CLose Buy Order
         elif self.side is 'buy' and self.order and \
-                (close_p < sar or close_p < middle_band or self.force_close):
+                (close_p < sar or close_p < middle_band or self.force_close or all(histogram < x for x in histogram_prev)):
             # take profit
             diff = close_p - self.order
             self.budget += diff
@@ -350,7 +350,7 @@ class RegressionMA:
 
         # Close Sell Order
         elif self.side is 'sell' and self.order and \
-                (close_p > sar or close_p > middle_band or self.force_close):
+                (close_p > sar or close_p > middle_band or self.force_close or all(histogram > x for x in histogram_prev)):
 
             diff = self.order - close_p
             self.budget += diff
