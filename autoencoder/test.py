@@ -87,7 +87,7 @@ class RegressionMA:
 
         # Global Config
         self.bbw_threshold = 0.03
-        self.adx_threshold = 22
+        self.adx_threshold = 20
         self.prev_frames = 2
 
         # MongoDB
@@ -271,12 +271,12 @@ class RegressionMA:
         low_p = df.Low.iat[-1]
 
         current_time_readable = datetime.datetime.fromtimestamp(_timestamp).strftime('%d-%m-%Y %H:%M:%S')
-        # log_txt = " Price {} | bb_b- {} | cci+ {} | roc {}".format(
-        #     round(close_p, 2), round(bb_b, 2),
-        #     round(cci, 2), round(roc, 2)
-        # )
+        log_txt = " Price {} | bb_b- {} | cci+ {} | roc {}".format(
+            round(close_p, 2), round(bb_b, 2),
+            round(cci, 2), round(roc, 2)
+        )
 
-        # console_logger.info(log_txt)
+        console_logger.info(log_txt)
         self.check_profit(close_p, high_p, low_p, is_latest)
 
         # Place Buy Order
