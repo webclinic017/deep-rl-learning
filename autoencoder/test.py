@@ -216,7 +216,8 @@ class RegressionMA:
                     self.lower_price = low_p
                     self.max_profit = max_profit
 
-            if (is_latest and not self.max_profit) or (current_diff < -50 and not self.max_profit) or \
+            if (is_latest and not self.max_profit) or \
+                    (current_diff < -50 and not self.max_profit) or \
                     (self.max_profit and current_diff <= self.max_profit * 0.382):
                 self.force_close = True
                 self.can_order = False
@@ -309,7 +310,7 @@ class RegressionMA:
 
         # CLose Buy Order
         elif self.side is 'buy' and self.order and \
-                (close_p < sar or close_p < middle_band or self.force_close):
+                (close_p < sar or close_p < middle_band or self.force_close or all(histogram < x for x in histogram_prev)):
             # take profit
             diff = close_p - self.order
             self.budget += diff
@@ -349,7 +350,7 @@ class RegressionMA:
 
         # Close Sell Order
         elif self.side is 'sell' and self.order and \
-                (close_p > sar or close_p > middle_band or self.force_close):
+                (close_p > sar or close_p > middle_band or self.force_close or all(histogram > x for x in histogram_prev)):
 
             diff = self.order - close_p
             self.budget += diff
