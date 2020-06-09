@@ -290,6 +290,7 @@ class RegressionMA:
                 roc > 1 and \
                 histogram > 5 and \
                 willr > -20 and \
+                bb_w > self.bbw_threshold and \
                 all(bb_w > x for x in prev_bb_w) and \
                 all(histogram > x for x in histogram_prev) and \
                 all(adx > x for x in prev_adx) and \
@@ -332,6 +333,7 @@ class RegressionMA:
                 roc < -1 and \
                 histogram < -5 and \
                 willr < -80 and \
+                bb_w > self.bbw_threshold and \
                 all(bb_w > x for x in prev_bb_w) and \
                 all(histogram < x for x in histogram_prev) and \
                 all(adx > x for x in prev_adx) and \
