@@ -44,8 +44,8 @@ if __name__ == '__main__':
     # crawler_1 = RegressionMA(symbol, KLINE_INTERVAL_1HOUR)
     # crawler_1.start_socket()
     #
-    # crawler_2 = RegressionMA(symbol, KLINE_INTERVAL_15MINUTE)
-    # crawler_2.start_socket()
+    crawler_2 = RegressionMA(symbol, KLINE_INTERVAL_15MINUTE)
+    crawler_2.start_socket()
     #
     # crawler_3 = RegressionMA(symbol, KLINE_INTERVAL_5MINUTE)
     # crawler_3.start_socket()
