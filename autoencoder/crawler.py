@@ -1,7 +1,7 @@
 import threading
 import time
 import logging
-from binance.enums import KLINE_INTERVAL_1HOUR, KLINE_INTERVAL_5MINUTE, KLINE_INTERVAL_15MINUTE
+from binance.enums import KLINE_INTERVAL_1HOUR, KLINE_INTERVAL_5MINUTE, KLINE_INTERVAL_15MINUTE, KLINE_INTERVAL_1MINUTE
 from pymongo import MongoClient
 from bson import ObjectId
 from binance.client import Client
@@ -41,11 +41,14 @@ class RegressionMA:
 if __name__ == '__main__':
     symbols_list = ['BTCUSDT']
     symbol = 'BTCUSDT'
-    crawler_1 = RegressionMA(symbol, KLINE_INTERVAL_1HOUR)
-    crawler_1.start_socket()
+    # crawler_1 = RegressionMA(symbol, KLINE_INTERVAL_1HOUR)
+    # crawler_1.start_socket()
+    #
+    # crawler_2 = RegressionMA(symbol, KLINE_INTERVAL_15MINUTE)
+    # crawler_2.start_socket()
+    #
+    # crawler_3 = RegressionMA(symbol, KLINE_INTERVAL_5MINUTE)
+    # crawler_3.start_socket()
 
-    crawler_2 = RegressionMA(symbol, KLINE_INTERVAL_15MINUTE)
-    crawler_2.start_socket()
-
-    crawler_3 = RegressionMA(symbol, KLINE_INTERVAL_5MINUTE)
+    crawler_3 = RegressionMA(symbol, KLINE_INTERVAL_1MINUTE)
     crawler_3.start_socket()

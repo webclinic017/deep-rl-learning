@@ -126,7 +126,7 @@ class RegressionMA:
             data = list(data)
             with open('data/BTCUSDT_1h.json', 'w') as outfile:
                 json.dump(data, outfile, indent=4)
-        with open('data/output.json') as json_file:
+        with open('data/BTCUSDT_1h.json') as json_file:
             data = json.load(json_file)
             for msg in data:
                 self.process_message(msg)
@@ -189,7 +189,7 @@ class RegressionMA:
 
         self.is_latest = msg['k']['x']
 
-        if len(self.train_data) > 50:
+        if len(self.train_data) > 100:
             self.trading(float(_close), _timestamp, msg['k']['x'])
 
     def check_profit(self, close_p, high_p, low_p, is_latest):
@@ -216,8 +216,7 @@ class RegressionMA:
                     self.lower_price = low_p
                     self.max_profit = max_profit
 
-            if (is_latest and not self.max_profit) or \
-                    (current_diff < -50 and not self.max_profit) or \
+            if (current_diff < -50 and not self.max_profit) or \
                     (self.max_profit and current_diff <= self.max_profit * 0.382):
                 self.force_close = True
                 self.can_order = False
@@ -288,7 +287,6 @@ class RegressionMA:
                 close_p > sar and \
                 cci > 100 and \
                 roc > 1 and \
-                histogram > 5 and \
                 willr > -20 and \
                 bb_w > self.bbw_threshold and \
                 all(bb_w > x for x in prev_bb_w) and \
@@ -331,7 +329,6 @@ class RegressionMA:
                 close_p < sar and \
                 cci < -100 and \
                 roc < -1 and \
-                histogram < -5 and \
                 willr < -80 and \
                 bb_w > self.bbw_threshold and \
                 all(bb_w > x for x in prev_bb_w) and \
