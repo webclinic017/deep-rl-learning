@@ -58,13 +58,14 @@ class RegressionMA:
         self.prev_histogram = 0
         self.max_profit = 0
         self.max_loss = 0
+        self.budgets = []
         self.take_profit, self.stop_loss = 0, 0
         self.lower_price, self.higher_price = 0, 0
         self.is_latest = False
         self.can_order = True
         self.force_close = False
         self.check_profit_interval = 1 * 60 * 60  # 1 hour
-        self.order_time = None
+        self.order_time = 0
         self.trade_amount = 0.5  # 75% currency you owned
         self.api_key = "9Hj6HLNNMGgkqj6ngouMZD1kjIbUb6RZmIpW5HLiZjtDT5gwhXAzc20szOKyQ3HW"
         self.api_secret = "ioD0XICp0cFE99VVql5nuxiCJEb6GK8mh08NYnSYdIUfkiotd1SZqLTQsjFvrXwk"
@@ -87,7 +88,7 @@ class RegressionMA:
 
         # Global Config
         self.bbw_threshold = 0.03
-        self.adx_threshold = 20
+        self.adx_threshold = 25
         self.prev_frames = 2
 
         # MongoDB
@@ -122,29 +123,29 @@ class RegressionMA:
 
     def fake_socket(self, crawler=False):
         if crawler:
-            data = self.db.BTCUSDT_1h.find({})
+            data = self.db.BTCUSDT_5m.find({})
             data = list(data)
-            with open('data/BTCUSDT_1h.json', 'w') as outfile:
+            with open('data/BTCUSDT_5m.json', 'w') as outfile:
                 json.dump(data, outfile, indent=4)
-        with open('data/BTCUSDT_1h.json') as json_file:
+        with open('data/BTCUSDT_5m.json', 'r') as json_file:
             data = json.load(json_file)
             for msg in data:
                 self.process_message(msg)
 
-        close_price = self.train_data.Close.astype('float64').values
-        plt.plot(self.train_data.Close.astype('float64'), label='MA')
-        area = 10
-        for point in self.order_point:
-            index = point['index']
-            side = point['side']
-            if side == 'buy':
-                plt.scatter(index, close_price[index], s=area, c='green', alpha=1)
-            elif side == 'sell':
-                plt.scatter(index, close_price[index], s=area, c='red', alpha=1)
-            elif side == 'close':
-                plt.scatter(index, close_price[index], s=area, c='blue', alpha=1)
+        # close_price = self.train_data.Close.astype('float64').values
+        plt.plot(self.budgets, label='MA')
+        # area = 10
+        # for point in self.order_point:
+        #     index = point['index']
+        #     side = point['side']
+        #     if side == 'buy':
+        #         plt.scatter(index, close_price[index], s=area, c='green', alpha=1)
+        #     elif side == 'sell':
+        #         plt.scatter(index, close_price[index], s=area, c='red', alpha=1)
+        #     elif side == 'close':
+        #         plt.scatter(index, close_price[index], s=area, c='blue', alpha=1)
         plt.show()
-        json_file.close()
+        # json_file.close()
 
     def process_message(self, msg):
         _open_time = msg['k']['t']
@@ -189,7 +190,7 @@ class RegressionMA:
 
         self.is_latest = msg['k']['x']
 
-        if len(self.train_data) > 100:
+        if len(self.train_data) > 100 and _timestamp > self.order_time:
             self.trading(float(_close), _timestamp, msg['k']['x'])
 
     def check_profit(self, close_p, high_p, low_p, is_latest):
@@ -216,8 +217,8 @@ class RegressionMA:
                     self.lower_price = low_p
                     self.max_profit = max_profit
 
-            if (current_diff < -50 and not self.max_profit) or \
-                    (self.max_profit and current_diff <= self.max_profit * 0.382):
+            if current_diff < -50 or \
+                    (self.max_profit != 0 and current_diff < self.max_profit * 0.382):
                 self.force_close = True
                 self.can_order = False
 
@@ -233,6 +234,7 @@ class RegressionMA:
         df['CCI'] = CCI(df.High, df.Low, df.Close, timeperiod=20)
         df['SAR'] = SAR(df.High, df.Low)
         df['ROC'] = ROC(df.Close, timeperiod=14)
+        df['RSI'] = RSI(df.Close, timeperiod=14)
         df['William'] = WILLR(df.High, df.Low, df.Close, timeperiod=14)
 
         # MACD
@@ -262,6 +264,7 @@ class RegressionMA:
 
         # ROC
         roc = df.ROC.iat[-1]
+        rsi = df.RSI.iat[-1]
 
         # WILLR
         willr = df.William.iat[-1]
@@ -277,31 +280,23 @@ class RegressionMA:
         )
 
         console_logger.info(log_txt)
-        self.check_profit(close_p, high_p, low_p, is_latest)
+        # self.check_profit(close_p, high_p, low_p, is_latest)
 
         # Place Buy Order
         if not self.order and self.can_order and \
-                (adx > self.adx_threshold and plus_di > self.adx_threshold) and \
                 plus_di > minus_di and \
-                close_p > middle_band and \
-                close_p > sar and \
                 cci > 100 and \
-                roc > 1 and \
+                bb_b > 1 and \
+                rsi > 70 and \
                 willr > -20 and \
-                bb_w > self.bbw_threshold and \
-                all(bb_w > x for x in prev_bb_w) and \
-                all(histogram > x for x in histogram_prev) and \
-                all(adx > x for x in prev_adx) and \
                 all(cci > x for x in prev_cci) and \
-                bb_b > 1:
+                all(adx > x for x in prev_adx):
             # buy signal
             self.side = 'buy'
             self.order = close_p
-            self.order_time = _timestamp
-            txt = "{} | Buy Order Price {} | BB_%B {} | CCI {} | ROC {} | Willr {} | DI+ {} | DI- {} | ADX {} | BBW : {}".format(
+            txt = "{} | Buy Order Price {} | BB_%B {} | CCI {} | RSI {} | Willr {} | DI+ {} | DI- {} | ADX {}".format(
                 current_time_readable, round(close_p, 2), round(bb_b, 2),
-                round(cci, 2), round(roc, 2), round(willr, 2), round(plus_di, 2), round(minus_di, 2), round(adx, 2),
-                round(bb_w, 2)
+                round(cci, 2), round(rsi, 2), round(willr, 2), round(plus_di, 2), round(minus_di, 2), round(adx, 2)
             )
             print(txt)
             autotrade_logger.info(txt)
@@ -309,39 +304,36 @@ class RegressionMA:
 
         # CLose Buy Order
         elif self.side is 'buy' and self.order and \
-                (close_p < sar or close_p < middle_band or self.force_close or all(histogram < x for x in histogram_prev)):
+                (close_p < sar or self.force_close):
             # take profit
             diff = close_p - self.order
+            self.budgets.append(diff)
             self.budget += diff
-            txt = "{} | Profit {} | Close Buy Order Price {} | Budget {} | Max Diff {}".format(
-                current_time_readable, round(diff, 2),
-                round(close_p, 2), round(self.budget, 2), round(self.max_profit, 2))
-            autotrade_logger.info(txt)
+            txt = "{} | Close Buy Order Price {} | BB_%B {} | CCI {} | RSI {} | Willr {} | DI+ {} | DI- {} | ADX {} | Budget {} | Diff {} | Max Diff {}".format(
+                current_time_readable, round(close_p, 2), round(bb_b, 2),
+                round(cci, 2), round(rsi, 2), round(willr, 2), round(plus_di, 2), round(minus_di, 2), round(adx, 2),
+                round(self.budget, 2), round(diff, 2), round(self.max_profit, 2)
+            )
             print(txt)
+            autotrade_logger.info(txt)
             self.reset()
+            self.order_time = _timestamp + 3600
             self.order_point.append({'side': 'close', 'index': self.global_step})
 
         # Place Sell Order
         elif not self.order and self.can_order and \
-                (adx > self.adx_threshold and minus_di > self.adx_threshold) and \
                 minus_di > plus_di and \
-                close_p < middle_band and \
-                close_p < sar and \
                 cci < -100 and \
-                roc < -1 and \
+                bb_b < 0 and \
+                rsi < 30 and \
                 willr < -80 and \
-                bb_w > self.bbw_threshold and \
-                all(bb_w > x for x in prev_bb_w) and \
-                all(histogram < x for x in histogram_prev) and \
-                all(adx > x for x in prev_adx) and \
                 all(cci < x for x in prev_cci) and \
-                bb_b < 0:
+                all(adx > x for x in prev_adx):
             self.side = 'sell'
             self.order = close_p
-            self.order_time = _timestamp
-            txt = "{} | Sell Order Price {} | bb_b {} | CCI {} | ROC {} | willr {} | DI+ {} | DI- {} | ADX {} | BBW {}".format(
-                current_time_readable, round(close_p, 2), round(bb_b, 2), round(cci, 2), round(roc, 2),
-                round(willr, 2), round(plus_di, 2), round(minus_di, 2), round(adx, 2), round(bb_w, 2)
+            txt = "{} | Sell Order Price {} | BB_%B {} | CCI {} | RSI {} | Willr {} | DI+ {} | DI- {} | ADX {}".format(
+                current_time_readable, round(close_p, 2), round(bb_b, 2),
+                round(cci, 2), round(rsi, 2), round(willr, 2), round(plus_di, 2), round(minus_di, 2), round(adx, 2)
             )
             print(txt)
             autotrade_logger.info(txt)
@@ -349,17 +341,19 @@ class RegressionMA:
 
         # Close Sell Order
         elif self.side is 'sell' and self.order and \
-                (close_p > sar or close_p > middle_band or self.force_close or all(histogram > x for x in histogram_prev)):
+                (close_p > sar or self.force_close):
 
             diff = self.order - close_p
+            self.budgets.append(diff)
             self.budget += diff
-            txt = "{} | Profit {} | Close Sell Order {} | Budget {} | Max Diff {} ".format(
-                current_time_readable, round(diff, 2),
-                round(close_p, 2), round(self.budget, 2),
-                round(self.max_profit, 2),
+            txt = "{} | Close Sell Order Price {} | BB_%B {} | CCI {} | RSI {} | Willr {} | DI+ {} | DI- {} | ADX {} | Budget {} | Diff {} | Max Diff {}".format(
+                current_time_readable, round(close_p, 2), round(bb_b, 2),
+                round(cci, 2), round(rsi, 2), round(willr, 2), round(plus_di, 2), round(minus_di, 2), round(adx, 2),
+                round(self.budget, 2), round(diff, 2), round(self.max_profit, 2)
             )
             print(txt)
             self.reset()
+            self.order_time = _timestamp + 3600
             autotrade_logger.info(txt)
             self.order_point.append({'side': 'close', 'index': self.global_step})
 
@@ -370,7 +364,6 @@ class RegressionMA:
         self.stop_loss = 0
         self.can_order = False
         self.force_close = False
-        self.order_time = None
         self.lower_price = 0
         self.higher_price = 0
         self.max_profit = 0

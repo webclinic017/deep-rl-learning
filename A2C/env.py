@@ -24,29 +24,26 @@ class TradingEnv:
         current_price = self.prices[self.t]
 
         diff = current_price - self.order if self.order else 0
-        r = min(diff/1000, 1) if diff else 0
+        r = -1
         done = False
 
         if action == 1:
             # Buy
-            if not self.order:
-                self.order = current_price
+            self.order = current_price
 
         elif action == 2:
             # Sell
-            if self.order:
-                self.order = 0
-                self.budget += diff
-                if diff > 500:
-                    r = 100
-
+            self.order = 0
+            self.budget += diff
+            if diff > 10:
                 done = True
+
         state = self.train_data[self.t]
         info = {'diff': diff, 'order': 1 if self.order else 0, 'budget': self.budget, 'waiting_time': self.waiting_time}
         self.t += 1
         self.waiting_time += 1
-        if self.t >= len(self.train_data) - 10:
-            self.t = 10
+        if self.t >= self.train_data.shape[0]:
+            self.t = 0
             done = True
         return state, r, done, info
 
@@ -62,7 +59,7 @@ class TradingEnv:
         return inp1
 
     def get_state_size(self):
-        return self.consecutive_frames
+        return self.train_data.shape[1]
 
     @staticmethod
     def get_action_space():

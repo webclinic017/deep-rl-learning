@@ -1,3 +1,4 @@
+import joblib
 import pandas as pd
 import numpy as np
 import ta
@@ -7,11 +8,8 @@ from ta import trend
 from ta import volume
 from ta.utils import dropna
 import math
-
-from keras.utils import to_categorical
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn import decomposition
-from sklearn.externals import joblib
 
 
 class TradingEnv:

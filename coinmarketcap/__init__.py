@@ -37,12 +37,12 @@ def convert_data(obj):
 
 
 # fetch test data
-klines = client.get_historical_klines("BTCUSDT", Client.KLINE_INTERVAL_15MINUTE, "1 Jan, 2020")
+klines = client.get_historical_klines("BTCUSDT", Client.KLINE_INTERVAL_5MINUTE, "1 Jan, 2020")
 df_test = pd.DataFrame(klines, columns=['open_time', 'open', 'high', 'low', 'close',
                                         'volume', 'close_time', 'quote_asset_volume', 'number_of_trades',
                                         'buy_base_asset_volume', 'buy_quote_asset_volume', 'ignore'])
 df_test = df_test.drop(columns=['open_time', 'close_time', 'ignore'], axis=1)
-df_test.to_csv('../data/btc_15m.csv', sep=',')
+df_test.to_csv('../data/btc_5m.csv', sep=',')
 
 # test_data = list(map(convert_data, klines))
 # print(test_data[0])

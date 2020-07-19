@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
-from keras.layers import Conv2D, MaxPooling2D
+from tensorflow.python.keras.layers import Conv2D, MaxPooling2D
+
 
 def get_session():
     """ Limit session memory usage

@@ -11,7 +11,8 @@ import ssl
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import logging
-from utils.environment import Environment
+from A2C.env import TradingEnv
+from utils.networks import tfSummary
 
 logging.basicConfig(filename='log/app.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
@@ -186,15 +187,14 @@ class CuriosityNet:
                     )
 
 
-windows = 10
-start_step = 11
-env = Environment(windows, start_step)
-env.reset()
+env = TradingEnv()
+windows = env.get_state_size()
+start_step = 0
 state_dim = (windows,)
-action_dim = 3
+action_dim = env.get_action_space()
 
 
-dqn = CuriosityNet(n_a=action_dim, n_s=windows, lr=0.0001, output_graph=True)
+dqn = CuriosityNet(n_a=action_dim, n_s=windows, lr=0.001, output_graph=True)
 ep_steps = []
 number_episode = 1000000
 max_profit = 0
@@ -203,9 +203,8 @@ save_models_path = 'random_network'
 train = True
 number_lower_than_1000 = 0
 number_greater_than_1000 = 0
-
-if not os.path.exists(save_models_path):
-    os.makedirs(save_models_path)
+summary_writer = tf.summary.FileWriter("random_network/tensorboard")
+os.makedirs(save_models_path, exist_ok=True)
 
 # load weight
 latest_filename = 'profit_3379.9-499663'
@@ -216,20 +215,27 @@ for epi in tqdm_e:
     s = env.reset()
     steps = 0
     actions, states, rewards, new_states = [], [], [], []
+    culmul_reward = 0
     while True:
         # env.render()
         states.append(s)
         a = dqn.choose_action(s)
         s_, r, done, info = env.step(a)
+        culmul_reward += r
         logging.warning(info)
         # Display score
         dqn.store_transition(s, a, r, s_)
         if done:
-            if info['profit']:
-                number_greater_than_1000 += 1
-            else:
-                number_lower_than_1000 += 1
-            tqdm_e.set_description("number_lower_than_1000: {}, number_greater_than_1000: {}".format(number_lower_than_1000, number_greater_than_1000))
+            # if info['profit']:
+            #     number_greater_than_1000 += 1
+            # else:
+            #     number_lower_than_1000 += 1
+            score = tfSummary('score', info['budget'])
+            reward = tfSummary('reward', culmul_reward)
+            summary_writer.add_summary(score, global_step=epi)
+            summary_writer.add_summary(reward, global_step=epi)
+            summary_writer.flush()
+            tqdm_e.set_description("budget: {}".format(info['budget']))
             tqdm_e.refresh()
             dqn.learn()
             # ep_steps.append(steps)

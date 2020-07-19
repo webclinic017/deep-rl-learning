@@ -6,3 +6,4 @@ python-binance
 numpy==1.17.4
 pandas==0.25.3
 ta==0.5.17
+matplotlib
