@@ -217,10 +217,14 @@ class RegressionMA:
                     self.lower_price = low_p
                     self.max_profit = max_profit
 
-            if current_diff < -50 or (self.max_profit != 0 and current_diff < self.max_profit * 0.382):
+            if self.max_profit != 0 and current_diff < self.max_profit * 0.382:
                 if (self.side is 'buy' and close_p < middle_band) or (self.side is 'sell' and close_p > middle_band):
                     self.force_close = True
                     self.can_order = False
+
+            if current_diff < -50:
+                self.force_close = True
+                self.can_order = False
 
     def trading(self, close_p, _timestamp, is_latest):
         df = self.train_data
