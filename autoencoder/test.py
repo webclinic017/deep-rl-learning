@@ -193,7 +193,7 @@ class RegressionMA:
         if len(self.train_data) > 100 and _timestamp > self.order_time:
             self.trading(float(_close), _timestamp, msg['k']['x'])
 
-    def check_profit(self, close_p, high_p, low_p, is_latest):
+    def check_profit(self, close_p, high_p, low_p, is_latest, middle_band):
         """
         Kiểm tra mức lỗ, nếu quá 38,2% so với mức lãi tối đa thì đóng order, bạn
         chỉ có thể mở order ở timeframe tiếp theo
@@ -217,10 +217,10 @@ class RegressionMA:
                     self.lower_price = low_p
                     self.max_profit = max_profit
 
-            if current_diff < -50 or \
-                    (self.max_profit != 0 and current_diff < self.max_profit * 0.382):
-                self.force_close = True
-                self.can_order = False
+            if current_diff < -50 or (self.max_profit != 0 and current_diff < self.max_profit * 0.382):
+                if (self.side is 'buy' and close_p < middle_band) or (self.side is 'sell' and close_p > middle_band):
+                    self.force_close = True
+                    self.can_order = False
 
     def trading(self, close_p, _timestamp, is_latest):
         df = self.train_data
@@ -280,23 +280,27 @@ class RegressionMA:
         )
 
         console_logger.info(log_txt)
-        # self.check_profit(close_p, high_p, low_p, is_latest)
+        self.check_profit(close_p, high_p, low_p, is_latest, middle_band)
 
         # Place Buy Order
         if not self.order and self.can_order and \
-                plus_di > minus_di and \
+                plus_di > minus_di and self.adx_threshold < adx < plus_di and \
+                plus_di > adx and \
                 cci > 100 and \
                 bb_b > 1 and \
-                rsi > 70 and \
+                rsi > 60 and \
                 willr > -20 and \
+                histogram > 10 and \
                 all(cci > x for x in prev_cci) and \
-                all(adx > x for x in prev_adx):
+                all(adx > x for x in prev_adx) and \
+                all(histogram > x for x in histogram_prev):
             # buy signal
             self.side = 'buy'
             self.order = close_p
-            txt = "{} | Buy Order Price {} | BB_%B {} | CCI {} | RSI {} | Willr {} | DI+ {} | DI- {} | ADX {}".format(
+            txt = "{} | Buy Order Price {} | BB_%B {} | CCI {} | RSI {} | Willr {} | DI+ {} | DI- {} | ADX {} | Histogram {}".format(
                 current_time_readable, round(close_p, 2), round(bb_b, 2),
-                round(cci, 2), round(rsi, 2), round(willr, 2), round(plus_di, 2), round(minus_di, 2), round(adx, 2)
+                round(cci, 2), round(rsi, 2), round(willr, 2), round(plus_di, 2), round(minus_di, 2), round(adx, 2),
+                round(histogram, 2)
             )
             print(txt)
             autotrade_logger.info(txt)
@@ -307,8 +311,8 @@ class RegressionMA:
                 (close_p < sar or self.force_close):
             # take profit
             diff = close_p - self.order
-            self.budgets.append(diff)
             self.budget += diff
+            self.budgets.append(self.budget)
             txt = "{} | Close Buy Order Price {} | BB_%B {} | CCI {} | RSI {} | Willr {} | DI+ {} | DI- {} | ADX {} | Budget {} | Diff {} | Max Diff {}".format(
                 current_time_readable, round(close_p, 2), round(bb_b, 2),
                 round(cci, 2), round(rsi, 2), round(willr, 2), round(plus_di, 2), round(minus_di, 2), round(adx, 2),
@@ -317,23 +321,26 @@ class RegressionMA:
             print(txt)
             autotrade_logger.info(txt)
             self.reset()
-            self.order_time = _timestamp + 3600
+            self.order_time = _timestamp + 600
             self.order_point.append({'side': 'close', 'index': self.global_step})
 
         # Place Sell Order
         elif not self.order and self.can_order and \
-                minus_di > plus_di and \
+                minus_di > plus_di and self.adx_threshold < adx < minus_di and \
                 cci < -100 and \
                 bb_b < 0 and \
-                rsi < 30 and \
+                rsi < 40 and \
                 willr < -80 and \
+                histogram < -10 and \
                 all(cci < x for x in prev_cci) and \
-                all(adx > x for x in prev_adx):
+                all(adx > x for x in prev_adx) and \
+                all(histogram < x for x in histogram_prev):
             self.side = 'sell'
             self.order = close_p
-            txt = "{} | Sell Order Price {} | BB_%B {} | CCI {} | RSI {} | Willr {} | DI+ {} | DI- {} | ADX {}".format(
+            txt = "{} | Sell Order Price {} | BB_%B {} | CCI {} | RSI {} | Willr {} | DI+ {} | DI- {} | ADX {} | Histogram {}".format(
                 current_time_readable, round(close_p, 2), round(bb_b, 2),
-                round(cci, 2), round(rsi, 2), round(willr, 2), round(plus_di, 2), round(minus_di, 2), round(adx, 2)
+                round(cci, 2), round(rsi, 2), round(willr, 2), round(plus_di, 2), round(minus_di, 2), round(adx, 2),
+                round(histogram, 2)
             )
             print(txt)
             autotrade_logger.info(txt)
@@ -344,8 +351,8 @@ class RegressionMA:
                 (close_p > sar or self.force_close):
 
             diff = self.order - close_p
-            self.budgets.append(diff)
             self.budget += diff
+            self.budgets.append(self.budget)
             txt = "{} | Close Sell Order Price {} | BB_%B {} | CCI {} | RSI {} | Willr {} | DI+ {} | DI- {} | ADX {} | Budget {} | Diff {} | Max Diff {}".format(
                 current_time_readable, round(close_p, 2), round(bb_b, 2),
                 round(cci, 2), round(rsi, 2), round(willr, 2), round(plus_di, 2), round(minus_di, 2), round(adx, 2),
@@ -353,7 +360,7 @@ class RegressionMA:
             )
             print(txt)
             self.reset()
-            self.order_time = _timestamp + 3600
+            self.order_time = _timestamp + 600
             autotrade_logger.info(txt)
             self.order_point.append({'side': 'close', 'index': self.global_step})
 
