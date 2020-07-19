@@ -125,9 +125,9 @@ class RegressionMA:
         if crawler:
             data = self.db.BTCUSDT_5m.find({})
             data = list(data)
-            with open('data/BTCUSDT_5m.json', 'w') as outfile:
+            with open('data/BTCUSDT_1h.json', 'w') as outfile:
                 json.dump(data, outfile, indent=4)
-        with open('data/BTCUSDT_5m.json', 'r') as json_file:
+        with open('data/BTCUSDT_1h.json', 'r') as json_file:
             data = json.load(json_file)
             for msg in data:
                 self.process_message(msg)
