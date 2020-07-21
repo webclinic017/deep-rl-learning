@@ -12,6 +12,7 @@ from talib._ta_lib import MA, MACD, MINUS_DI, PLUS_DI, ADX, BBANDS, SAR, CCI, RO
 from binance.client import Client
 import matplotlib.pyplot as plt
 
+
 # create logger with 'spam_application'
 autotrade_logger = logging.getLogger('autotrade')
 autotrade_logger.setLevel(logging.INFO)
@@ -162,7 +163,7 @@ class RegressionMA:
         _ignore = msg['k']['B']
         _timestamp = msg['E']/1000
 
-        if self.is_latest:
+        if msg['k']['x']:
             df = pd.DataFrame(
                 [
                     [
@@ -181,17 +182,18 @@ class RegressionMA:
             self.can_order = True
             self.global_step += 1
             self.train_data = self.train_data.append(df, ignore_index=True, sort=False)
-
-        elif len(self.train_data) > 1:
-            self.train_data.at[len(self.train_data) - 1, 'Close'] = _close
-            self.train_data.at[len(self.train_data) - 1, 'High'] = _high
-            self.train_data.at[len(self.train_data) - 1, 'Low'] = _low
-            self.train_data.at[len(self.train_data) - 1, 'Volume'] = _volume
-
-        self.is_latest = msg['k']['x']
-
-        if len(self.train_data) > 100 and _timestamp > self.order_time:
             self.trading(float(_close), _timestamp, msg['k']['x'])
+
+        # elif len(self.train_data) > 1:
+        #     self.train_data.at[len(self.train_data) - 1, 'Close'] = _close
+        #     self.train_data.at[len(self.train_data) - 1, 'High'] = _high
+        #     self.train_data.at[len(self.train_data) - 1, 'Low'] = _low
+        #     self.train_data.at[len(self.train_data) - 1, 'Volume'] = _volume
+        #
+        # self.is_latest = msg['k']['x']
+        #
+        # if len(self.train_data) > 100 and _timestamp > self.order_time and :
+
 
     def check_profit(self, close_p, high_p, low_p, is_latest, middle_band):
         """
@@ -217,67 +219,87 @@ class RegressionMA:
                     self.lower_price = low_p
                     self.max_profit = max_profit
 
-            if self.max_profit != 0 and current_diff < self.max_profit * 0.382:
-                if (self.side is 'buy' and close_p < middle_band) or (self.side is 'sell' and close_p > middle_band):
-                    self.force_close = True
-                    self.can_order = False
+            if self.max_profit != 0 and current_diff < self.max_profit * 0.5:
+                # if (self.side is 'buy' and close_p < middle_band) or (self.side is 'sell' and close_p > middle_band):
+                self.force_close = True
+                self.can_order = False
 
             if current_diff < -50:
                 self.force_close = True
                 self.can_order = False
 
-    def trading(self, close_p, _timestamp, is_latest):
-        df = self.train_data
+    def calculate_feature(self, df):
         _, _, df['HISTOGRAM'] = MACD(df.Close, fastperiod=12, slowperiod=26, signalperiod=9)
-        df['MINUS_DI'] = MINUS_DI(df.High, df.Low, df.Close, timeperiod=14)
-        df['PLUS_DI'] = PLUS_DI(df.High, df.Low, df.Close, timeperiod=14)
+        df['MINUS_DI'] = MINUS_DI(df.High, df.Low, df.Close,
+                                               timeperiod=14)
+        df['PLUS_DI'] = PLUS_DI(df.High, df.Low, df.Close,
+                                             timeperiod=14)
         df['ADX'] = ADX(df.High, df.Low, df.Close, timeperiod=14)
-        df['BAND_UPPER'], df['BAND_MIDDLE'], df['BAND_LOWER'] = BBANDS(df.Close, 20, 2, 2)
+        df['BAND_UPPER'], df['BAND_MIDDLE'], df['BAND_LOWER'] = BBANDS(
+            df.Close, 20, 2, 2)
         df['BAND_WIDTH'] = (df['BAND_UPPER'] - df['BAND_LOWER']) / df['BAND_MIDDLE']
-        df['BAND_B'] = (df['Close'] - df['BAND_LOWER']) / (df['BAND_UPPER'] - df['BAND_LOWER'])
+        df['BAND_B'] = (df['Close'] - df['BAND_LOWER']) / (
+                    df['BAND_UPPER'] - df['BAND_LOWER'])
         df['CCI'] = CCI(df.High, df.Low, df.Close, timeperiod=20)
         df['SAR'] = SAR(df.High, df.Low)
         df['ROC'] = ROC(df.Close, timeperiod=14)
         df['RSI'] = RSI(df.Close, timeperiod=14)
-        df['William'] = WILLR(df.High, df.Low, df.Close, timeperiod=14)
+        df['William'] = WILLR(df.High, df.Low, df.Close,
+                                           timeperiod=14)
+        return df
+
+    def trading(self, close_p, _timestamp, is_latest):
+        _, _, self.train_data['HISTOGRAM'] = MACD(self.train_data.Close, fastperiod=12, slowperiod=26, signalperiod=9)
+        self.train_data['MINUS_DI'] = MINUS_DI(self.train_data.High, self.train_data.Low, self.train_data.Close, timeperiod=14)
+        self.train_data['PLUS_DI'] = PLUS_DI(self.train_data.High, self.train_data.Low, self.train_data.Close, timeperiod=14)
+        self.train_data['ADX'] = ADX(self.train_data.High, self.train_data.Low, self.train_data.Close, timeperiod=14)
+        self.train_data['BAND_UPPER'], self.train_data['BAND_MIDDLE'], self.train_data['BAND_LOWER'] = BBANDS(self.train_data.Close, 20, 2, 2)
+        self.train_data['BAND_WIDTH'] = (self.train_data['BAND_UPPER'] - self.train_data['BAND_LOWER']) / self.train_data['BAND_MIDDLE']
+        self.train_data['BAND_B'] = (self.train_data['Close'] - self.train_data['BAND_LOWER']) / (self.train_data['BAND_UPPER'] - self.train_data['BAND_LOWER'])
+        self.train_data['CCI'] = CCI(self.train_data.High, self.train_data.Low, self.train_data.Close, timeperiod=20)
+        self.train_data['SAR'] = SAR(self.train_data.High, self.train_data.Low)
+        self.train_data['ROC'] = ROC(self.train_data.Close, timeperiod=14)
+        self.train_data['RSI'] = RSI(self.train_data.Close, timeperiod=14)
+        self.train_data['William'] = WILLR(self.train_data.High, self.train_data.Low, self.train_data.Close, timeperiod=14)
 
         # MACD
-        histogram = df.HISTOGRAM.iat[-1]
-        histogram_prev = df.HISTOGRAM.iloc[-self.prev_frames:-1].to_list()
+        histogram = self.train_data.HISTOGRAM.iat[-1]
+        histogram_prev = self.train_data.HISTOGRAM.iloc[-self.prev_frames:-1].to_list()
 
         # Bollinger band
-        middle_band = df.BAND_MIDDLE.iat[-1]
+        middle_band = self.train_data.BAND_MIDDLE.iat[-1]
 
         # Bollinger band width
-        prev_bb_w = df.BAND_WIDTH.iloc[-self.prev_frames:-1].to_list()
-        bb_w = df.BAND_WIDTH.iat[-1]
-        bb_b = df.BAND_B.iat[-1]
+        prev_bb_w = self.train_data.BAND_WIDTH.iloc[-self.prev_frames:-1].to_list()
+        bb_w = self.train_data.BAND_WIDTH.iat[-1]
+        bb_b = self.train_data.BAND_B.iat[-1]
 
         # Commodity Channel Index (Momentum Indicators)
-        cci = df.CCI.iat[-1]
-        prev_cci = df.CCI.iloc[-self.prev_frames:-1].to_list()
+        cci = self.train_data.CCI.iat[-1]
+        prev_cci = self.train_data.CCI.iloc[-self.prev_frames:-1].to_list()
 
         # ADX DMI
-        adx = df.ADX.iat[-1]
-        prev_adx = df.ADX.iloc[-self.prev_frames:-1].to_list()
-        minus_di = df.MINUS_DI.iat[-1]
-        plus_di = df.PLUS_DI.iat[-1]
+        adx = self.train_data.ADX.iat[-1]
+        prev_adx = self.train_data.ADX.iloc[-self.prev_frames:-1].to_list()
+        minus_di = self.train_data.MINUS_DI.iat[-1]
+        plus_di = self.train_data.PLUS_DI.iat[-1]
 
         # Parabolic SAR
-        sar = df.SAR.iat[-1]
+        sar = self.train_data.SAR.iat[-1]
 
         # ROC
-        roc = df.ROC.iat[-1]
-        rsi = df.RSI.iat[-1]
+        roc = self.train_data.ROC.iat[-1]
+        rsi = self.train_data.RSI.iat[-1]
 
         # WILLR
-        willr = df.William.iat[-1]
+        willr = self.train_data.William.iat[-1]
 
         # price data
-        high_p = df.High.iat[-1]
-        low_p = df.Low.iat[-1]
+        high_p = self.train_data.High.iat[-1]
+        low_p = self.train_data.Low.iat[-1]
+        open_p = self.train_data.Open.iat[-1]
 
-        current_time_readable = datetime.datetime.fromtimestamp(_timestamp).strftime('%d-%m-%Y %H:%M:%S')
+        current_time_readable = datetime.datetime.fromtimestamp(_timestamp).strftime('%Y-%m-%d %H:%M')
         log_txt = " Price {} | bb_b- {} | cci+ {} | roc {}".format(
             round(close_p, 2), round(bb_b, 2),
             round(cci, 2), round(roc, 2)
@@ -288,21 +310,19 @@ class RegressionMA:
 
         # Place Buy Order
         if not self.order and self.can_order and \
-                plus_di > minus_di and self.adx_threshold < adx < plus_di and \
-                plus_di > adx and \
+                plus_di > minus_di and self.adx_threshold < adx and \
                 cci > 100 and \
                 bb_b > 1 and \
                 rsi > 60 and \
                 willr > -20 and \
-                histogram > 10 and \
                 all(cci > x for x in prev_cci) and \
                 all(adx > x for x in prev_adx) and \
                 all(histogram > x for x in histogram_prev):
             # buy signal
             self.side = 'buy'
-            self.order = close_p
+            self.order = (open_p + close_p) / 2
             txt = "{} | Buy Order Price {} | BB_%B {} | CCI {} | RSI {} | Willr {} | DI+ {} | DI- {} | ADX {} | Histogram {}".format(
-                current_time_readable, round(close_p, 2), round(bb_b, 2),
+                current_time_readable, round(self.order, 2), round(bb_b, 2),
                 round(cci, 2), round(rsi, 2), round(willr, 2), round(plus_di, 2), round(minus_di, 2), round(adx, 2),
                 round(histogram, 2)
             )
@@ -330,19 +350,18 @@ class RegressionMA:
 
         # Place Sell Order
         elif not self.order and self.can_order and \
-                minus_di > plus_di and self.adx_threshold < adx < minus_di and \
+                minus_di > plus_di and self.adx_threshold < adx and \
                 cci < -100 and \
                 bb_b < 0 and \
                 rsi < 40 and \
                 willr < -80 and \
-                histogram < -10 and \
                 all(cci < x for x in prev_cci) and \
                 all(adx > x for x in prev_adx) and \
                 all(histogram < x for x in histogram_prev):
             self.side = 'sell'
-            self.order = close_p
+            self.order = (open_p + close_p) / 2
             txt = "{} | Sell Order Price {} | BB_%B {} | CCI {} | RSI {} | Willr {} | DI+ {} | DI- {} | ADX {} | Histogram {}".format(
-                current_time_readable, round(close_p, 2), round(bb_b, 2),
+                current_time_readable, round(self.order, 2), round(bb_b, 2),
                 round(cci, 2), round(rsi, 2), round(willr, 2), round(plus_di, 2), round(minus_di, 2), round(adx, 2),
                 round(histogram, 2)
             )
