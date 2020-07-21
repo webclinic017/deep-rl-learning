@@ -194,7 +194,6 @@ class RegressionMA:
         #
         # if len(self.train_data) > 100 and _timestamp > self.order_time and :
 
-
     def check_profit(self, close_p, high_p, low_p, is_latest, middle_band):
         """
         Kiểm tra mức lỗ, nếu quá 38,2% so với mức lãi tối đa thì đóng order, bạn
@@ -298,6 +297,7 @@ class RegressionMA:
         high_p = self.train_data.High.iat[-1]
         low_p = self.train_data.Low.iat[-1]
         open_p = self.train_data.Open.iat[-1]
+        close_p = self.train_data.Close.iat[-1]
 
         current_time_readable = datetime.datetime.fromtimestamp(_timestamp).strftime('%Y-%m-%d %H:%M')
         log_txt = " Price {} | bb_b- {} | cci+ {} | roc {}".format(
@@ -320,11 +320,11 @@ class RegressionMA:
                 all(histogram > x for x in histogram_prev):
             # buy signal
             self.side = 'buy'
-            self.order = (open_p + close_p) / 2
-            txt = "{} | Buy Order Price {} | BB_%B {} | CCI {} | RSI {} | Willr {} | DI+ {} | DI- {} | ADX {} | Histogram {}".format(
+            self.order = close_p
+            txt = "{} | Buy Order Price {} | BB_%B {} | CCI {} | RSI {} | Willr {} | DI+ {} | DI- {} | ADX {} | Histogram {} | {}".format(
                 current_time_readable, round(self.order, 2), round(bb_b, 2),
                 round(cci, 2), round(rsi, 2), round(willr, 2), round(plus_di, 2), round(minus_di, 2), round(adx, 2),
-                round(histogram, 2)
+                round(histogram, 2), _timestamp
             )
             print(txt)
             autotrade_logger.info(txt)
@@ -359,11 +359,11 @@ class RegressionMA:
                 all(adx > x for x in prev_adx) and \
                 all(histogram < x for x in histogram_prev):
             self.side = 'sell'
-            self.order = (open_p + close_p) / 2
-            txt = "{} | Sell Order Price {} | BB_%B {} | CCI {} | RSI {} | Willr {} | DI+ {} | DI- {} | ADX {} | Histogram {}".format(
+            self.order = close_p
+            txt = "{} | Sell Order Price {} | BB_%B {} | CCI {} | RSI {} | Willr {} | DI+ {} | DI- {} | ADX {} | Histogram {}| {}".format(
                 current_time_readable, round(self.order, 2), round(bb_b, 2),
                 round(cci, 2), round(rsi, 2), round(willr, 2), round(plus_di, 2), round(minus_di, 2), round(adx, 2),
-                round(histogram, 2)
+                round(histogram, 2), _timestamp
             )
             print(txt)
             autotrade_logger.info(txt)
