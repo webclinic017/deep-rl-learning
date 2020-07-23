@@ -8,6 +8,7 @@ import pandas as pd
 from binance.enums import KLINE_INTERVAL_1HOUR, SIDE_SELL, ORDER_TYPE_MARKET, SIDE_BUY
 from binance.websockets import BinanceSocketManager
 from pymongo import MongoClient
+from ta.trend import IchimokuIndicator
 from talib._ta_lib import MA, MACD, MINUS_DI, PLUS_DI, ADX, BBANDS, SAR, CCI, ROC, WILLR, OBV, RSI, STOCH
 from binance.client import Client
 import matplotlib.pyplot as plt
@@ -150,7 +151,7 @@ class RegressionMA:
         _ignore = msg['k']['B']
         _timestamp = _open_time/1000
 
-        if self.is_latest:
+        if msg['k']['x']:
             df = pd.DataFrame(
                 [
                     [
@@ -169,19 +170,19 @@ class RegressionMA:
             self.can_order = True
             self.global_step += 1
             self.train_data = self.train_data.append(df, ignore_index=True, sort=False)
-            # if len(self.train_data) > 50:
-            #     self.trading(_timestamp, msg['k']['x'])
+            if len(self.train_data) > 50:
+                self.trading(_timestamp, msg['k']['x'])
 
-        elif len(self.train_data) > 1:
-            self.train_data.at[len(self.train_data) - 1, 'Close'] = _close
-            self.train_data.at[len(self.train_data) - 1, 'High'] = _high
-            self.train_data.at[len(self.train_data) - 1, 'Low'] = _low
-            self.train_data.at[len(self.train_data) - 1, 'Volume'] = _volume
-
-        self.is_latest = msg['k']['x']
+        # elif len(self.train_data) > 1:
+        #     self.train_data.at[len(self.train_data) - 1, 'Close'] = _close
+        #     self.train_data.at[len(self.train_data) - 1, 'High'] = _high
+        #     self.train_data.at[len(self.train_data) - 1, 'Low'] = _low
+        #     self.train_data.at[len(self.train_data) - 1, 'Volume'] = _volume
         #
-        if len(self.train_data) > 50:
-            self.trading(_timestamp, msg['k']['x'])
+        # self.is_latest = msg['k']['x']
+        # #
+        # if len(self.train_data) > 50:
+        #     self.trading(_timestamp, msg['k']['x'])
 
     def check_profit(self, close_p, high_p, low_p, is_latest):
         """
@@ -217,19 +218,17 @@ class RegressionMA:
                 self.can_order = False
 
     def trading(self, _timestamp, is_latest):
-        self.train_data['RSI_13'] = RSI(self.train_data.Close, timeperiod=13)
-        self.train_data['RSI_3'] = RSI(self.train_data.Close, timeperiod=3)
-        self.train_data['ADX'] = ADX(self.train_data.High, self.train_data.Low, self.train_data.Close, timeperiod=14)
-        self.train_data['SLOW_K'], self.train_data['SLOW_D'] = STOCH(self.train_data.High, self.train_data.Low, self.train_data.Close)
+        indicator = IchimokuIndicator(high=self.train_data.High, low=self.train_data.Low, n1=9, n2=26, n3=52, visual=True, fillna=True)
+        self.train_data[f'trend_ichimoku_conv'] = indicator.ichimoku_conversion_line()
+        self.train_data[f'trend_ichimoku_base'] = indicator.ichimoku_base_line()
+        self.train_data[f'trend_ichimoku_a'] = indicator.ichimoku_a()
+        self.train_data[f'trend_ichimoku_b'] = indicator.ichimoku_b()
 
         # MACD
-        rsi_13 = self.train_data.RSI_13.iat[-1]
-        rsi_3 = self.train_data.RSI_3.iat[-1]
-
-        adx = self.train_data.ADX.iat[-1]
-
-        slow_k = self.train_data.SLOW_K.iat[-1]
-        slow_d = self.train_data.SLOW_D.iat[-1]
+        conv = self.train_data.trend_ichimoku_conv.iat[-1]
+        base = self.train_data.trend_ichimoku_base.iat[-1]
+        a = self.train_data.trend_ichimoku_a.iat[-1]
+        b = self.train_data.trend_ichimoku_b.iat[-1]
 
         # price data
         high_p = self.train_data.High.iat[-1]
@@ -238,9 +237,8 @@ class RegressionMA:
         close_p = self.train_data.Close.iat[-1]
 
         current_time_readable = datetime.datetime.fromtimestamp(_timestamp).strftime('%Y-%m-%d %H:%M')
-        log_txt = " Price {} | RSI_13 {} | RSI_3 {}".format(
-            round(close_p, 2), round(rsi_13, 2),
-            round(rsi_3, 2)
+        log_txt = " Price {} | conv {} | base {}".format(
+            round(close_p, 2), round(conv, 2), round(base, 2)
         )
 
         console_logger.info(log_txt)
@@ -248,27 +246,26 @@ class RegressionMA:
 
         # Place Buy Order
         if not self.order and self.can_order and \
-                rsi_3 > rsi_13:
+                close_p > conv > base:
             # buy signal
             self.side = 'buy'
             # self.budget -= 3
             self.order = close_p
-            txt = "{} | Buy Order Price {} | RSI_3 {} | RSI_13 {} | {}".format(
-                current_time_readable, round(self.order, 2), round(rsi_3, 2), round(rsi_13, 2), _timestamp
+            txt = "{} | Buy Order Price {} | conv {} | base {} | {}".format(
+                current_time_readable, round(self.order, 2), round(conv, 2), round(base, 2), _timestamp
             )
             print(txt)
             autotrade_logger.info(txt)
             self.order_point.append({'side': 'buy', 'index': self.global_step})
 
         # CLose Buy Order
-        elif self.side is 'buy' and self.order and \
-                rsi_3 < rsi_13:
+        elif self.side is 'buy' and self.order and close_p < base:
             # take profit
             diff = close_p - self.order
             self.budget += diff
             self.budgets.append(self.budget)
-            txt = "{} | Close Buy Order Price {} | RSI_3 {} | RSI_13 {} | Budget {} | Diff {} | Max Diff {} | {}".format(
-                current_time_readable, round(close_p, 2), round(rsi_3, 2), round(rsi_13, 2),
+            txt = "{} | Close Buy Order Price {} | conv {} | base {} | Budget {} | Diff {} | Max Diff {} | {}".format(
+                current_time_readable, round(close_p, 2), round(conv, 2), round(base, 2),
                 round(self.budget, 2), round(diff, 2), round(self.max_profit, 2), _timestamp
             )
             print(txt)
@@ -279,26 +276,25 @@ class RegressionMA:
 
         # Place Sell Order
         elif not self.order and self.can_order and \
-                rsi_3 < rsi_13:
+                close_p < conv < base:
             self.side = 'sell'
             self.order = close_p
             # self.budget -= 3
-            txt = "{} | Sell Order Price {} | RSI_3 {} | RSI_13 {} | {}".format(
-                current_time_readable, round(self.order, 2), round(rsi_3, 2), round(rsi_13, 2), _timestamp
+            txt = "{} | Sell Order Price {} | {}".format(
+                current_time_readable, close_p, _timestamp
             )
             print(txt)
             autotrade_logger.info(txt)
             self.order_point.append({'side': 'sell', 'index': self.global_step})
 
         # Close Sell Order
-        elif self.side is 'sell' and self.order and \
-                rsi_3 > rsi_13:
+        elif self.side is 'sell' and self.order and close_p > base:
 
             diff = self.order - close_p
             self.budget += diff
             self.budgets.append(self.budget)
-            txt = "{} | Close Sell Order Price {} | RSI_3 {} | RSI_13 {} | Budget {} | Diff {} | Max Diff {} | {}".format(
-                current_time_readable, round(close_p, 2), round(rsi_3, 2), round(rsi_13, 2),
+            txt = "{} | Close Sell Order Price {} | conv {} | base {} | Budget {} | Diff {} | Max Diff {} | {}".format(
+                current_time_readable, round(close_p, 2), round(conv, 2), round(base, 2),
                 round(self.budget, 2), round(diff, 2), round(self.max_profit, 2), _timestamp
             )
             print(txt)
