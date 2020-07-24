@@ -126,9 +126,9 @@ class RegressionMA:
         if crawler:
             data = self.db.BTCUSDT_1m.find()
             data = list(data)
-            with open('data/BTCUSDT_1m.json', 'w') as outfile:
+            with open('data/BTCUSDT_1h.json', 'w') as outfile:
                 json.dump(data, outfile, indent=4)
-        with open('data/BTCUSDT_1m.json', 'r') as json_file:
+        with open('data/BTCUSDT_1h.json', 'r') as json_file:
             data = json.load(json_file)
             for msg in data:
                 self.process_message(msg)
@@ -150,7 +150,7 @@ class RegressionMA:
         _ignore = msg['k']['B']
         _timestamp = _open_time/1000
 
-        if self.is_latest:
+        if msg['k']['x']:
             df = pd.DataFrame(
                 [
                     [
@@ -169,19 +169,19 @@ class RegressionMA:
             self.can_order = True
             self.global_step += 1
             self.train_data = self.train_data.append(df, ignore_index=True, sort=False)
-            # if len(self.train_data) > 50:
-            #     self.trading(_timestamp, msg['k']['x'])
+            if len(self.train_data) > 50:
+                self.trading(_timestamp, msg['k']['x'])
 
-        elif len(self.train_data) > 1:
-            self.train_data.at[len(self.train_data) - 1, 'Close'] = _close
-            self.train_data.at[len(self.train_data) - 1, 'High'] = _high
-            self.train_data.at[len(self.train_data) - 1, 'Low'] = _low
-            self.train_data.at[len(self.train_data) - 1, 'Volume'] = _volume
+        # elif len(self.train_data) > 1:
+        #     self.train_data.at[len(self.train_data) - 1, 'Close'] = _close
+        #     self.train_data.at[len(self.train_data) - 1, 'High'] = _high
+        #     self.train_data.at[len(self.train_data) - 1, 'Low'] = _low
+        #     self.train_data.at[len(self.train_data) - 1, 'Volume'] = _volume
 
-        self.is_latest = msg['k']['x']
-        #
-        if len(self.train_data) > 50:
-            self.trading(_timestamp, msg['k']['x'])
+        # self.is_latest = msg['k']['x']
+
+        # if len(self.train_data) > 50:
+        #     self.trading(_timestamp, msg['k']['x'])
 
     def check_profit(self, close_p, high_p, low_p, is_latest):
         """
@@ -225,11 +225,6 @@ class RegressionMA:
         # MACD
         rsi_13 = self.train_data.RSI_13.iat[-1]
         rsi_3 = self.train_data.RSI_3.iat[-1]
-
-        adx = self.train_data.ADX.iat[-1]
-
-        slow_k = self.train_data.SLOW_K.iat[-1]
-        slow_d = self.train_data.SLOW_D.iat[-1]
 
         # price data
         high_p = self.train_data.High.iat[-1]

@@ -163,7 +163,7 @@ class RegressionMA:
         _ignore = msg['k']['B']
         _timestamp = _open_time/1000
 
-        if msg['k']['x']:
+        if self.is_latest:
             df = pd.DataFrame(
                 [
                     [
@@ -182,18 +182,17 @@ class RegressionMA:
             self.can_order = True
             self.global_step += 1
             self.train_data = self.train_data.append(df, ignore_index=True, sort=False)
-            if len(self.train_data) > 50:
-                self.trading(_timestamp, msg['k']['x'])
 
-        # elif len(self.train_data) > 1:
-        #     self.train_data.at[len(self.train_data) - 1, 'Close'] = _close
-        #     self.train_data.at[len(self.train_data) - 1, 'High'] = _high
-        #     self.train_data.at[len(self.train_data) - 1, 'Low'] = _low
-        #     self.train_data.at[len(self.train_data) - 1, 'Volume'] = _volume
-        #
-        # self.is_latest = msg['k']['x']
-        #
-        # if len(self.train_data) > 100 and _timestamp > self.order_time and :
+        elif len(self.train_data) > 1:
+            self.train_data.at[len(self.train_data) - 1, 'Close'] = _close
+            self.train_data.at[len(self.train_data) - 1, 'High'] = _high
+            self.train_data.at[len(self.train_data) - 1, 'Low'] = _low
+            self.train_data.at[len(self.train_data) - 1, 'Volume'] = _volume
+
+        self.is_latest = msg['k']['x']
+
+        if len(self.train_data) > 100 and _timestamp > self.order_time:
+            self.trading(_timestamp, msg['k']['x'])
 
     def check_profit(self, close_p, high_p, low_p, is_latest, middle_band):
         """
@@ -219,7 +218,7 @@ class RegressionMA:
                     self.lower_price = low_p
                     self.max_profit = max_profit
 
-            if self.max_profit != 0 and current_diff < self.max_profit * 0.5:
+            if self.max_profit != 0 and current_diff < self.max_profit * 0.382:
                 # if (self.side is 'buy' and close_p < middle_band) or (self.side is 'sell' and close_p > middle_band):
                 self.force_close = True
                 self.can_order = False
@@ -333,7 +332,7 @@ class RegressionMA:
 
         # CLose Buy Order
         elif self.side is 'buy' and self.order and \
-                (close_p < sar or self.force_close):
+                (close_p < middle_band or self.force_close):
             # take profit
             diff = close_p - self.order
             self.budget += diff
@@ -372,7 +371,7 @@ class RegressionMA:
 
         # Close Sell Order
         elif self.side is 'sell' and self.order and \
-                (close_p > sar or self.force_close):
+                (close_p > middle_band or self.force_close):
 
             diff = self.order - close_p
             self.budget += diff
