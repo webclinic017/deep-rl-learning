@@ -218,7 +218,7 @@ class RegressionMA:
                     self.lower_price = low_p
                     self.max_profit = max_profit
 
-            if self.max_profit != 0 and current_diff < self.max_profit * 0.382:
+            if self.max_profit != 0 and current_diff < self.max_profit * 0.5:
                 # if (self.side is 'buy' and close_p < middle_band) or (self.side is 'sell' and close_p > middle_band):
                 self.force_close = True
                 self.can_order = False
@@ -226,26 +226,6 @@ class RegressionMA:
             if current_diff < -50:
                 self.force_close = True
                 self.can_order = False
-
-    def calculate_feature(self, df):
-        _, _, df['HISTOGRAM'] = MACD(df.Close, fastperiod=12, slowperiod=26, signalperiod=9)
-        df['MINUS_DI'] = MINUS_DI(df.High, df.Low, df.Close,
-                                               timeperiod=14)
-        df['PLUS_DI'] = PLUS_DI(df.High, df.Low, df.Close,
-                                             timeperiod=14)
-        df['ADX'] = ADX(df.High, df.Low, df.Close, timeperiod=14)
-        df['BAND_UPPER'], df['BAND_MIDDLE'], df['BAND_LOWER'] = BBANDS(
-            df.Close, 20, 2, 2)
-        df['BAND_WIDTH'] = (df['BAND_UPPER'] - df['BAND_LOWER']) / df['BAND_MIDDLE']
-        df['BAND_B'] = (df['Close'] - df['BAND_LOWER']) / (
-                    df['BAND_UPPER'] - df['BAND_LOWER'])
-        df['CCI'] = CCI(df.High, df.Low, df.Close, timeperiod=20)
-        df['SAR'] = SAR(df.High, df.Low)
-        df['ROC'] = ROC(df.Close, timeperiod=14)
-        df['RSI'] = RSI(df.Close, timeperiod=14)
-        df['William'] = WILLR(df.High, df.Low, df.Close,
-                                           timeperiod=14)
-        return df
 
     def trading(self, _timestamp, is_latest):
         _, _, self.train_data['HISTOGRAM'] = MACD(self.train_data.Close, fastperiod=12, slowperiod=26, signalperiod=9)
