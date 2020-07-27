@@ -72,7 +72,7 @@ class RegressionMA:
             data = json.load(json_file)
             for msg in data:
                 self.process_message(msg)
-            self.train_data.to_csv("data/BTCUSDT_1h.csv")
+
         plt.plot(self.budgets, label='MA')
         plt.show()
 
@@ -157,22 +157,22 @@ class RegressionMA:
     @staticmethod
     def check_buy_signal(candles_df):
         bullish_harami = candles_df.bullish_harami.iat[-1]
-        bullish_engulfing = candles_df.bullish_engulfing.iat[-1]
-        morning_star = candles_df.morning_star.iat[-1]
-        piercing_pattern = candles_df.piercing_pattern.iat[-1]
+        # bullish_engulfing = candles_df.bullish_engulfing.iat[-1]
+        # morning_star = candles_df.morning_star.iat[-1]
+        # piercing_pattern = candles_df.piercing_pattern.iat[-1]
 
-        if morning_star or bullish_engulfing or bullish_harami or piercing_pattern:
+        if bullish_harami:
             return True
         return False
 
     @staticmethod
     def check_sell_signal(candles_df):
         bearish_harami = candles_df.bearish_harami.iat[-1]
-        dark_cloud_cover = candles_df.dark_cloud_cover.iat[-1]
-        bearish_engulfing = candles_df.bearish_engulfing.iat[-1]
-        shooting_star = candles_df.shooting_star.iat[-1]
+        # dark_cloud_cover = candles_df.dark_cloud_cover.iat[-1]
+        # bearish_engulfing = candles_df.bearish_engulfing.iat[-1]
+        # shooting_star = candles_df.shooting_star.iat[-1]
 
-        if bearish_engulfing or bearish_harami or dark_cloud_cover or shooting_star:
+        if bearish_harami:
             return True
         return False
 
@@ -188,29 +188,6 @@ class RegressionMA:
         return False
 
     @staticmethod
-    def add_features(df):
-        candles_df = candlestick.inverted_hammer(df, target="inverted_hammer")
-        candles_df = candlestick.doji_star(candles_df, target="doji_star")
-        candles_df = candlestick.bearish_harami(candles_df, target="bearish_harami")
-        candles_df = candlestick.bullish_harami(candles_df, target="bullish_harami")
-        candles_df = candlestick.dark_cloud_cover(candles_df, target="dark_cloud_cover")
-        candles_df = candlestick.doji(candles_df, target="doji")
-        candles_df = candlestick.dragonfly_doji(candles_df, target="dragonfly_doji")
-        candles_df = candlestick.hanging_man(candles_df, target="hanging_man")
-        candles_df = candlestick.gravestone_doji(candles_df, target="gravestone_doji")
-        candles_df = candlestick.bearish_engulfing(candles_df, target="bearish_engulfing")
-        candles_df = candlestick.bullish_engulfing(candles_df, target="bullish_engulfing")
-        candles_df = candlestick.hammer(candles_df, target="hammer")
-        candles_df = candlestick.morning_star(candles_df, target="morning_star")
-        candles_df = candlestick.morning_star_doji(candles_df, target="morning_star_doji")
-        candles_df = candlestick.piercing_pattern(candles_df, target="piercing_pattern")
-        candles_df = candlestick.rain_drop(candles_df, target="rain_drop")
-        candles_df = candlestick.rain_drop_doji(candles_df, target="rain_drop_doji")
-        candles_df = candlestick.star(candles_df, target="star")
-        candles_df = candlestick.shooting_star(candles_df, target="shooting_star")
-        return candles_df
-
-    @staticmethod
     def parallelize_dataframe(df, func, n_cores=8):
         df_split = np.array_split(df, n_cores)
         pool = Pool(n_cores)
@@ -220,30 +197,30 @@ class RegressionMA:
         return df
 
     def trading(self, _timestamp, is_latest):
-        cci = CCI(self.train_data.high, self.train_data.low, self.train_data.close).iat[-1]
-        candles_df = candlestick.inverted_hammer(self.train_data[-20:], target="inverted_hammer")
-        candles_df = candlestick.doji_star(candles_df, target="doji_star")
-        candles_df = candlestick.bearish_harami(candles_df, target="bearish_harami")
+        rsi = RSI(self.train_data.close).iat[-1]
+        # candles_df = candlestick.inverted_hammer(self.train_data, target="inverted_hammer")
+        # candles_df = candlestick.doji_star(candles_df, target="doji_star")
+        candles_df = candlestick.bearish_harami(self.train_data, target="bearish_harami")
         candles_df = candlestick.bullish_harami(candles_df, target="bullish_harami")
-        candles_df = candlestick.dark_cloud_cover(candles_df, target="dark_cloud_cover")
-        candles_df = candlestick.doji(candles_df, target="doji")
-        candles_df = candlestick.dragonfly_doji(candles_df, target="dragonfly_doji")
-        candles_df = candlestick.hanging_man(candles_df, target="hanging_man")
-        candles_df = candlestick.gravestone_doji(candles_df, target="gravestone_doji")
-        candles_df = candlestick.bearish_engulfing(candles_df, target="bearish_engulfing")
-        candles_df = candlestick.bullish_engulfing(candles_df, target="bullish_engulfing")
-        candles_df = candlestick.hammer(candles_df, target="hammer")
-        candles_df = candlestick.morning_star(candles_df, target="morning_star")
-        candles_df = candlestick.morning_star_doji(candles_df, target="morning_star_doji")
-        candles_df = candlestick.piercing_pattern(candles_df, target="piercing_pattern")
-        candles_df = candlestick.rain_drop(candles_df, target="rain_drop")
-        candles_df = candlestick.rain_drop_doji(candles_df, target="rain_drop_doji")
-        candles_df = candlestick.star(candles_df, target="star")
-        candles_df = candlestick.shooting_star(candles_df, target="shooting_star")
+        # candles_df = candlestick.dark_cloud_cover(candles_df, target="dark_cloud_cover")
+        # candles_df = candlestick.doji(candles_df, target="doji")
+        # candles_df = candlestick.dragonfly_doji(candles_df, target="dragonfly_doji")
+        # candles_df = candlestick.hanging_man(candles_df, target="hanging_man")
+        # candles_df = candlestick.gravestone_doji(candles_df, target="gravestone_doji")
+        # candles_df = candlestick.bearish_engulfing(candles_df, target="bearish_engulfing")
+        # candles_df = candlestick.bullish_engulfing(candles_df, target="bullish_engulfing")
+        # candles_df = candlestick.hammer(candles_df, target="hammer")
+        # candles_df = candlestick.morning_star(candles_df, target="morning_star")
+        # candles_df = candlestick.morning_star_doji(candles_df, target="morning_star_doji")
+        # candles_df = candlestick.piercing_pattern(candles_df, target="piercing_pattern")
+        # candles_df = candlestick.rain_drop(candles_df, target="rain_drop")
+        # candles_df = candlestick.rain_drop_doji(candles_df, target="rain_drop_doji")
+        # candles_df = candlestick.star(candles_df, target="star")
+        # candles_df = candlestick.shooting_star(candles_df, target="shooting_star")
 
         buy_signal = self.check_buy_signal(candles_df)
         sell_signal = self.check_sell_signal(candles_df)
-        close_signal = self.check_close(candles_df)
+        # close_signal = self.check_close(candles_df)
 
         high_p = candles_df.high.iat[-1]
         low_p = candles_df.low.iat[-1]
@@ -254,21 +231,21 @@ class RegressionMA:
         current_time_readable = datetime.datetime.fromtimestamp(_timestamp).strftime('%Y-%m-%d %H:%M')
         log_txt = " Price {}".format(round(close_p, 2))
 
-        console_logger.info(log_txt)
+        # console_logger.info(log_txt)
         self.check_profit(close_p, high_p, low_p, is_latest)
 
         # Place Buy Order
-        if not self.order and buy_signal and cci > 100 and is_latest:
+        if not self.order and buy_signal and rsi > 70:
             # buy signal
             self.side = 'buy'
             # self.budget -= 3
             self.order = close_p
-            txt = "{} | Buy Order Price {} | Volumes {} | {}".format(current_time_readable, round(self.order, 2), volumes, _timestamp)
-            # print(txt)
-            autotrade_logger.info(txt)
+            txt = "{} | Buy Order Price {} | cci {} | {}".format(current_time_readable, round(self.order, 2), rsi, _timestamp)
+            print(txt)
+            # autotrade_logger.info(txt)
 
         # CLose Buy Order
-        elif self.side is 'buy' and self.order and (self.force_close or close_signal):
+        elif self.side is 'buy' and self.order and sell_signal:
             # take profit
             diff = close_p - self.order
             self.budget += diff
@@ -277,21 +254,21 @@ class RegressionMA:
                 current_time_readable, round(close_p, 2),
                 round(self.budget, 2), round(diff, 2), round(self.max_profit, 2), _timestamp
             )
-            # print(txt)
-            autotrade_logger.info(txt)
+            print(txt)
+            # autotrade_logger.info(txt)
             self.reset()
 
         # Place Sell Order
-        elif not self.order and sell_signal and cci < 0 and is_latest:
+        elif not self.order and sell_signal and rsi < 30:
             self.side = 'sell'
             self.order = close_p
             # self.budget -= 3
-            txt = "{} | Sell Order Price {} | Volumes {} | {}".format(current_time_readable, round(self.order, 2), volumes, _timestamp)
-            # print(txt)
-            autotrade_logger.info(txt)
+            txt = "{} | Sell Order Price {} | cci {} | {}".format(current_time_readable, round(self.order, 2), rsi, _timestamp)
+            print(txt)
+            # autotrade_logger.info(txt)
 
         # Close Sell Order
-        elif self.side is 'sell' and self.order and (self.force_close or close_signal):
+        elif self.side is 'sell' and self.order and buy_signal:
             diff = self.order - close_p
             self.budget += diff
             self.budgets.append(self.budget)
@@ -299,9 +276,9 @@ class RegressionMA:
                 current_time_readable, round(close_p, 2),
                 round(self.budget, 2), round(diff, 2), round(self.max_profit, 2), _timestamp
             )
-            # print(txt)
+            print(txt)
             self.reset()
-            autotrade_logger.info(txt)
+            # autotrade_logger.info(txt)
 
     def reset(self):
         self.order = None
