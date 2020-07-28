@@ -292,4 +292,3 @@ class RegressionMA:
 if __name__ == '__main__':
     bottrading = RegressionMA()
     bottrading.fake_socket()
-
