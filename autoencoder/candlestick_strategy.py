@@ -68,7 +68,7 @@ class RegressionMA:
         self.ax1 = self.fig.add_subplot(111, label='ax1')
 
     def fake_socket(self):
-        with open('data/BTCUSDT_5m.json', 'r') as json_file:
+        with open('data/BTCUSDT_1h.json', 'r') as json_file:
             data = json.load(json_file)
             for msg in data:
                 self.process_message(msg)
@@ -89,7 +89,7 @@ class RegressionMA:
         _buy_base_asset_volume = msg['k']['V']
         _buy_quote_asset_volume = msg['k']['q']
         _ignore = msg['k']['B']
-        _timestamp = _open_time/1000
+        _timestamp = msg['k']['timestamp']
 
         if self.is_latest:
             df = pd.DataFrame(
@@ -154,6 +154,9 @@ class RegressionMA:
             if current_diff < -20:
                 self.force_close = True
 
+            if current_diff > 50:
+                self.force_close = True
+
     @staticmethod
     def check_buy_signal(candles_df):
         bullish_harami = candles_df.bullish_harami.iat[-1]
@@ -189,7 +192,13 @@ class RegressionMA:
         #     return True
         # return False
 
+    @timethis
     def trading(self, _timestamp, is_latest):
+
+        high_p = self.train_data.high.iat[-1]
+        low_p = self.train_data.low.iat[-1]
+        close_p = self.train_data.close.iat[-1]
+
         if not self.order:
             cci = CCI(self.train_data.high, self.train_data.low, self.train_data.close, timeperiod=20).iat[-1]
             self.train_data['BAND_UPPER'], _, self.train_data['BAND_LOWER'] = BBANDS(
@@ -216,20 +225,16 @@ class RegressionMA:
 
             buy_signal = self.check_buy_signal(candles_df)
             sell_signal = self.check_sell_signal(candles_df)
+            upper_band = self.train_data.BAND_UPPER.iat[-1]
+            lower_band = self.train_data.BAND_LOWER.iat[-1]
 
-        high_p = self.train_data.high.iat[-1]
-        low_p = self.train_data.low.iat[-1]
-        close_p = self.train_data.close.iat[-1]
+        else:
+            self.check_profit(close_p, high_p, low_p, is_latest)
 
-        upper_band = self.train_data.BAND_UPPER.iat[-1]
-        lower_band = self.train_data.BAND_LOWER.iat[-1]
-
-        current_time_readable = datetime.datetime.fromtimestamp(_timestamp).strftime('%Y-%m-%d %H:%M')
-        log_txt = " Price {}".format(round(close_p, 2))
-
-        console_logger.info(log_txt)
-
-        self.check_profit(close_p, high_p, low_p, is_latest)
+        # current_time_readable = datetime.datetime.fromtimestamp(_timestamp).strftime('%Y-%m-%d %H:%M')
+        # log_txt = " Price {}".format(round(close_p, 2))
+        #
+        # console_logger.info(log_txt)
 
         # Place Buy Order
         if not self.order and buy_signal and cci < -100 and lower_band > close_p > high_p:
