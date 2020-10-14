@@ -20,6 +20,7 @@ def main():
     Lists the user's Gmail labels.
     """
     creds = None
+    win_rate = 70
     # The file token.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
     # time.
@@ -72,15 +73,17 @@ def main():
                         "timestamp": time.time()
                     }
                     print(info)
-                    price = info['price']
                     mt5_client.close_order(symbol)
-                    tp = info['tp1'].replace("Pts", "")
-                    tp = float(tp.split("=")[1]) / 100
-                    if info['side'] == 'Buy':
-                        mt5_client.buy_order(symbol, tp)
-                    elif info['side'] == 'Sell':
-                        mt5_client.sell_order(symbol, tp)
-                    current_info = info
+                    tp1_hit = info['tp1_hit']
+                    tp1_hit = float(tp1_hit.split('=')[1].replace('%', ''))
+                    if tp1_hit > win_rate:
+                        tp = info['tp1'].replace("Pts", "")
+                        tp = float(tp.split("=")[1]) / 100
+                        if info['side'] == 'Buy':
+                            mt5_client.buy_order(symbol, tp)
+                        elif info['side'] == 'Sell':
+                            mt5_client.sell_order(symbol, tp)
+                        current_info = info
 
                 if "EURUSD" in snippet:
                     partitions = snippet.split(" ")
@@ -97,15 +100,17 @@ def main():
                         "timestamp": time.time()
                     }
                     print(info)
-                    price = info['price']
                     mt5_client.close_order(symbol)
-                    tp = info['tp1'].replace("Pts", "")
-                    tp = float(tp.split("=")[1]) / 100000
-                    if info['side'] == 'Buy':
-                        mt5_client.buy_order(symbol, tp)
-                    elif info['side'] == 'Sell':
-                        mt5_client.sell_order(symbol, tp)
-                    current_info = info
+                    tp1_hit = info['tp1_hit']
+                    tp1_hit = float(tp1_hit.split('=')[1].replace('%', ''))
+                    if tp1_hit > win_rate:
+                        tp = info['tp1'].replace("Pts", "")
+                        tp = float(tp.split("=")[1]) / 100000
+                        if info['side'] == 'Buy':
+                            mt5_client.buy_order(symbol, tp)
+                        elif info['side'] == 'Sell':
+                            mt5_client.sell_order(symbol, tp)
+                        current_info = info
 
                 if "GBPUSD" in snippet:
                     partitions = snippet.split(" ")
@@ -122,15 +127,17 @@ def main():
                         "timestamp": time.time()
                     }
                     print(info)
-                    price = info['price']
                     mt5_client.close_order(symbol)
-                    tp = info['tp1'].replace("Pts", "")
-                    tp = float(tp.split("=")[1]) / 100000
-                    if info['side'] == 'Buy':
-                        mt5_client.buy_order(symbol, tp)
-                    elif info['side'] == 'Sell':
-                        mt5_client.sell_order(symbol, tp)
-                    current_info = info
+                    tp1_hit = info['tp1_hit']
+                    tp1_hit = float(tp1_hit.split('=')[1].replace('%', ''))
+                    if tp1_hit > win_rate:
+                        tp = info['tp1'].replace("Pts", "")
+                        tp = float(tp.split("=")[1]) / 100000
+                        if info['side'] == 'Buy':
+                            mt5_client.buy_order(symbol, tp)
+                        elif info['side'] == 'Sell':
+                            mt5_client.sell_order(symbol, tp)
+                        current_info = info
 
                 if "USDJPY" in snippet:
                     partitions = snippet.split(" ")
@@ -147,15 +154,17 @@ def main():
                         "timestamp": time.time()
                     }
                     print(info)
-                    price = info['price']
                     mt5_client.close_order(symbol)
-                    tp = info['tp1'].replace("Pts", "")
-                    tp = float(tp.split("=")[1])/1000
-                    if info['side'] == 'Buy':
-                        mt5_client.buy_order(symbol, tp)
-                    elif info['side'] == 'Sell':
-                        mt5_client.sell_order(symbol, tp)
-                    current_info = info
+                    tp1_hit = info['tp1_hit']
+                    tp1_hit = float(tp1_hit.split('=')[1].replace('%', ''))
+                    if tp1_hit > win_rate:
+                        tp = info['tp1'].replace("Pts", "")
+                        tp = float(tp.split("=")[1]) / 1000
+                        if info['side'] == 'Buy':
+                            mt5_client.buy_order(symbol, tp)
+                        elif info['side'] == 'Sell':
+                            mt5_client.sell_order(symbol, tp)
+                        current_info = info
 
                 service.users().messages().modify(userId='me', id=message["id"], body={'removeLabelIds': ['UNREAD']}).execute()
                 # XAUUSD M1 Buy Signal @1924.47 TP1=76Pts TP2=251Pts TP1 Hit=79.17% TP2 Hit=57.29% EXIT Win=0.00% EXIT Loss=20.83% Success Rate=79.17%
