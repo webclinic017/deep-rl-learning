@@ -17,9 +17,9 @@ class AutoOrder():
             print("initialize() failed, error code =", mt5.last_error())
             quit()
 
-        if os.path.isfile("order.json"):
-            with open("order.json") as position_file:
-                self.order_list = json.load(position_file)
+        # if os.path.isfile("order.json"):
+        #     with open("order.json") as position_file:
+        #         self.order_list = json.load(position_file)
 
         # prepare the buy request structure
 
@@ -79,11 +79,11 @@ class AutoOrder():
             quit()
 
         print("order_send done, ", result)
-        self.position_id = result.order
-        if os.path.isfile("order.json"):
-            with open("order.json", "w") as position_file:
-                self.order_list[symbol] = result.order
-                json.dump(self.order_list, position_file)
+        # self.position_id = result.order
+        # if os.path.isfile("order.json"):
+        #     with open("order.json", "w") as position_file:
+        #         self.order_list[symbol] = result.order
+        #         json.dump(self.order_list, position_file)
 
     def sell_order(self, symbol, tp):
 
@@ -125,11 +125,11 @@ class AutoOrder():
             quit()
 
         print("order_send done, ", result)
-        self.position_id = result.order
-        if os.path.isfile("order.json"):
-            with open("order.json", "w") as position_file:
-                self.order_list[symbol] = result.order
-                json.dump(self.order_list, position_file)
+        # self.position_id = result.order
+        # if os.path.isfile("order.json"):
+        #     with open("order.json", "w") as position_file:
+        #         self.order_list[symbol] = result.order
+        #         json.dump(self.order_list, position_file)
 
     def close_order(self, symbol):
         # create a close request
