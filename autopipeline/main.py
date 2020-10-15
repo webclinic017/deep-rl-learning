@@ -20,7 +20,7 @@ def main():
     Lists the user's Gmail labels.
     """
     creds = None
-    win_rate = 50
+    win_rate = 70
     # The file token.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
     # time.
@@ -74,10 +74,10 @@ def main():
                     }
                     print(info)
                     mt5_client.close_order(symbol)
-                    tp1_hit = info['tp2_hit']
+                    tp1_hit = info['tp1_hit']
                     tp1_hit = float(tp1_hit.split('=')[1].replace('%', ''))
                     if tp1_hit > win_rate:
-                        tp = info['tp2'].replace("Pts", "")
+                        tp = info['tp1'].replace("Pts", "")
                         tp = float(tp.split("=")[1]) / 100
                         if info['side'] == 'Buy':
                             mt5_client.buy_order(symbol, tp)
@@ -101,10 +101,10 @@ def main():
                     }
                     print(info)
                     mt5_client.close_order(symbol)
-                    tp1_hit = info['tp2_hit']
+                    tp1_hit = info['tp1_hit']
                     tp1_hit = float(tp1_hit.split('=')[1].replace('%', ''))
                     if tp1_hit > win_rate:
-                        tp = info['tp2'].replace("Pts", "")
+                        tp = info['tp1'].replace("Pts", "")
                         tp = float(tp.split("=")[1]) / 100000
                         if info['side'] == 'Buy':
                             mt5_client.buy_order(symbol, tp)
@@ -128,10 +128,10 @@ def main():
                     }
                     print(info)
                     mt5_client.close_order(symbol)
-                    tp1_hit = info['tp2_hit']
+                    tp1_hit = info['tp1_hit']
                     tp1_hit = float(tp1_hit.split('=')[1].replace('%', ''))
                     if tp1_hit > win_rate:
-                        tp = info['tp2'].replace("Pts", "")
+                        tp = info['tp1'].replace("Pts", "")
                         tp = float(tp.split("=")[1]) / 100000
                         if info['side'] == 'Buy':
                             mt5_client.buy_order(symbol, tp)
@@ -155,10 +155,10 @@ def main():
                     }
                     print(info)
                     mt5_client.close_order(symbol)
-                    tp1_hit = info['tp2_hit']
+                    tp1_hit = info['tp1_hit']
                     tp1_hit = float(tp1_hit.split('=')[1].replace('%', ''))
                     if tp1_hit > win_rate:
-                        tp = info['tp2'].replace("Pts", "")
+                        tp = info['tp1'].replace("Pts", "")
                         tp = float(tp.split("=")[1]) / 100000
                         if info['side'] == 'Buy':
                             mt5_client.buy_order(symbol, tp)
@@ -182,10 +182,10 @@ def main():
                     }
                     print(info)
                     mt5_client.close_order(symbol)
-                    tp1_hit = info['tp2_hit']
+                    tp1_hit = info['tp1_hit']
                     tp1_hit = float(tp1_hit.split('=')[1].replace('%', ''))
                     if tp1_hit > win_rate:
-                        tp = info['tp2'].replace("Pts", "")
+                        tp = info['tp1'].replace("Pts", "")
                         tp = float(tp.split("=")[1]) / 100000
                         if info['side'] == 'Buy':
                             mt5_client.buy_order(symbol, tp)
@@ -209,10 +209,10 @@ def main():
                     }
                     print(info)
                     mt5_client.close_order(symbol)
-                    tp1_hit = info['tp2_hit']
+                    tp1_hit = info['tp1_hit']
                     tp1_hit = float(tp1_hit.split('=')[1].replace('%', ''))
                     if tp1_hit > win_rate:
-                        tp = info['tp2'].replace("Pts", "")
+                        tp = info['tp1'].replace("Pts", "")
                         tp = float(tp.split("=")[1]) / 1000
                         if info['side'] == 'Buy':
                             mt5_client.buy_order(symbol, tp)
