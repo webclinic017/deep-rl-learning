@@ -2,7 +2,6 @@ from __future__ import print_function
 import pickle
 import os.path
 import time
-from datetime import date, timedelta
 
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -20,7 +19,7 @@ def main():
     Lists the user's Gmail labels.
     """
     creds = None
-    win_rate = 70
+    win_rate = 50
     # The file token.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
     # time.
@@ -42,17 +41,22 @@ def main():
     service = build('gmail', 'v1', credentials=creds)
 
     # Call the Gmail API
-    results = service.users().labels().list(userId='me').execute()
-    labels = results.get('labels', [])
+    # results = service.users().labels().list(userId='me').execute()
+    # labels = results.get('labels', [])
 
     service = build('gmail', 'v1', credentials=creds)
     current_info = {}
     while True:
         time.sleep(0.5)
-        results = service.users().messages().list(userId='me', labelIds=["UNREAD", "INBOX"], maxResults=1).execute()
+        results = None
+        try:
+            results = service.users().messages().list(userId='me', labelIds=["UNREAD", "INBOX"], maxResults=1).execute()
+        except Exception as ex:
+            print(ex)
+
         # print(f"results {results}")
         # print("\n")
-        if results['resultSizeEstimate'] > 0:
+        if results and results['resultSizeEstimate'] > 0:
             for message in results['messages']:
                 messageheader = service.users().messages().get(userId="me", id=message["id"], format="full",
                                                                metadataHeaders=None).execute()
@@ -74,14 +78,43 @@ def main():
                     }
                     print(info)
                     mt5_client.close_order(symbol)
-                    tp1_hit = info['tp1_hit']
+                    tp1_hit = info['tp2_hit']
                     tp1_hit = float(tp1_hit.split('=')[1].replace('%', ''))
                     if tp1_hit > win_rate:
-                        tp = info['tp1'].replace("Pts", "")
+                        tp = info['tp2'].replace("Pts", "")
                         tp = float(tp.split("=")[1]) / 100
-                        if info['side'] == 'Buy':
+                        ema_70, close_price = mt5_client.get_ema_70(symbol)
+                        if info['side'] == 'Buy' and ema_70 < close_price:
                             mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell':
+                        elif info['side'] == 'Sell' and ema_70 > close_price:
+                            mt5_client.sell_order(symbol, tp)
+                        current_info = info
+
+                if "Bitcoin" in snippet:
+                    partitions = snippet.split(" ")
+                    symbol = partitions[0]
+                    info = {
+                        "symbol": partitions[0],
+                        "period": partitions[1],
+                        "price": float(partitions[4].replace("@", "")),
+                        "side": partitions[2],
+                        "tp1": partitions[5],
+                        "tp2": partitions[6],
+                        "tp1_hit": partitions[8],
+                        "tp2_hit": partitions[10],
+                        "timestamp": time.time()
+                    }
+                    print(info)
+                    mt5_client.close_order(symbol)
+                    tp1_hit = info['tp2_hit']
+                    tp1_hit = float(tp1_hit.split('=')[1].replace('%', ''))
+                    if tp1_hit > win_rate:
+                        tp = info['tp2'].replace("Pts", "")
+                        tp = float(tp.split("=")[1]) / 100
+                        ema_70, close_price = mt5_client.get_ema_70(symbol)
+                        if info['side'] == 'Buy' and ema_70 < close_price:
+                            mt5_client.buy_order(symbol, tp)
+                        elif info['side'] == 'Sell' and ema_70 > close_price:
                             mt5_client.sell_order(symbol, tp)
                         current_info = info
 
@@ -101,14 +134,15 @@ def main():
                     }
                     print(info)
                     mt5_client.close_order(symbol)
-                    tp1_hit = info['tp1_hit']
+                    tp1_hit = info['tp2_hit']
                     tp1_hit = float(tp1_hit.split('=')[1].replace('%', ''))
                     if tp1_hit > win_rate:
-                        tp = info['tp1'].replace("Pts", "")
+                        tp = info['tp2'].replace("Pts", "")
                         tp = float(tp.split("=")[1]) / 100000
-                        if info['side'] == 'Buy':
+                        ema_70, close_price = mt5_client.get_ema_70(symbol)
+                        if info['side'] == 'Buy' and ema_70 < close_price:
                             mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell':
+                        elif info['side'] == 'Sell' and ema_70 > close_price:
                             mt5_client.sell_order(symbol, tp)
                         current_info = info
 
@@ -128,14 +162,15 @@ def main():
                     }
                     print(info)
                     mt5_client.close_order(symbol)
-                    tp1_hit = info['tp1_hit']
+                    tp1_hit = info['tp2_hit']
                     tp1_hit = float(tp1_hit.split('=')[1].replace('%', ''))
                     if tp1_hit > win_rate:
-                        tp = info['tp1'].replace("Pts", "")
+                        tp = info['tp2'].replace("Pts", "")
                         tp = float(tp.split("=")[1]) / 100000
-                        if info['side'] == 'Buy':
+                        ema_70, close_price = mt5_client.get_ema_70(symbol)
+                        if info['side'] == 'Buy' and ema_70 < close_price:
                             mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell':
+                        elif info['side'] == 'Sell' and ema_70 > close_price:
                             mt5_client.sell_order(symbol, tp)
                         current_info = info
 
@@ -155,14 +190,15 @@ def main():
                     }
                     print(info)
                     mt5_client.close_order(symbol)
-                    tp1_hit = info['tp1_hit']
+                    tp1_hit = info['tp2_hit']
                     tp1_hit = float(tp1_hit.split('=')[1].replace('%', ''))
                     if tp1_hit > win_rate:
-                        tp = info['tp1'].replace("Pts", "")
+                        tp = info['tp2'].replace("Pts", "")
                         tp = float(tp.split("=")[1]) / 100000
-                        if info['side'] == 'Buy':
+                        ema_70, close_price = mt5_client.get_ema_70(symbol)
+                        if info['side'] == 'Buy' and ema_70 < close_price:
                             mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell':
+                        elif info['side'] == 'Sell' and ema_70 > close_price:
                             mt5_client.sell_order(symbol, tp)
                         current_info = info
 
@@ -182,14 +218,15 @@ def main():
                     }
                     print(info)
                     mt5_client.close_order(symbol)
-                    tp1_hit = info['tp1_hit']
+                    tp1_hit = info['tp2_hit']
                     tp1_hit = float(tp1_hit.split('=')[1].replace('%', ''))
                     if tp1_hit > win_rate:
-                        tp = info['tp1'].replace("Pts", "")
+                        tp = info['tp2'].replace("Pts", "")
                         tp = float(tp.split("=")[1]) / 100000
-                        if info['side'] == 'Buy':
+                        ema_70, close_price = mt5_client.get_ema_70(symbol)
+                        if info['side'] == 'Buy' and ema_70 < close_price:
                             mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell':
+                        elif info['side'] == 'Sell' and ema_70 > close_price:
                             mt5_client.sell_order(symbol, tp)
                         current_info = info
 
@@ -209,14 +246,15 @@ def main():
                     }
                     print(info)
                     mt5_client.close_order(symbol)
-                    tp1_hit = info['tp1_hit']
+                    tp1_hit = info['tp2_hit']
                     tp1_hit = float(tp1_hit.split('=')[1].replace('%', ''))
                     if tp1_hit > win_rate:
-                        tp = info['tp1'].replace("Pts", "")
+                        tp = info['tp2'].replace("Pts", "")
                         tp = float(tp.split("=")[1]) / 1000
-                        if info['side'] == 'Buy':
+                        ema_70, close_price = mt5_client.get_ema_70(symbol)
+                        if info['side'] == 'Buy' and ema_70 < close_price:
                             mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell':
+                        elif info['side'] == 'Sell' and ema_70 > close_price:
                             mt5_client.sell_order(symbol, tp)
                         current_info = info
 

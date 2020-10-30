@@ -1,7 +1,6 @@
-import time
-import json
-import os
+import pandas as pd
 import MetaTrader5 as mt5
+from talib._ta_lib import EMA
 
 
 class AutoOrder():
@@ -22,6 +21,22 @@ class AutoOrder():
         #         self.order_list = json.load(position_file)
 
         # prepare the buy request structure
+
+    def get_ema_70(self, symbol):
+        rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 300)
+        # Deinitializing MT5 connection
+
+        # create DataFrame out of the obtained data
+        rates_frame = pd.DataFrame(rates)
+        rates_frame['time'] = pd.to_datetime(rates_frame['time'], unit='s')
+
+        # display data
+        # print("\nDisplay dataframe with data")
+        # print(rates_frame)
+
+        # uses close prices (default)
+        rates_frame['EMA70'] = EMA(rates_frame.close, timeperiod=100)
+        return rates_frame['EMA70'].iat[-1], rates_frame['close'].iat[-1]
 
     def check_symbol(self, symbol):
         symbol_info = mt5.symbol_info(symbol)
