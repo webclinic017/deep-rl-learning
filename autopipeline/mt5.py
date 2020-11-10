@@ -35,7 +35,7 @@ class AutoOrder():
         # print(rates_frame)
 
         # uses close prices (default)
-        rates_frame['EMA70'] = EMA(rates_frame.close, timeperiod=100)
+        rates_frame['EMA70'] = EMA(rates_frame.close, timeperiod=70)
         return rates_frame['EMA70'].iat[-1], rates_frame['close'].iat[-1]
 
     def check_symbol(self, symbol):
