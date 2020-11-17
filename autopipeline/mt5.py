@@ -22,7 +22,7 @@ class AutoOrder():
 
         # prepare the buy request structure
 
-    def get_ema_70(self, symbol):
+    def get_ema(self, symbol):
         rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 300)
         # Deinitializing MT5 connection
 
@@ -36,7 +36,8 @@ class AutoOrder():
 
         # uses close prices (default)
         rates_frame['EMA70'] = EMA(rates_frame.close, timeperiod=70)
-        return rates_frame['EMA70'].iat[-1], rates_frame['close'].iat[-1]
+        rates_frame['EMA100'] = EMA(rates_frame.close, timeperiod=100)
+        return rates_frame['EMA70'].iat[-1], rates_frame['EMA100'].iat[-1], rates_frame['close'].iat[-1]
 
     def check_symbol(self, symbol):
         symbol_info = mt5.symbol_info(symbol)

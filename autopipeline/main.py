@@ -83,10 +83,10 @@ def main():
                     if tp1_hit > win_rate:
                         tp = info['tp2'].replace("Pts", "")
                         tp = float(tp.split("=")[1]) / 100
-                        ema_70, close_price = mt5_client.get_ema_70(symbol)
-                        if info['side'] == 'Buy' and ema_70 < close_price:
+                        ema_70, ema_100, close_price = mt5_client.get_ema(symbol)
+                        if info['side'] == 'Buy' and ema_70 > ema_100:
                             mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell' and ema_70 > close_price:
+                        elif info['side'] == 'Sell' and ema_70 < ema_100:
                             mt5_client.sell_order(symbol, tp)
                         current_info = info
 
@@ -111,10 +111,10 @@ def main():
                     if tp1_hit > win_rate:
                         tp = info['tp2'].replace("Pts", "")
                         tp = float(tp.split("=")[1]) / 100
-                        ema_70, close_price = mt5_client.get_ema_70(symbol)
-                        if info['side'] == 'Buy' and ema_70 < close_price:
+                        ema_70, ema_100, close_price = mt5_client.get_ema(symbol)
+                        if info['side'] == 'Buy' and ema_70 > ema_100:
                             mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell' and ema_70 > close_price:
+                        elif info['side'] == 'Sell' and ema_70 < ema_100:
                             mt5_client.sell_order(symbol, tp)
                         current_info = info
 
@@ -139,10 +139,10 @@ def main():
                     if tp1_hit > win_rate:
                         tp = info['tp2'].replace("Pts", "")
                         tp = float(tp.split("=")[1]) / 100000
-                        ema_70, close_price = mt5_client.get_ema_70(symbol)
-                        if info['side'] == 'Buy' and ema_70 < close_price:
+                        ema_70, ema_100, close_price = mt5_client.get_ema(symbol)
+                        if info['side'] == 'Buy' and ema_70 > ema_100:
                             mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell' and ema_70 > close_price:
+                        elif info['side'] == 'Sell' and ema_70 < ema_100:
                             mt5_client.sell_order(symbol, tp)
                         current_info = info
 
@@ -167,10 +167,10 @@ def main():
                     if tp1_hit > win_rate:
                         tp = info['tp2'].replace("Pts", "")
                         tp = float(tp.split("=")[1]) / 100000
-                        ema_70, close_price = mt5_client.get_ema_70(symbol)
-                        if info['side'] == 'Buy' and ema_70 < close_price:
+                        ema_70, ema_100, close_price = mt5_client.get_ema(symbol)
+                        if info['side'] == 'Buy' and ema_70 > ema_100:
                             mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell' and ema_70 > close_price:
+                        elif info['side'] == 'Sell' and ema_70 < ema_100:
                             mt5_client.sell_order(symbol, tp)
                         current_info = info
 
@@ -195,10 +195,10 @@ def main():
                     if tp1_hit > win_rate:
                         tp = info['tp2'].replace("Pts", "")
                         tp = float(tp.split("=")[1]) / 100000
-                        ema_70, close_price = mt5_client.get_ema_70(symbol)
-                        if info['side'] == 'Buy' and ema_70 < close_price:
+                        ema_70, ema_100, close_price = mt5_client.get_ema(symbol)
+                        if info['side'] == 'Buy' and ema_70 > ema_100:
                             mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell' and ema_70 > close_price:
+                        elif info['side'] == 'Sell' and ema_70 < ema_100:
                             mt5_client.sell_order(symbol, tp)
                         current_info = info
 
@@ -223,10 +223,10 @@ def main():
                     if tp1_hit > win_rate:
                         tp = info['tp2'].replace("Pts", "")
                         tp = float(tp.split("=")[1]) / 100000
-                        ema_70, close_price = mt5_client.get_ema_70(symbol)
-                        if info['side'] == 'Buy' and ema_70 < close_price:
+                        ema_70, ema_100, close_price = mt5_client.get_ema(symbol)
+                        if info['side'] == 'Buy' and ema_70 > ema_100:
                             mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell' and ema_70 > close_price:
+                        elif info['side'] == 'Sell' and ema_70 < ema_100:
                             mt5_client.sell_order(symbol, tp)
                         current_info = info
 
@@ -251,10 +251,10 @@ def main():
                     if tp1_hit > win_rate:
                         tp = info['tp2'].replace("Pts", "")
                         tp = float(tp.split("=")[1]) / 1000
-                        ema_70, close_price = mt5_client.get_ema_70(symbol)
-                        if info['side'] == 'Buy' and ema_70 < close_price:
+                        ema_70, ema_100, close_price = mt5_client.get_ema(symbol)
+                        if info['side'] == 'Buy' and ema_70 > ema_100:
                             mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell' and ema_70 > close_price:
+                        elif info['side'] == 'Sell' and ema_70 < ema_100:
                             mt5_client.sell_order(symbol, tp)
                         current_info = info
 
