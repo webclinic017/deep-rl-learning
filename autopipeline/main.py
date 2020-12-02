@@ -19,7 +19,8 @@ def main():
     Lists the user's Gmail labels.
     """
     creds = None
-    win_rate = 50
+    win_rate = 40
+    dmi_threshold = 20
     # The file token.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
     # time.
@@ -84,9 +85,9 @@ def main():
                         tp = info['tp2'].replace("Pts", "")
                         tp = float(tp.split("=")[1]) / 100
                         ema_70, ema_100, dmi, close_price = mt5_client.get_ema(symbol)
-                        if info['side'] == 'Buy' and ema_70 > ema_100 and dmi > 25:
+                        if info['side'] == 'Buy' and ema_70 > ema_100 and dmi > dmi_threshold:
                             mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell' and ema_70 < ema_100 and dmi > 25:
+                        elif info['side'] == 'Sell' and ema_70 < ema_100 and dmi > dmi_threshold:
                             mt5_client.sell_order(symbol, tp)
                         current_info = info
 
@@ -112,9 +113,9 @@ def main():
                         tp = info['tp2'].replace("Pts", "")
                         tp = float(tp.split("=")[1]) / 100
                         ema_70, ema_100, dmi, close_price = mt5_client.get_ema(symbol)
-                        if info['side'] == 'Buy' and ema_70 > ema_100 and dmi > 25:
+                        if info['side'] == 'Buy' and ema_70 > ema_100 and dmi > dmi_threshold:
                             mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell' and ema_70 < ema_100 and dmi > 25:
+                        elif info['side'] == 'Sell' and ema_70 < ema_100 and dmi > dmi_threshold:
                             mt5_client.sell_order(symbol, tp)
                         current_info = info
 
@@ -140,9 +141,9 @@ def main():
                         tp = info['tp2'].replace("Pts", "")
                         tp = float(tp.split("=")[1]) / 100000
                         ema_70, ema_100, dmi, close_price = mt5_client.get_ema(symbol)
-                        if info['side'] == 'Buy' and ema_70 > ema_100 and dmi > 25:
+                        if info['side'] == 'Buy' and ema_70 > ema_100 and dmi > dmi_threshold:
                             mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell' and ema_70 < ema_100 and dmi > 25:
+                        elif info['side'] == 'Sell' and ema_70 < ema_100 and dmi > dmi_threshold:
                             mt5_client.sell_order(symbol, tp)
                         current_info = info
 
@@ -168,9 +169,9 @@ def main():
                         tp = info['tp2'].replace("Pts", "")
                         tp = float(tp.split("=")[1]) / 100000
                         ema_70, ema_100, dmi, close_price = mt5_client.get_ema(symbol)
-                        if info['side'] == 'Buy' and ema_70 > ema_100 and dmi > 25:
+                        if info['side'] == 'Buy' and ema_70 > ema_100 and dmi > dmi_threshold:
                             mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell' and ema_70 < ema_100 and dmi > 25:
+                        elif info['side'] == 'Sell' and ema_70 < ema_100 and dmi > dmi_threshold:
                             mt5_client.sell_order(symbol, tp)
                         current_info = info
 
@@ -196,9 +197,9 @@ def main():
                         tp = info['tp2'].replace("Pts", "")
                         tp = float(tp.split("=")[1]) / 100000
                         ema_70, ema_100, dmi, close_price = mt5_client.get_ema(symbol)
-                        if info['side'] == 'Buy' and ema_70 > ema_100 and dmi > 25:
+                        if info['side'] == 'Buy' and ema_70 > ema_100 and dmi > dmi_threshold:
                             mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell' and ema_70 < ema_100 and dmi > 25:
+                        elif info['side'] == 'Sell' and ema_70 < ema_100 and dmi > dmi_threshold:
                             mt5_client.sell_order(symbol, tp)
                         current_info = info
 
@@ -224,9 +225,9 @@ def main():
                         tp = info['tp2'].replace("Pts", "")
                         tp = float(tp.split("=")[1]) / 100000
                         ema_70, ema_100, dmi, close_price = mt5_client.get_ema(symbol)
-                        if info['side'] == 'Buy' and ema_70 > ema_100 and dmi > 25:
+                        if info['side'] == 'Buy' and ema_70 > ema_100 and dmi > dmi_threshold:
                             mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell' and ema_70 < ema_100 and dmi > 25:
+                        elif info['side'] == 'Sell' and ema_70 < ema_100 and dmi > dmi_threshold:
                             mt5_client.sell_order(symbol, tp)
                         current_info = info
 
@@ -252,9 +253,9 @@ def main():
                         tp = info['tp2'].replace("Pts", "")
                         tp = float(tp.split("=")[1]) / 1000
                         ema_70, ema_100, dmi, close_price = mt5_client.get_ema(symbol)
-                        if info['side'] == 'Buy' and ema_70 > ema_100 and dmi > 25:
+                        if info['side'] == 'Buy' and ema_70 > ema_100 and dmi > dmi_threshold:
                             mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell' and ema_70 < ema_100 and dmi > 25:
+                        elif info['side'] == 'Sell' and ema_70 < ema_100 and dmi > dmi_threshold:
                             mt5_client.sell_order(symbol, tp)
                         current_info = info
 
