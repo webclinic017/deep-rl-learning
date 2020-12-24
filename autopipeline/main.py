@@ -61,7 +61,7 @@ def main():
             for message in results['messages']:
                 messageheader = service.users().messages().get(userId="me", id=message["id"], format="full",
                                                                metadataHeaders=None).execute()
-                # print(messageheader)
+                print(messageheader)
                 snippet = messageheader['snippet']
                 if "AUDUSD" in snippet:
                     partitions = snippet.split(" ")
