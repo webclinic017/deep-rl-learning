@@ -7,7 +7,7 @@ class AutoOrder():
     # display data on the MetaTrader 5 package
     print("MetaTrader5 package author: ", mt5.__author__)
     print("MetaTrader5 package version: ", mt5.__version__)
-    lot = 1.0
+    lot = 0.1
     position_id = None
 
     def __init__(self):
