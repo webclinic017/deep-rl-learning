@@ -1,4 +1,6 @@
 from __future__ import print_function
+
+import json
 import pickle
 import os.path
 import time
@@ -46,334 +48,66 @@ def main():
     # labels = results.get('labels', [])
 
     service = build('gmail', 'v1', credentials=creds)
-    current_info = {}
+
+    with open("config.json") as config_file:
+        config = json.load(config_file)
+
     while True:
-        time.sleep(0.5)
+        time.sleep(1)
         results = None
         try:
-            results = service.users().messages().list(userId='me', labelIds=["UNREAD", "INBOX"], maxResults=1).execute()
+            results = service.users().messages().list(userId='me', labelIds=["UNREAD", "INBOX"], maxResults=10).execute()
         except Exception as ex:
             print(ex)
 
-        # print(f"results {results}")
-        # print("\n")
         if results and results['resultSizeEstimate'] > 0:
             for message in results['messages']:
                 messageheader = service.users().messages().get(userId="me", id=message["id"], format="full",
                                                                metadataHeaders=None).execute()
                 # print(messageheader)
                 snippet = messageheader['snippet']
-                if "XAUUSD" in snippet:
-                    partitions = snippet.split(" ")
-                    symbol = partitions[0]
-                    info = {
-                        "symbol": partitions[0],
-                        "period": partitions[1],
-                        "price": float(partitions[4].replace("@", "")),
-                        "side": partitions[2],
-                        "tp1": partitions[5],
-                        "tp2": partitions[6],
-                        "tp1_hit": partitions[8],
-                        "tp2_hit": partitions[10],
-                        "timestamp": time.time()
-                    }
-                    print(info)
-                    mt5_client.close_order(symbol)
-                    tp1_hit = info['tp2_hit']
-                    tp1_hit = float(tp1_hit.split('=')[1].replace('%', ''))
-                    if tp1_hit > win_rate:
-                        tp = info['tp2'].replace("Pts", "")
-                        tp = float(tp.split("=")[1]) / 100
-                        ema_70, ema_100, dmi, close_price = mt5_client.get_ema(symbol)
-                        if info['side'] == 'Buy' and ema_70 > ema_100 and dmi > dmi_threshold:
-                            mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell' and ema_70 < ema_100 and dmi > dmi_threshold:
-                            mt5_client.sell_order(symbol, tp)
-                        current_info = info
+                for symbol_name, value in config.keys():
+                    lot = value['lot']
+                    division = value['lot']
 
-                if "EURUSD" in snippet:
-                    partitions = snippet.split(" ")
-                    symbol = partitions[0]
-                    info = {
-                        "symbol": partitions[0],
-                        "period": partitions[1],
-                        "price": float(partitions[4].replace("@", "")),
-                        "side": partitions[2],
-                        "tp1": partitions[5],
-                        "tp2": partitions[6],
-                        "tp1_hit": partitions[8],
-                        "tp2_hit": partitions[10],
-                        "timestamp": time.time()
-                    }
-                    print(info)
-                    mt5_client.close_order(symbol)
-                    tp1_hit = info['tp2_hit']
-                    tp1_hit = float(tp1_hit.split('=')[1].replace('%', ''))
-                    if tp1_hit > win_rate:
-                        tp = info['tp2'].replace("Pts", "")
-                        tp = float(tp.split("=")[1]) / 100000
-                        ema_70, ema_100, dmi, close_price = mt5_client.get_ema(symbol)
-                        if info['side'] == 'Buy' and ema_70 > ema_100 and dmi > dmi_threshold:
-                            mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell' and ema_70 < ema_100 and dmi > dmi_threshold:
-                            mt5_client.sell_order(symbol, tp)
-                        current_info = info
+                    if symbol_name in snippet:
+                        partitions = snippet.split(" ")
+                        symbol = partitions[0]
+                        info = {
+                            "symbol": partitions[0],
+                            "period": partitions[1],
+                            "price": float(partitions[4].replace("@", "")),
+                            "side": partitions[2],
+                            "tp1": partitions[5],
+                            "tp2": partitions[6],
+                            "tp1_hit": partitions[8],
+                            "tp2_hit": partitions[10],
+                            "timestamp": time.time()
+                        }
+                        print(info)
+                        mt5_client.close_order(symbol)
+                        tp1_hit_percent = info['tp2_hit']
+                        tp1_hit_percent = float(tp1_hit_percent.split('=')[1].replace('%', ''))
+                        tp1 = info['tp2'].replace("Pts", "")
+                        tp1 = float(tp1.split("=")[1]) / division
 
-                if "GBPUSD" in snippet:
-                    partitions = snippet.split(" ")
-                    symbol = partitions[0]
-                    info = {
-                        "symbol": partitions[0],
-                        "period": partitions[1],
-                        "price": float(partitions[4].replace("@", "")),
-                        "side": partitions[2],
-                        "tp1": partitions[5],
-                        "tp2": partitions[6],
-                        "tp1_hit": partitions[8],
-                        "tp2_hit": partitions[10],
-                        "timestamp": time.time()
-                    }
-                    print(info)
-                    mt5_client.close_order(symbol)
-                    tp1_hit = info['tp2_hit']
-                    tp1_hit = float(tp1_hit.split('=')[1].replace('%', ''))
-                    if tp1_hit > win_rate:
-                        tp = info['tp2'].replace("Pts", "")
-                        tp = float(tp.split("=")[1]) / 100000
-                        ema_70, ema_100, dmi, close_price = mt5_client.get_ema(symbol)
-                        if info['side'] == 'Buy' and ema_70 > ema_100 and dmi > dmi_threshold:
-                            mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell' and ema_70 < ema_100 and dmi > dmi_threshold:
-                            mt5_client.sell_order(symbol, tp)
-                        current_info = info
+                        tp2_hit_percent = info['tp2_hit']
+                        tp2_hit_percent = float(tp2_hit_percent.split('=')[1].replace('%', ''))
+                        tp2 = info['tp2'].replace("Pts", "")
+                        tp2 = float(tp2.split("=")[1]) / division
 
-                if "USDCHF" in snippet:
-                    partitions = snippet.split(" ")
-                    symbol = partitions[0]
-                    info = {
-                        "symbol": partitions[0],
-                        "period": partitions[1],
-                        "price": float(partitions[4].replace("@", "")),
-                        "side": partitions[2],
-                        "tp1": partitions[5],
-                        "tp2": partitions[6],
-                        "tp1_hit": partitions[8],
-                        "tp2_hit": partitions[10],
-                        "timestamp": time.time()
-                    }
-                    print(info)
-                    mt5_client.close_order(symbol)
-                    tp1_hit = info['tp2_hit']
-                    tp1_hit = float(tp1_hit.split('=')[1].replace('%', ''))
-                    if tp1_hit > win_rate:
-                        tp = info['tp2'].replace("Pts", "")
-                        tp = float(tp.split("=")[1]) / 100000
-                        ema_70, ema_100, dmi, close_price = mt5_client.get_ema(symbol)
-                        if info['side'] == 'Buy' and ema_70 > ema_100 and dmi > dmi_threshold:
-                            mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell' and ema_70 < ema_100 and dmi > dmi_threshold:
-                            mt5_client.sell_order(symbol, tp)
+                        # ema_70, ema_100, dmi, close_price = mt5_client.get_ema(symbol)
+                        if info['side'] == 'Buy':
+                            mt5_client.buy_order(symbol, tp1, tp2)
+                        elif info['side'] == 'Sell':
+                            mt5_client.sell_order(symbol, tp1, tp2)
                         current_info = info
-
-                if "AUDUSD" in snippet:
-                    partitions = snippet.split(" ")
-                    symbol = partitions[0]
-                    info = {
-                        "symbol": partitions[0],
-                        "period": partitions[1],
-                        "price": float(partitions[4].replace("@", "")),
-                        "side": partitions[2],
-                        "tp1": partitions[5],
-                        "tp2": partitions[6],
-                        "tp1_hit": partitions[8],
-                        "tp2_hit": partitions[10],
-                        "timestamp": time.time()
-                    }
-                    print(info)
-                    mt5_client.close_order(symbol)
-                    tp1_hit = info['tp2_hit']
-                    tp1_hit = float(tp1_hit.split('=')[1].replace('%', ''))
-                    if tp1_hit > win_rate:
-                        tp = info['tp2'].replace("Pts", "")
-                        tp = float(tp.split("=")[1]) / 100000
-                        ema_70, ema_100, dmi, close_price = mt5_client.get_ema(symbol)
-                        if info['side'] == 'Buy' and ema_70 > ema_100 and dmi > dmi_threshold:
-                            mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell' and ema_70 < ema_100 and dmi > dmi_threshold:
-                            mt5_client.sell_order(symbol, tp)
-                        current_info = info
-
-                if "USDJPY" in snippet:
-                    partitions = snippet.split(" ")
-                    symbol = partitions[0]
-                    info = {
-                        "symbol": partitions[0],
-                        "period": partitions[1],
-                        "price": float(partitions[4].replace("@", "")),
-                        "side": partitions[2],
-                        "tp1": partitions[5],
-                        "tp2": partitions[6],
-                        "tp1_hit": partitions[8],
-                        "tp2_hit": partitions[10],
-                        "timestamp": time.time()
-                    }
-                    print(info)
-                    mt5_client.close_order(symbol)
-                    tp1_hit = info['tp2_hit']
-                    tp1_hit = float(tp1_hit.split('=')[1].replace('%', ''))
-                    if tp1_hit > win_rate:
-                        tp = info['tp2'].replace("Pts", "")
-                        tp = float(tp.split("=")[1]) / 100000
-                        ema_70, ema_100, dmi, close_price = mt5_client.get_ema(symbol)
-                        if info['side'] == 'Buy' and ema_70 > ema_100 and dmi > dmi_threshold:
-                            mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell' and ema_70 < ema_100 and dmi > dmi_threshold:
-                            mt5_client.sell_order(symbol, tp)
-                        current_info = info
-
-                if "USDCAD" in snippet:
-                    partitions = snippet.split(" ")
-                    symbol = partitions[0]
-                    info = {
-                        "symbol": partitions[0],
-                        "period": partitions[1],
-                        "price": float(partitions[4].replace("@", "")),
-                        "side": partitions[2],
-                        "tp1": partitions[5],
-                        "tp2": partitions[6],
-                        "tp1_hit": partitions[8],
-                        "tp2_hit": partitions[10],
-                        "timestamp": time.time()
-                    }
-                    print(info)
-                    mt5_client.close_order(symbol)
-                    tp1_hit = info['tp2_hit']
-                    tp1_hit = float(tp1_hit.split('=')[1].replace('%', ''))
-                    if tp1_hit > win_rate:
-                        tp = info['tp2'].replace("Pts", "")
-                        tp = float(tp.split("=")[1]) / 100000
-                        ema_70, ema_100, dmi, close_price = mt5_client.get_ema(symbol)
-                        if info['side'] == 'Buy' and ema_70 > ema_100 and dmi > dmi_threshold:
-                            mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell' and ema_70 < ema_100 and dmi > dmi_threshold:
-                            mt5_client.sell_order(symbol, tp)
-                        current_info = info
-
-                if "US500" in snippet:
-                    partitions = snippet.split(" ")
-                    symbol = partitions[0]
-                    info = {
-                        "symbol": partitions[0],
-                        "period": partitions[1],
-                        "price": float(partitions[4].replace("@", "")),
-                        "side": partitions[2],
-                        "tp1": partitions[5],
-                        "tp2": partitions[6],
-                        "tp1_hit": partitions[8],
-                        "tp2_hit": partitions[10],
-                        "timestamp": time.time()
-                    }
-                    print(info)
-                    mt5_client.close_order(symbol)
-                    tp1_hit = info['tp2_hit']
-                    tp1_hit = float(tp1_hit.split('=')[1].replace('%', ''))
-                    if tp1_hit > win_rate:
-                        tp = info['tp2'].replace("Pts", "")
-                        tp = float(tp.split("=")[1]) / 10
-                        ema_70, ema_100, dmi, close_price = mt5_client.get_ema(symbol)
-                        if info['side'] == 'Buy' and ema_70 > ema_100 and dmi > dmi_threshold:
-                            mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell' and ema_70 < ema_100 and dmi > dmi_threshold:
-                            mt5_client.sell_order(symbol, tp)
-                        current_info = info
-
-                if "NAS100" in snippet:
-                    partitions = snippet.split(" ")
-                    symbol = partitions[0]
-                    info = {
-                        "symbol": partitions[0],
-                        "period": partitions[1],
-                        "price": float(partitions[4].replace("@", "")),
-                        "side": partitions[2],
-                        "tp1": partitions[5],
-                        "tp2": partitions[6],
-                        "tp1_hit": partitions[8],
-                        "tp2_hit": partitions[10],
-                        "timestamp": time.time()
-                    }
-                    print(info)
-                    mt5_client.close_order(symbol)
-                    tp1_hit = info['tp2_hit']
-                    tp1_hit = float(tp1_hit.split('=')[1].replace('%', ''))
-                    if tp1_hit > win_rate:
-                        tp = info['tp2'].replace("Pts", "")
-                        tp = float(tp.split("=")[1]) / 10
-                        ema_70, ema_100, dmi, close_price = mt5_client.get_ema(symbol)
-                        if info['side'] == 'Buy' and ema_70 > ema_100 and dmi > dmi_threshold:
-                            mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell' and ema_70 < ema_100 and dmi > dmi_threshold:
-                            mt5_client.sell_order(symbol, tp)
-                        current_info = info
-
-                if "EURGBP" in snippet:
-                    partitions = snippet.split(" ")
-                    symbol = partitions[0]
-                    info = {
-                        "symbol": partitions[0],
-                        "period": partitions[1],
-                        "price": float(partitions[4].replace("@", "")),
-                        "side": partitions[2],
-                        "tp1": partitions[5],
-                        "tp2": partitions[6],
-                        "tp1_hit": partitions[8],
-                        "tp2_hit": partitions[10],
-                        "timestamp": time.time()
-                    }
-                    print(info)
-                    mt5_client.close_order(symbol)
-                    tp1_hit = info['tp2_hit']
-                    tp1_hit = float(tp1_hit.split('=')[1].replace('%', ''))
-                    if tp1_hit > win_rate:
-                        tp = info['tp2'].replace("Pts", "")
-                        tp = float(tp.split("=")[1]) / 100000
-                        ema_70, ema_100, dmi, close_price = mt5_client.get_ema(symbol)
-                        if info['side'] == 'Buy' and ema_70 > ema_100 and dmi > dmi_threshold:
-                            mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell' and ema_70 < ema_100 and dmi > dmi_threshold:
-                            mt5_client.sell_order(symbol, tp)
-                        current_info = info
-
-                if "GBPJPY" in snippet:
-                    partitions = snippet.split(" ")
-                    symbol = partitions[0]
-                    info = {
-                        "symbol": partitions[0],
-                        "period": partitions[1],
-                        "price": float(partitions[4].replace("@", "")),
-                        "side": partitions[2],
-                        "tp1": partitions[5],
-                        "tp2": partitions[6],
-                        "tp1_hit": partitions[8],
-                        "tp2_hit": partitions[10],
-                        "timestamp": time.time()
-                    }
-                    print(info)
-                    mt5_client.close_order(symbol)
-                    tp1_hit = info['tp2_hit']
-                    tp1_hit = float(tp1_hit.split('=')[1].replace('%', ''))
-                    if tp1_hit > win_rate:
-                        tp = info['tp2'].replace("Pts", "")
-                        tp = float(tp.split("=")[1]) / 100
-                        ema_70, ema_100, dmi, close_price = mt5_client.get_ema(symbol)
-                        if info['side'] == 'Buy' and ema_70 > ema_100 and dmi > dmi_threshold:
-                            mt5_client.buy_order(symbol, tp)
-                        elif info['side'] == 'Sell' and ema_70 < ema_100 and dmi > dmi_threshold:
-                            mt5_client.sell_order(symbol, tp)
-                        current_info = info
-
 
                 service.users().messages().modify(userId='me', id=message["id"], body={'removeLabelIds': ['UNREAD']}).execute()
                 # XAUUSD M1 Buy Signal @1924.47 TP1=76Pts TP2=251Pts TP1 Hit=79.17% TP2 Hit=57.29% EXIT Win=0.00% EXIT Loss=20.83% Success Rate=79.17%
+
+        # check order profit
+        mt5_client.check_take_profit()
 
 
 if __name__ == '__main__':

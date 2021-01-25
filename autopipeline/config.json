@@ -1,0 +1,46 @@
+{
+  "XAUUSD" : {
+    "lot": 0.1,
+    "division": 1000
+  },
+  "EURUSD" : {
+    "lot": 0.1,
+    "division": 100000
+  },
+  "GBPUSD" : {
+    "lot": 0.1,
+    "division": 100000
+  },
+  "USDCHF" : {
+    "lot": 0.1,
+    "division": 100000
+  },
+  "AUDUSD" : {
+    "lot": 0.1,
+    "division": 100000
+  },
+  "USDJPY" : {
+    "lot": 0.1,
+    "division": 100000
+  },
+  "USDCAD" : {
+    "lot": 0.1,
+    "division": 100000
+  },
+  "US500" : {
+    "lot": 0.1,
+    "division": 10
+  },
+  "NAS100" : {
+    "lot": 0.1,
+    "division": 10
+  },
+  "EURGBP" : {
+    "lot": 0.1,
+    "division": 100000
+  },
+  "GBPJPY" : {
+    "lot": 0.1,
+    "division": 1000
+  }
+}

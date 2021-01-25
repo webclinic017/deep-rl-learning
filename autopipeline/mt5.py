@@ -1,3 +1,5 @@
+import os
+import json
 import pandas as pd
 import MetaTrader5 as mt5
 from talib._ta_lib import EMA, ADX
@@ -9,6 +11,7 @@ class AutoOrder():
     print("MetaTrader5 package version: ", mt5.__version__)
     lot = 0.1
     position_id = None
+    order_list = []
 
     def __init__(self):
         # establish connection to the MetaTrader 5 terminal
@@ -16,11 +19,9 @@ class AutoOrder():
             print("initialize() failed, error code =", mt5.last_error())
             quit()
 
-        # if os.path.isfile("order.json"):
-        #     with open("order.json") as position_file:
-        #         self.order_list = json.load(position_file)
-
-        # prepare the buy request structure
+        if os.path.isfile("order.json"):
+            with open("order.json") as position_file:
+                self.order_list = json.load(position_file)
 
     def get_ema(self, symbol):
         rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 300)
@@ -55,7 +56,7 @@ class AutoOrder():
                 mt5.shutdown()
                 quit()
 
-    def buy_order(self, symbol, tp):
+    def buy_order(self, symbol, tp1, tp2):
 
         point = mt5.symbol_info(symbol).point
         price = mt5.symbol_info_tick(symbol).ask
@@ -66,8 +67,8 @@ class AutoOrder():
             "volume": self.lot,
             "type": mt5.ORDER_TYPE_BUY,
             "price": price,
-            "sl": price-(tp*3),
-            "tp": price+tp,
+            "sl": price-tp2,
+            "tp": price+tp2,
             "deviation": deviation,
             "magic": 234000,
             "comment": "Buy",
@@ -95,14 +96,12 @@ class AutoOrder():
             mt5.shutdown()
             quit()
 
+        request['tp1'] = tp1
+        request['cross_tp1'] = False
+        self.order_list.append(request)
         print("order_send done, ", result)
-        # self.position_id = result.order
-        # if os.path.isfile("order.json"):
-        #     with open("order.json", "w") as position_file:
-        #         self.order_list[symbol] = result.order
-        #         json.dump(self.order_list, position_file)
 
-    def sell_order(self, symbol, tp):
+    def sell_order(self, symbol, tp1, tp2):
 
         point = mt5.symbol_info(symbol).point
         price = mt5.symbol_info_tick(symbol).bid
@@ -113,8 +112,8 @@ class AutoOrder():
             "volume": self.lot,
             "type": mt5.ORDER_TYPE_SELL,
             "price": price,
-            "sl": price+(tp*3),
-            "tp": price-tp,
+            "sl": price+tp2,
+            "tp": price-tp2,
             "deviation": deviation,
             "magic": 234000,
             "comment": "Sell",
@@ -141,12 +140,10 @@ class AutoOrder():
             mt5.shutdown()
             quit()
 
+        request['tp1'] = tp1
+        request['cross_tp1'] = False
+        self.order_list.append(request)
         print("order_send done, ", result)
-        # self.position_id = result.order
-        # if os.path.isfile("order.json"):
-        #     with open("order.json", "w") as position_file:
-        #         self.order_list[symbol] = result.order
-        #         json.dump(self.order_list, position_file)
 
     def close_order(self, symbol):
         # create a close request
@@ -167,7 +164,7 @@ class AutoOrder():
                     request = {
                         "action": mt5.TRADE_ACTION_DEAL,
                         "symbol": symbol,
-                        "volume": self.lot,
+                        "volume": self.lot/2,
                         "type": mt5.ORDER_TYPE_BUY,
                         "position": position_id,
                         "price": price,
@@ -183,7 +180,7 @@ class AutoOrder():
                     request = {
                         "action": mt5.TRADE_ACTION_DEAL,
                         "symbol": symbol,
-                        "volume": self.lot,
+                        "volume": self.lot/2,
                         "type": mt5.ORDER_TYPE_SELL,
                         "position": position_id,
                         "price": price,
