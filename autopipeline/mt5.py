@@ -3,6 +3,8 @@ import json
 import pandas as pd
 import MetaTrader5 as mt5
 from talib._ta_lib import EMA, ADX
+from pymongo import MongoClient
+from bson.objectid import ObjectId
 
 
 class AutoOrder():
@@ -12,6 +14,8 @@ class AutoOrder():
     lot = 0.1
     position_id = None
     order_list = []
+    client = MongoClient()
+    db = client.stockprice
 
     def __init__(self):
         # establish connection to the MetaTrader 5 terminal
@@ -40,6 +44,28 @@ class AutoOrder():
         rates_frame['EMA100'] = EMA(rates_frame.close, timeperiod=100)
         rates_frame['DMI'] = ADX(rates_frame.high, rates_frame.low, rates_frame.close)
         return rates_frame['EMA70'].iat[-1], rates_frame['EMA100'].iat[-1], rates_frame['DMI'].iat[-1], rates_frame['close'].iat[-1]
+
+    def save_frame(self, request):
+        """
+        Save frame
+        """
+        symbol = request['symbol']
+        rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 50)
+        # Deinitializing MT5 connection
+
+        # create DataFrame out of the obtained data
+        rates_frame = pd.DataFrame(rates)
+        rates_frame['time'] = pd.to_datetime(rates_frame['time'], unit='s')
+        request['frame'] = rates_frame
+        # display data
+        # print("\nDisplay dataframe with data")
+        # print(rates_frame)
+
+        # uses close prices (default)
+        # rates_frame['EMA70'] = EMA(rates_frame.close, timeperiod=70)
+        # rates_frame['EMA100'] = EMA(rates_frame.close, timeperiod=100)
+        # rates_frame['DMI'] = ADX(rates_frame.high, rates_frame.low, rates_frame.close)
+        results = self.db.posts.insert_one(request).inserted_id
 
     def check_symbol(self, symbol):
         symbol_info = mt5.symbol_info(symbol)
@@ -96,9 +122,13 @@ class AutoOrder():
             mt5.shutdown()
             quit()
 
-        request['tp1'] = tp1
+        request['tp1'] = price+tp1
         request['cross_tp1'] = False
         self.order_list.append(request)
+        self.save_frame(request)
+        with open("order.json", 'w') as position_file:
+            json.dump(self.order_list, position_file, indent=4)
+
         print("order_send done, ", result)
 
     def sell_order(self, symbol, tp1, tp2):
@@ -140,12 +170,16 @@ class AutoOrder():
             mt5.shutdown()
             quit()
 
-        request['tp1'] = tp1
+        request['tp1'] = price-tp1
         request['cross_tp1'] = False
         self.order_list.append(request)
+        self.save_frame(request)
+        with open("order.json", 'w') as position_file:
+            json.dump(self.order_list, position_file, indent=4)
+
         print("order_send done, ", result)
 
-    def close_order(self, symbol):
+    def close_order(self, symbol, percent=1.0):
         # create a close request
         print("Close order")
         # display data on active orders on GBPUSD
@@ -164,7 +198,7 @@ class AutoOrder():
                     request = {
                         "action": mt5.TRADE_ACTION_DEAL,
                         "symbol": symbol,
-                        "volume": self.lot/2,
+                        "volume": self.lot/percent,
                         "type": mt5.ORDER_TYPE_BUY,
                         "position": position_id,
                         "price": price,
@@ -180,7 +214,7 @@ class AutoOrder():
                     request = {
                         "action": mt5.TRADE_ACTION_DEAL,
                         "symbol": symbol,
-                        "volume": self.lot/2,
+                        "volume": self.lot/percent,
                         "type": mt5.ORDER_TYPE_SELL,
                         "position": position_id,
                         "price": price,
@@ -199,7 +233,7 @@ class AutoOrder():
                 # check the execution result
                 print(
                     "close position #{}: sell {} {} lots at {} with deviation={} points".format(position_id, symbol,
-                                                                                                self.lot, price,
+                                                                                                self.lot/percent, price,
                                                                                                 deviation))
                 if result:
                     if result.retcode != mt5.TRADE_RETCODE_DONE:
@@ -217,3 +251,21 @@ class AutoOrder():
                                 for tradereq_filed in traderequest_dict:
                                     print("       traderequest: {}={}".format(tradereq_filed,
                                                                               traderequest_dict[tradereq_filed]))
+
+    def check_take_profit(self):
+        for idx, order in enumerate(self.order_list):
+            symbol = order['symbol']
+            tp1 = order['tp1']
+            action = order['type']
+            bid = mt5.symbol_info_tick(symbol).bid
+            ask = mt5.symbol_info_tick(symbol).ask
+            if action == mt5.ORDER_TYPE_SELL and bid < tp1:
+                self.close_order(symbol=symbol, percent=0.5)
+                self.order_list.pop(idx)
+                with open("order.json", 'w') as position_file:
+                    json.dump(self.order_list, position_file, indent=4)
+            if action == mt5.ORDER_TYPE_BUY and ask > tp1:
+                self.close_order(symbol=symbol, percent=0.5)
+                self.order_list.pop(idx)
+                with open("order.json", 'w') as position_file:
+                    json.dump(self.order_list, position_file, indent=4)

@@ -66,9 +66,9 @@ def main():
                                                                metadataHeaders=None).execute()
                 # print(messageheader)
                 snippet = messageheader['snippet']
-                for symbol_name, value in config.keys():
+                for symbol_name, value in zip(config.keys(), config.values()):
                     lot = value['lot']
-                    division = value['lot']
+                    division = value['division']
 
                     if symbol_name in snippet:
                         partitions = snippet.split(" ")
@@ -96,7 +96,6 @@ def main():
                         tp2 = info['tp2'].replace("Pts", "")
                         tp2 = float(tp2.split("=")[1]) / division
 
-                        # ema_70, ema_100, dmi, close_price = mt5_client.get_ema(symbol)
                         if info['side'] == 'Buy':
                             mt5_client.buy_order(symbol, tp1, tp2)
                         elif info['side'] == 'Sell':
