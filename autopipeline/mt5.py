@@ -23,9 +23,9 @@ class AutoOrder():
             print("initialize() failed, error code =", mt5.last_error())
             quit()
 
-        if os.path.isfile("order.json"):
-            with open("order.json") as position_file:
-                self.order_list = json.load(position_file)
+        # if os.path.isfile("order.json"):
+        #     with open("order.json") as position_file:
+        #         self.order_list = json.load(position_file)
 
     def get_ema(self, symbol):
         rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 300)
@@ -49,14 +49,15 @@ class AutoOrder():
         """
         Save frame
         """
-        symbol = request['symbol']
+        process_data = request.copy()
+        symbol = process_data['symbol']
         rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 50)
         # Deinitializing MT5 connection
 
         # create DataFrame out of the obtained data
         rates_frame = pd.DataFrame(rates)
         rates_frame['time'] = pd.to_datetime(rates_frame['time'], unit='s')
-        request['frame'] = rates_frame
+        process_data['frame'] = rates_frame.to_numpy().tolist()
         # display data
         # print("\nDisplay dataframe with data")
         # print(rates_frame)
@@ -65,7 +66,8 @@ class AutoOrder():
         # rates_frame['EMA70'] = EMA(rates_frame.close, timeperiod=70)
         # rates_frame['EMA100'] = EMA(rates_frame.close, timeperiod=100)
         # rates_frame['DMI'] = ADX(rates_frame.high, rates_frame.low, rates_frame.close)
-        results = self.db.posts.insert_one(request).inserted_id
+        process_data['_id'] = str(ObjectId())
+        results = self.db.posts.insert_one(process_data)
 
     def check_symbol(self, symbol):
         symbol_info = mt5.symbol_info(symbol)
@@ -260,12 +262,12 @@ class AutoOrder():
             bid = mt5.symbol_info_tick(symbol).bid
             ask = mt5.symbol_info_tick(symbol).ask
             if action == mt5.ORDER_TYPE_SELL and bid < tp1:
-                self.close_order(symbol=symbol, percent=0.5)
+                self.close_order(symbol=symbol, percent=2)
                 self.order_list.pop(idx)
                 with open("order.json", 'w') as position_file:
                     json.dump(self.order_list, position_file, indent=4)
             if action == mt5.ORDER_TYPE_BUY and ask > tp1:
-                self.close_order(symbol=symbol, percent=0.5)
+                self.close_order(symbol=symbol, percent=2)
                 self.order_list.pop(idx)
                 with open("order.json", 'w') as position_file:
                     json.dump(self.order_list, position_file, indent=4)
