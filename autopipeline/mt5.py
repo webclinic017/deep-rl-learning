@@ -96,8 +96,8 @@ class AutoOrder():
             "volume": self.lot,
             "type": mt5.ORDER_TYPE_BUY,
             "price": price,
-            "sl": price-tp1,
-            "tp": price+tp2,
+            "sl": price-tp2,
+            "tp": price+tp1,
             "deviation": deviation,
             "magic": 234000,
             "comment": "Buy",
@@ -158,8 +158,8 @@ class AutoOrder():
             "volume": self.lot,
             "type": mt5.ORDER_TYPE_SELL,
             "price": price,
-            "sl": price+tp1,
-            "tp": price-tp2,
+            "sl": price+tp2,
+            "tp": price-tp1,
             "deviation": deviation,
             "magic": 234000,
             "comment": "Sell",
@@ -189,7 +189,7 @@ class AutoOrder():
         }
 
         # send a trading request
-        result = mt5.order_send(request)
+        result = mt5.order_send(request_2)
         print("order_send done, ", result)
         # self.save_frame(request, request_2)
         # check the execution result
