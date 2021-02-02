@@ -106,7 +106,7 @@ def main():
                 # XAUUSD M1 Buy Signal @1924.47 TP1=76Pts TP2=251Pts TP1 Hit=79.17% TP2 Hit=57.29% EXIT Win=0.00% EXIT Loss=20.83% Success Rate=79.17%
 
         # check order profit
-        mt5_client.check_take_profit()
+        # mt5_client.check_take_profit()
 
 
 if __name__ == '__main__':
