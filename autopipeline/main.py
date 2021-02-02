@@ -86,9 +86,9 @@ def main():
                         }
                         print(info)
                         mt5_client.close_order(symbol)
-                        tp1_hit_percent = info['tp2_hit']
+                        tp1_hit_percent = info['tp1_hit']
                         tp1_hit_percent = float(tp1_hit_percent.split('=')[1].replace('%', ''))
-                        tp1 = info['tp2'].replace("Pts", "")
+                        tp1 = info['tp1'].replace("Pts", "")
                         tp1 = float(tp1.split("=")[1]) / division
 
                         tp2_hit_percent = info['tp2_hit']
