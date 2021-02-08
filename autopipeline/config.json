@@ -1,7 +1,7 @@
 {
   "XAUUSD" : {
     "lot": 0.1,
-    "division": 1000
+    "division": 100
   },
   "EURUSD" : {
     "lot": 0.1,
