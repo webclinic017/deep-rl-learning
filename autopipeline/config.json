@@ -42,5 +42,9 @@
   "GBPJPY" : {
     "lot": 0.1,
     "division": 1000
+  },
+  "Bitcoin" : {
+    "lot": 0.1,
+    "division": 100
   }
 }
