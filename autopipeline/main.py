@@ -72,7 +72,7 @@ def main():
 
                     if symbol_name in snippet:
                         partitions = snippet.split(" ")
-                        symbol = partitions[0]
+                        symbol = partitions[0].replace(".a", "")
                         info = {
                             "symbol": partitions[0],
                             "period": partitions[1],
@@ -89,12 +89,12 @@ def main():
                         tp1_hit_percent = info['tp1_hit']
                         tp1_hit_percent = float(tp1_hit_percent.split('=')[1].replace('%', ''))
                         tp1 = info['tp1'].replace("Pts", "")
-                        tp1 = float(tp1.split("=")[1]) / division
+                        tp1 = float(tp1.split("=")[1])
 
                         tp2_hit_percent = info['tp2_hit']
                         tp2_hit_percent = float(tp2_hit_percent.split('=')[1].replace('%', ''))
                         tp2 = info['tp2'].replace("Pts", "")
-                        tp2 = float(tp2.split("=")[1]) / division
+                        tp2 = float(tp2.split("=")[1])
 
                         if info['side'] == 'Buy':
                             mt5_client.buy_order(symbol, tp1, tp2)

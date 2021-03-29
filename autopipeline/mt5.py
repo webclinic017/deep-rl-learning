@@ -7,7 +7,7 @@ from pymongo import MongoClient
 from bson.objectid import ObjectId
 
 
-class AutoOrder():
+class AutoOrder:
     # display data on the MetaTrader 5 package
     print("MetaTrader5 package author: ", mt5.__author__)
     print("MetaTrader5 package version: ", mt5.__version__)
@@ -26,6 +26,7 @@ class AutoOrder():
         # if os.path.isfile("order.json"):
         #     with open("order.json") as position_file:
         #         self.order_list = json.load(position_file)
+        self.buy_order('USDJPY', 50, 100)
 
     def get_ema(self, symbol):
         rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 300)
@@ -86,8 +87,10 @@ class AutoOrder():
                 quit()
 
     def buy_order(self, symbol, tp1, tp2):
-
+        self.check_symbol(symbol)
         point = mt5.symbol_info(symbol).point
+        # tp1 = float(tp1) * point
+        # tp2 = float(tp2) * point
         price = mt5.symbol_info_tick(symbol).ask
         deviation = 20
         request = {
@@ -96,8 +99,8 @@ class AutoOrder():
             "volume": self.lot,
             "type": mt5.ORDER_TYPE_BUY,
             "price": price,
-            "sl": price-tp2,
-            "tp": price+tp1,
+            "sl": price - tp1 * point,
+            "tp": price + tp1 * point,
             "deviation": deviation,
             "magic": 234000,
             "comment": "Buy",
@@ -110,28 +113,28 @@ class AutoOrder():
         print("order_send done, ", result)
         # check the execution result
         print("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
-
-        request_2 = {
-            "action": mt5.TRADE_ACTION_DEAL,
-            "symbol": symbol,
-            "volume": self.lot,
-            "type": mt5.ORDER_TYPE_BUY,
-            "price": price,
-            "sl": price-tp2,
-            "tp": price+tp2,
-            "deviation": deviation,
-            "magic": 234000,
-            "comment": "Buy",
-            "type_time": mt5.ORDER_TIME_GTC,
-            "type_filling": mt5.ORDER_FILLING_IOC,
-        }
-
-        # send a trading request
-        result = mt5.order_send(request_2)
-        print("order_send done, ", result)
-        self.save_frame(request, request_2)
-        # check the execution result
-        print("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
+        #
+        # request_2 = {
+        #     "action": mt5.TRADE_ACTION_DEAL,
+        #     "symbol": symbol,
+        #     "volume": self.lot,
+        #     "type": mt5.ORDER_TYPE_BUY,
+        #     "price": price,
+        #     "sl": price - tp2 * point,
+        #     "tp": price + tp2 * point,
+        #     "deviation": deviation,
+        #     "magic": 234000,
+        #     "comment": "Buy",
+        #     "type_time": mt5.ORDER_TIME_GTC,
+        #     "type_filling": mt5.ORDER_FILLING_IOC,
+        # }
+        #
+        # # send a trading request
+        # result = mt5.order_send(request_2)
+        # print("order_send done, ", result)
+        # self.save_frame(request, request_2)
+        # # check the execution result
+        # print("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
 
         # if result.retcode != mt5.TRADE_RETCODE_DONE:
         #     print("2. order_send failed, retcode={}".format(result.retcode))
@@ -149,7 +152,10 @@ class AutoOrder():
         #     quit()
 
     def sell_order(self, symbol, tp1, tp2):
+        self.check_symbol(symbol)
         point = mt5.symbol_info(symbol).point
+        tp1 = float(tp1) * point
+        tp2 = float(tp2) * point
         price = mt5.symbol_info_tick(symbol).bid
         deviation = 20
         request = {
