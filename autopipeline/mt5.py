@@ -26,7 +26,7 @@ class AutoOrder:
         # if os.path.isfile("order.json"):
         #     with open("order.json") as position_file:
         #         self.order_list = json.load(position_file)
-        self.buy_order('USDJPY', 50, 100)
+        # self.buy_order('USDJPY', 50, 100)
 
     def get_ema(self, symbol):
         rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 300)
@@ -130,7 +130,7 @@ class AutoOrder:
         # send a trading request
         result = mt5.order_send(request_2)
         print("order_send done, ", result)
-        self.save_frame(request, request_2)
+        # self.save_frame(request, request_2)
         # check the execution result
         print("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
 
@@ -193,7 +193,7 @@ class AutoOrder:
         # send a trading request
         result = mt5.order_send(request_2)
         print("order_send done, ", result)
-        self.save_frame(request, request_2)
+        # self.save_frame(request, request_2)
         # check the execution result
         print("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
 
