@@ -89,8 +89,6 @@ class AutoOrder:
     def buy_order(self, symbol, tp1, tp2):
         self.check_symbol(symbol)
         point = mt5.symbol_info(symbol).point
-        # tp1 = float(tp1) * point
-        # tp2 = float(tp2) * point
         price = mt5.symbol_info_tick(symbol).ask
         deviation = 20
         request = {
@@ -113,49 +111,47 @@ class AutoOrder:
         print("order_send done, ", result)
         # check the execution result
         print("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
-        #
-        # request_2 = {
-        #     "action": mt5.TRADE_ACTION_DEAL,
-        #     "symbol": symbol,
-        #     "volume": self.lot,
-        #     "type": mt5.ORDER_TYPE_BUY,
-        #     "price": price,
-        #     "sl": price - tp2 * point,
-        #     "tp": price + tp2 * point,
-        #     "deviation": deviation,
-        #     "magic": 234000,
-        #     "comment": "Buy",
-        #     "type_time": mt5.ORDER_TIME_GTC,
-        #     "type_filling": mt5.ORDER_FILLING_IOC,
-        # }
-        #
-        # # send a trading request
-        # result = mt5.order_send(request_2)
-        # print("order_send done, ", result)
-        # self.save_frame(request, request_2)
-        # # check the execution result
-        # print("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
 
-        # if result.retcode != mt5.TRADE_RETCODE_DONE:
-        #     print("2. order_send failed, retcode={}".format(result.retcode))
-        #     # request the result as a dictionary and display it element by element
-        #     result_dict = result._asdict()
-        #     for field in result_dict.keys():
-        #         print("   {}={}".format(field, result_dict[field]))
-        #         # if this is a trading request structure, display it element by element as well
-        #         if field == "request":
-        #             traderequest_dict = result_dict[field]._asdict()
-        #             for tradereq_filed in traderequest_dict:
-        #                 print("       traderequest: {}={}".format(tradereq_filed, traderequest_dict[tradereq_filed]))
-        #     print("shutdown() and quit")
-        #     mt5.shutdown()
-        #     quit()
+        request_2 = {
+            "action": mt5.TRADE_ACTION_DEAL,
+            "symbol": symbol,
+            "volume": self.lot,
+            "type": mt5.ORDER_TYPE_BUY,
+            "price": price,
+            "sl": price - tp2 * point,
+            "tp": price + tp2 * point,
+            "deviation": deviation,
+            "magic": 234000,
+            "comment": "Buy",
+            "type_time": mt5.ORDER_TIME_GTC,
+            "type_filling": mt5.ORDER_FILLING_IOC,
+        }
+
+        # send a trading request
+        result = mt5.order_send(request_2)
+        print("order_send done, ", result)
+        self.save_frame(request, request_2)
+        # check the execution result
+        print("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
+
+        if result.retcode != mt5.TRADE_RETCODE_DONE:
+            print("2. order_send failed, retcode={}".format(result.retcode))
+            # request the result as a dictionary and display it element by element
+            result_dict = result._asdict()
+            for field in result_dict.keys():
+                print("   {}={}".format(field, result_dict[field]))
+                # if this is a trading request structure, display it element by element as well
+                if field == "request":
+                    traderequest_dict = result_dict[field]._asdict()
+                    for tradereq_filed in traderequest_dict:
+                        print("       traderequest: {}={}".format(tradereq_filed, traderequest_dict[tradereq_filed]))
+            print("shutdown() and quit")
+            mt5.shutdown()
+            quit()
 
     def sell_order(self, symbol, tp1, tp2):
         self.check_symbol(symbol)
         point = mt5.symbol_info(symbol).point
-        tp1 = float(tp1) * point
-        tp2 = float(tp2) * point
         price = mt5.symbol_info_tick(symbol).bid
         deviation = 20
         request = {
@@ -164,8 +160,8 @@ class AutoOrder:
             "volume": self.lot,
             "type": mt5.ORDER_TYPE_SELL,
             "price": price,
-            "sl": price+tp2,
-            "tp": price-tp1,
+            "sl": price + tp1 * point,
+            "tp": price - tp1 * point,
             "deviation": deviation,
             "magic": 234000,
             "comment": "Sell",
@@ -185,8 +181,8 @@ class AutoOrder:
             "volume": self.lot,
             "type": mt5.ORDER_TYPE_SELL,
             "price": price,
-            "sl": price+tp2,
-            "tp": price-tp2,
+            "sl": price + tp2 * point,
+            "tp": price - tp2 * point,
             "deviation": deviation,
             "magic": 234000,
             "comment": "Sell",
@@ -201,20 +197,20 @@ class AutoOrder:
         # check the execution result
         print("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
 
-        # if result.retcode != mt5.TRADE_RETCODE_DONE:
-        #     print("2. order_send failed, retcode={}".format(result.retcode))
-        #     # request the result as a dictionary and display it element by element
-        #     result_dict = result._asdict()
-        #     for field in result_dict.keys():
-        #         print("   {}={}".format(field, result_dict[field]))
-        #         # if this is a trading request structure, display it element by element as well
-        #         if field == "request":
-        #             traderequest_dict = result_dict[field]._asdict()
-        #             for tradereq_filed in traderequest_dict:
-        #                 print("       traderequest: {}={}".format(tradereq_filed, traderequest_dict[tradereq_filed]))
-        #     print("shutdown() and quit")
-        #     mt5.shutdown()
-        #     quit()
+        if result.retcode != mt5.TRADE_RETCODE_DONE:
+            print("2. order_send failed, retcode={}".format(result.retcode))
+            # request the result as a dictionary and display it element by element
+            result_dict = result._asdict()
+            for field in result_dict.keys():
+                print("   {}={}".format(field, result_dict[field]))
+                # if this is a trading request structure, display it element by element as well
+                if field == "request":
+                    traderequest_dict = result_dict[field]._asdict()
+                    for tradereq_filed in traderequest_dict:
+                        print("       traderequest: {}={}".format(tradereq_filed, traderequest_dict[tradereq_filed]))
+            print("shutdown() and quit")
+            mt5.shutdown()
+            quit()
 
     def close_order(self, symbol):
         # create a close request

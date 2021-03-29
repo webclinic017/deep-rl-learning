@@ -100,7 +100,6 @@ def main():
                             mt5_client.buy_order(symbol, tp1, tp2)
                         elif info['side'] == 'Sell':
                             mt5_client.sell_order(symbol, tp1, tp2)
-                        current_info = info
 
                 service.users().messages().modify(userId='me', id=message["id"], body={'removeLabelIds': ['UNREAD']}).execute()
                 # XAUUSD M1 Buy Signal @1924.47 TP1=76Pts TP2=251Pts TP1 Hit=79.17% TP2 Hit=57.29% EXIT Win=0.00% EXIT Loss=20.83% Success Rate=79.17%
