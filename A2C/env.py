@@ -31,7 +31,7 @@ class TradingEnv:
             if diff > 200:
                 r = 100
             done = True
-0
+
         state = self.train_data[self.t]
         self.t += 1
         if self.t == self.train_data.shape[0]:
