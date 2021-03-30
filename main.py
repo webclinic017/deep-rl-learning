@@ -13,11 +13,7 @@ from A2C.a2c import A2C
 from keras.backend.tensorflow_backend import set_session
 
 from A2C.env import TradingEnv
-from utils.atari_environment import AtariEnvironment
-# from utils.continuous_environments import Environment
 from utils.networks import get_session
-import matplotlib.pyplot as plt
-from utils.environment import Environment
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -68,8 +64,8 @@ def main(args=None):
 
     env = TradingEnv(consecutive_frames=args.consecutive_frames)
     env.reset()
-    state_dim = (1,)
-    action_dim = 3
+    state_dim = (64,)
+    action_dim = 2
     act_range = 2
     algo = A2C(action_dim, state_dim, args.consecutive_frames)
 

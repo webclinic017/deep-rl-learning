@@ -1,7 +1,8 @@
+import os
 import random
 import numpy as np
 import logging
-
+os.makedirs('log', exist_ok=True)
 logging.basicConfig(filename='log/a2c.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
 from tqdm import tqdm
@@ -25,7 +26,7 @@ class A2C:
         """
         # Environment and A2C parameters
         self.act_dim = act_dim
-        self.env_dim = (2,)
+        self.env_dim = env_dim
         self.gamma = gamma
         self.lr = lr
         self.epsilon = 0.3
