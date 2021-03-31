@@ -28,7 +28,7 @@ class TradingEnv:
 
         if action == 1:
             self.budget = diff
-            if diff > 50:
+            if diff > 30:
                 r = 10
             done = True
 

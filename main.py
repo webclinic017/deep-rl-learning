@@ -23,13 +23,13 @@ def parse_args(args):
     """
     parser = argparse.ArgumentParser(description='Training parameters')
     #
-    parser.add_argument('--type', type=str, default='DDQN', help="Algorithm to train from {A2C, A3C, DDQN, DDPG}")
+    parser.add_argument('--type', type=str, default='A2C', help="Algorithm to train from {A2C, A3C, DDQN, DDPG}")
     parser.add_argument('--is_atari', dest='is_atari', action='store_true', help="Atari Environment")
     parser.add_argument('--with_PER', dest='with_per', action='store_true',
                         help="Use Prioritized Experience Replay (DDQN + PER)")
     parser.add_argument('--dueling', dest='dueling', action='store_true', help="Use a Dueling Architecture (DDQN)")
     #
-    parser.add_argument('--nb_episodes', type=int, default=50000, help="Number of training episodes")
+    parser.add_argument('--nb_episodes', type=int, default=500000, help="Number of training episodes")
     parser.add_argument('--batch_size', type=int, default=64, help="Batch size (experience replay)")
     parser.add_argument('--consecutive_frames', type=int, default=1,
                         help="Number of consecutive frames (action repeat)")
@@ -60,6 +60,9 @@ def main(args=None):
     if args.gpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     set_session(get_session())
+    print("Log dir" + args.type + "/tensorboard_" + args.env)
+    for file in os.listdir(args.type + "/tensorboard_" + args.env):
+        os.remove(args.type + "/tensorboard_" + args.env + '/' + file)
     summary_writer = tf.summary.FileWriter(args.type + "/tensorboard_" + args.env)
 
     env = TradingEnv(consecutive_frames=args.consecutive_frames)
