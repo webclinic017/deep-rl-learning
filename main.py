@@ -60,6 +60,7 @@ def main(args=None):
     if args.gpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     set_session(get_session())
+    os.makedirs(args.type + "/tensorboard_" + args.env, exist_ok=True)
     print("Log dir" + args.type + "/tensorboard_" + args.env)
     for file in os.listdir(args.type + "/tensorboard_" + args.env):
         os.remove(args.type + "/tensorboard_" + args.env + '/' + file)

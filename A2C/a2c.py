@@ -29,7 +29,8 @@ class A2C:
         self.env_dim = env_dim
         self.gamma = gamma
         self.lr = lr
-        self.epsilon = 0.3
+        self.epsilon = 1
+        self.epsilon_min = 0.1
         # Create actor and critic networks
         self.shared = self.buildNetwork()
         self.actor = Actor(self.env_dim, act_dim, self.shared, lr)
@@ -65,6 +66,8 @@ class A2C:
             logging.warning("action: {} values: {}".format(action, actions_value))
         else:
             action = np.random.randint(0, self.act_dim)
+        if self.epsilon > self.epsilon_min:
+            self.epsilon *= 0.999
         return action
 
     def discount(self, r, done, a):

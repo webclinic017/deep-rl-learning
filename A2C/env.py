@@ -3,6 +3,7 @@ import numpy as np
 import ta
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn import decomposition
+import matplotlib.pyplot as plt
 
 
 class TradingEnv:
@@ -13,23 +14,30 @@ class TradingEnv:
         self.normalize_order = 0
         self.done = False
         self.consecutive_frames = consecutive_frames
-        self.train_data = np.load('A2C/X_encoded.npy')[:500]
-        self.prices = np.load('A2C/raw_price.npy')[:500]
+        self.train_data = np.load('A2C/X_encoded.npy')[:200]
+        self.prices = np.load('A2C/raw_price.npy')[:200]
+        self.fig, self.ax = plt.subplots()  # Create a figure containing a single axes.
+        # self.ax.plot(self.prices)  # Plot some data on the axes.
 
     def get_valid_actions(self):
         return [0, 1] if not self.order else [0, 2]
 
     def step(self, action):
         current_price = self.prices[self.t]
+        plt.cla()
+        plt.plot(self.prices)  # Plot some data on the axes.
+        colors = ['#858585', '#e31212']
+        plt.scatter(self.t, current_price, color=colors[action])
+        plt.pause(0.1)
 
         diff = current_price - self.prices[0]
-        r = diff / 1000
+        r = 0
         done = False
 
         if action == 1:
             self.budget = diff
-            if diff > 30:
-                r = 10
+            if diff > 0:
+                r = diff
             done = True
 
         state = self.train_data[self.t]
