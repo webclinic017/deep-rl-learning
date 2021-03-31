@@ -13,8 +13,8 @@ class TradingEnv:
         self.normalize_order = 0
         self.done = False
         self.consecutive_frames = consecutive_frames
-        self.train_data = np.load('A2C/X_encoded.npy')[:1000]
-        self.prices = np.load('A2C/raw_price.npy')[:1000]
+        self.train_data = np.load('A2C/X_encoded.npy')[:500]
+        self.prices = np.load('A2C/raw_price.npy')[:500]
 
     def get_valid_actions(self):
         return [0, 1] if not self.order else [0, 2]
@@ -28,8 +28,8 @@ class TradingEnv:
 
         if action == 1:
             self.budget = diff
-            if diff > 200:
-                r = 100
+            if diff > 50:
+                r = 10
             done = True
 
         state = self.train_data[self.t]

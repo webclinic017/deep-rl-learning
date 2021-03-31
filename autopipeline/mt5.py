@@ -130,24 +130,24 @@ class AutoOrder:
         # send a trading request
         result = mt5.order_send(request_2)
         print("order_send done, ", result)
-        # self.save_frame(request, request_2)
+        self.save_frame(request, request_2)
         # check the execution result
         print("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
 
-        if result.retcode != mt5.TRADE_RETCODE_DONE:
-            print("2. order_send failed, retcode={}".format(result.retcode))
-            # request the result as a dictionary and display it element by element
-            result_dict = result._asdict()
-            for field in result_dict.keys():
-                print("   {}={}".format(field, result_dict[field]))
-                # if this is a trading request structure, display it element by element as well
-                if field == "request":
-                    traderequest_dict = result_dict[field]._asdict()
-                    for tradereq_filed in traderequest_dict:
-                        print("       traderequest: {}={}".format(tradereq_filed, traderequest_dict[tradereq_filed]))
-            print("shutdown() and quit")
-            mt5.shutdown()
-            quit()
+        # if result.retcode != mt5.TRADE_RETCODE_DONE:
+        #     print("2. order_send failed, retcode={}".format(result.retcode))
+        #     # request the result as a dictionary and display it element by element
+        #     result_dict = result._asdict()
+        #     for field in result_dict.keys():
+        #         print("   {}={}".format(field, result_dict[field]))
+        #         # if this is a trading request structure, display it element by element as well
+        #         if field == "request":
+        #             traderequest_dict = result_dict[field]._asdict()
+        #             for tradereq_filed in traderequest_dict:
+        #                 print("       traderequest: {}={}".format(tradereq_filed, traderequest_dict[tradereq_filed]))
+        #     print("shutdown() and quit")
+        #     mt5.shutdown()
+        #     quit()
 
     def sell_order(self, symbol, tp1, tp2):
         self.check_symbol(symbol)
@@ -193,24 +193,24 @@ class AutoOrder:
         # send a trading request
         result = mt5.order_send(request_2)
         print("order_send done, ", result)
-        # self.save_frame(request, request_2)
+        self.save_frame(request, request_2)
         # check the execution result
         print("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
 
-        if result.retcode != mt5.TRADE_RETCODE_DONE:
-            print("2. order_send failed, retcode={}".format(result.retcode))
-            # request the result as a dictionary and display it element by element
-            result_dict = result._asdict()
-            for field in result_dict.keys():
-                print("   {}={}".format(field, result_dict[field]))
-                # if this is a trading request structure, display it element by element as well
-                if field == "request":
-                    traderequest_dict = result_dict[field]._asdict()
-                    for tradereq_filed in traderequest_dict:
-                        print("       traderequest: {}={}".format(tradereq_filed, traderequest_dict[tradereq_filed]))
-            print("shutdown() and quit")
-            mt5.shutdown()
-            quit()
+        # if result.retcode != mt5.TRADE_RETCODE_DONE:
+        #     print("2. order_send failed, retcode={}".format(result.retcode))
+        #     # request the result as a dictionary and display it element by element
+        #     result_dict = result._asdict()
+        #     for field in result_dict.keys():
+        #         print("   {}={}".format(field, result_dict[field]))
+        #         # if this is a trading request structure, display it element by element as well
+        #         if field == "request":
+        #             traderequest_dict = result_dict[field]._asdict()
+        #             for tradereq_filed in traderequest_dict:
+        #                 print("       traderequest: {}={}".format(tradereq_filed, traderequest_dict[tradereq_filed]))
+        #     print("shutdown() and quit")
+        #     mt5.shutdown()
+        #     quit()
 
     def close_order(self, symbol):
         # create a close request
@@ -268,19 +268,19 @@ class AutoOrder:
                     "close position #{}: sell {} {} lots at {} with deviation={} points".format(position_id, symbol,
                                                                                                 self.lot, price,
                                                                                                 deviation))
-                if result:
-                    if result.retcode != mt5.TRADE_RETCODE_DONE:
-                        print("order_send failed, retcode={}".format(result.retcode))
-                        print("   result", result)
-                    else:
-                        print("position #{} closed, {}".format(position_id, result))
-                        # request the result as a dictionary and display it element by element
-                        result_dict = result._asdict()
-                        for field in result_dict.keys():
-                            print("   {}={}".format(field, result_dict[field]))
-                            # if this is a trading request structure, display it element by element as well
-                            if field == "request":
-                                traderequest_dict = result_dict[field]._asdict()
-                                for tradereq_filed in traderequest_dict:
-                                    print("       traderequest: {}={}".format(tradereq_filed,
-                                                                              traderequest_dict[tradereq_filed]))
+                # if result:
+                #     if result.retcode != mt5.TRADE_RETCODE_DONE:
+                #         print("order_send failed, retcode={}".format(result.retcode))
+                #         print("   result", result)
+                #     else:
+                #         print("position #{} closed, {}".format(position_id, result))
+                #         # request the result as a dictionary and display it element by element
+                #         result_dict = result._asdict()
+                #         for field in result_dict.keys():
+                #             print("   {}={}".format(field, result_dict[field]))
+                #             # if this is a trading request structure, display it element by element as well
+                #             if field == "request":
+                #                 traderequest_dict = result_dict[field]._asdict()
+                #                 for tradereq_filed in traderequest_dict:
+                #                     print("       traderequest: {}={}".format(tradereq_filed,
+                #                                                               traderequest_dict[tradereq_filed]))
