@@ -96,9 +96,9 @@ def main():
                         tp2 = info['tp2'].replace("Pts", "")
                         tp2 = float(tp2.split("=")[1])
 
-                        if info['side'] == 'Buy':
+                        if info['side'] == 'Buy' and tp1_hit_percent > 68:
                             mt5_client.buy_order(symbol, tp1, tp2)
-                        elif info['side'] == 'Sell':
+                        elif info['side'] == 'Sell' and tp1_hit_percent > 68:
                             mt5_client.sell_order(symbol, tp1, tp2)
 
                 service.users().messages().modify(userId='me', id=message["id"], body={'removeLabelIds': ['UNREAD']}).execute()

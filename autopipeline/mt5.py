@@ -23,7 +23,9 @@ class AutoOrder:
             print("initialize() failed, error code =", mt5.last_error())
             quit()
 
-        # if os.path.isfile("order.json"):
+        # orders = mt5.positions_get(symbol='USDCAD')
+        # print(orders)
+        # if os.path.islfile("order.json"):
         #     with open("order.json") as position_file:
         #         self.order_list = json.load(position_file)
         # self.buy_order('USDJPY', 50, 100)
@@ -94,7 +96,7 @@ class AutoOrder:
         request = {
             "action": mt5.TRADE_ACTION_DEAL,
             "symbol": symbol,
-            "volume": self.lot * 2,
+            "volume": self.lot * 10,
             "type": mt5.ORDER_TYPE_BUY,
             "price": price,
             "sl": price - tp1 * point,
@@ -119,7 +121,7 @@ class AutoOrder:
             "type": mt5.ORDER_TYPE_BUY,
             "price": price,
             "sl": price - tp1 * point,
-            "tp": price + tp2 * point,
+            "tp": price + tp2 * point * 10,
             "deviation": deviation,
             "magic": 234000,
             "comment": "Buy",
@@ -157,7 +159,7 @@ class AutoOrder:
         request = {
             "action": mt5.TRADE_ACTION_DEAL,
             "symbol": symbol,
-            "volume": self.lot * 2,
+            "volume": self.lot * 10,
             "type": mt5.ORDER_TYPE_SELL,
             "price": price,
             "sl": price + tp1 * point,
@@ -182,7 +184,7 @@ class AutoOrder:
             "type": mt5.ORDER_TYPE_SELL,
             "price": price,
             "sl": price + tp1 * point,
-            "tp": price - tp2 * point,
+            "tp": price - tp2 * point * 10,
             "deviation": deviation,
             "magic": 234000,
             "comment": "Sell",
@@ -191,7 +193,7 @@ class AutoOrder:
         }
 
         # send a trading request
-        result = mt5.order_send(request_2)
+        # result = mt5.order_send(request_2)
         print("order_send done, ", result)
         self.save_frame(request, request_2)
         # check the execution result
@@ -231,7 +233,7 @@ class AutoOrder:
                     request = {
                         "action": mt5.TRADE_ACTION_DEAL,
                         "symbol": symbol,
-                        "volume": self.lot,
+                        "volume": order.volume,
                         "type": mt5.ORDER_TYPE_BUY,
                         "position": position_id,
                         "price": price,
@@ -247,7 +249,7 @@ class AutoOrder:
                     request = {
                         "action": mt5.TRADE_ACTION_DEAL,
                         "symbol": symbol,
-                        "volume": self.lot,
+                        "volume": order.volume,
                         "type": mt5.ORDER_TYPE_SELL,
                         "position": position_id,
                         "price": price,
