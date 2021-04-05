@@ -11,7 +11,7 @@ class AutoOrder:
     # display data on the MetaTrader 5 package
     print("MetaTrader5 package author: ", mt5.__author__)
     print("MetaTrader5 package version: ", mt5.__version__)
-    lot = 0.1
+    lot = 0.01
     position_id = None
     # order_list = []
     client = MongoClient()
@@ -109,8 +109,8 @@ class AutoOrder:
         }
 
         # send a trading request
-        result = mt5.order_send(request)
-        print("order_send done, ", result)
+        # result = mt5.order_send(request)
+        # print("order_send done, ", result)
         # check the execution result
         print("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
 
@@ -172,8 +172,8 @@ class AutoOrder:
         }
 
         # send a trading request
-        result = mt5.order_send(request)
-        print("order_send done, ", result)
+        # result = mt5.order_send(request)
+        # print("order_send done, ", result)
         # check the execution result
         print("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
 
@@ -194,7 +194,7 @@ class AutoOrder:
 
         # send a trading request
         # result = mt5.order_send(request_2)
-        print("order_send done, ", result)
+        # print("order_send done, ", result)
         self.save_frame(request, request_2)
         # check the execution result
         print("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
