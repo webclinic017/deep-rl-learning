@@ -11,7 +11,7 @@ class AutoOrder:
     # display data on the MetaTrader 5 package
     print("MetaTrader5 package author: ", mt5.__author__)
     print("MetaTrader5 package version: ", mt5.__version__)
-    lot = 0.01
+    lot = 0.1
     position_id = None
     # order_list = []
     client = MongoClient()
