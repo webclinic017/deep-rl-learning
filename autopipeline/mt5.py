@@ -28,7 +28,9 @@ class AutoOrder:
         # if os.path.islfile("order.json"):
         #     with open("order.json") as position_file:
         #         self.order_list = json.load(position_file)
-        # self.buy_order('USDJPY', 50, 100)
+        # self.sell_order('AUDUSD', 50, 100)
+        # self.close_order('USDCAD')  # type 0  Buy
+        # self.close_order('AUDUSD')  # type 1  Sell
 
     def get_ema(self, symbol):
         rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 300)
@@ -48,12 +50,12 @@ class AutoOrder:
         rates_frame['DMI'] = ADX(rates_frame.high, rates_frame.low, rates_frame.close)
         return rates_frame['EMA70'].iat[-1], rates_frame['EMA100'].iat[-1], rates_frame['DMI'].iat[-1], rates_frame['close'].iat[-1]
 
-    def save_frame(self, request, request_2):
+    def save_frame(self, request):
         """
         Save frame
         """
         process_data = request.copy()
-        process_data['tp_2'] = request_2['tp']
+        # process_data['tp_2'] = request_2['tp']
         symbol = process_data['symbol']
         rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 50)
         # Deinitializing MT5 connection
@@ -88,7 +90,7 @@ class AutoOrder:
                 mt5.shutdown()
                 quit()
 
-    def buy_order(self, symbol, tp1, tp2):
+    def buy_order(self, symbol, tp, lot):
         self.check_symbol(symbol)
         point = mt5.symbol_info(symbol).point
         price = mt5.symbol_info_tick(symbol).ask
@@ -96,11 +98,11 @@ class AutoOrder:
         request = {
             "action": mt5.TRADE_ACTION_DEAL,
             "symbol": symbol,
-            "volume": self.lot * 10,
+            "volume": lot,
             "type": mt5.ORDER_TYPE_BUY,
             "price": price,
-            "sl": price - tp1 * point,
-            "tp": price + tp1 * point,
+            "sl": price - tp * point,
+            "tp": price + tp * point,
             "deviation": deviation,
             "magic": 234000,
             "comment": "Buy",
@@ -109,30 +111,9 @@ class AutoOrder:
         }
 
         # send a trading request
-        # result = mt5.order_send(request)
-        # print("order_send done, ", result)
-        # check the execution result
-        print("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
-
-        request_2 = {
-            "action": mt5.TRADE_ACTION_DEAL,
-            "symbol": symbol,
-            "volume": self.lot,
-            "type": mt5.ORDER_TYPE_BUY,
-            "price": price,
-            "sl": price - tp1 * point,
-            "tp": price + tp2 * point * 10,
-            "deviation": deviation,
-            "magic": 234000,
-            "comment": "Buy",
-            "type_time": mt5.ORDER_TIME_GTC,
-            "type_filling": mt5.ORDER_FILLING_IOC,
-        }
-
-        # send a trading request
-        result = mt5.order_send(request_2)
+        result = mt5.order_send(request)
         print("order_send done, ", result)
-        self.save_frame(request, request_2)
+        self.save_frame(request)
         # check the execution result
         print("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
 
@@ -151,7 +132,7 @@ class AutoOrder:
         #     mt5.shutdown()
         #     quit()
 
-    def sell_order(self, symbol, tp1, tp2):
+    def sell_order(self, symbol, tp, lot):
         self.check_symbol(symbol)
         point = mt5.symbol_info(symbol).point
         price = mt5.symbol_info_tick(symbol).bid
@@ -159,11 +140,11 @@ class AutoOrder:
         request = {
             "action": mt5.TRADE_ACTION_DEAL,
             "symbol": symbol,
-            "volume": self.lot * 10,
+            "volume": lot,
             "type": mt5.ORDER_TYPE_SELL,
             "price": price,
-            "sl": price + tp1 * point,
-            "tp": price - tp1 * point,
+            "sl": price + tp * point,
+            "tp": price - tp * point,
             "deviation": deviation,
             "magic": 234000,
             "comment": "Sell",
@@ -172,30 +153,9 @@ class AutoOrder:
         }
 
         # send a trading request
-        # result = mt5.order_send(request)
-        # print("order_send done, ", result)
-        # check the execution result
-        print("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
-
-        request_2 = {
-            "action": mt5.TRADE_ACTION_DEAL,
-            "symbol": symbol,
-            "volume": self.lot,
-            "type": mt5.ORDER_TYPE_SELL,
-            "price": price,
-            "sl": price + tp1 * point,
-            "tp": price - tp2 * point * 10,
-            "deviation": deviation,
-            "magic": 234000,
-            "comment": "Sell",
-            "type_time": mt5.ORDER_TIME_GTC,
-            "type_filling": mt5.ORDER_FILLING_IOC,
-        }
-
-        # send a trading request
-        # result = mt5.order_send(request_2)
-        # print("order_send done, ", result)
-        self.save_frame(request, request_2)
+        result = mt5.order_send(request)
+        print("order_send done, ", result)
+        self.save_frame(request)
         # check the execution result
         print("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
 
@@ -226,8 +186,8 @@ class AutoOrder:
             # display all active orders
             for order in orders:
                 position_id = order.identifier
-                comment = order.comment
-                if comment == 'Sell':
+                order_type = order.type
+                if order_type == 1:
                     price = mt5.symbol_info_tick(symbol).bid
                     deviation = 20
                     request = {
@@ -243,7 +203,7 @@ class AutoOrder:
                         "type_time": mt5.ORDER_TIME_GTC,
                         "type_filling": mt5.ORDER_FILLING_IOC,
                     }
-                elif comment == 'Buy':
+                elif order_type == 0:
                     price = mt5.symbol_info_tick(symbol).ask
                     deviation = 20
                     request = {
