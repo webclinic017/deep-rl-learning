@@ -72,7 +72,7 @@ def main():
 
                     if symbol_name in snippet:
                         partitions = snippet.split(" ")
-                        symbol = partitions[0].replace(".a", "")
+                        symbol = partitions[0]
                         info = {
                             "symbol": partitions[0],
                             "period": partitions[1],
@@ -97,11 +97,11 @@ def main():
                         tp2 = float(tp2.split("=")[1])
 
                         if info['side'] == 'Buy' and tp1_hit_percent > 68:
-                            # mt5_client.buy_order(symbol, tp2 * 10, 0.05)
-                            mt5_client.buy_order(symbol, tp1, 0.5)
+                            mt5_client.buy_order(symbol, tp2 * 10, 0.5)
+                            # mt5_client.buy_order(symbol, tp1, 0.5)
                         elif info['side'] == 'Sell' and tp1_hit_percent > 68:
-                            # mt5_client.sell_order(symbol, tp2 * 10, 0.05)
-                            mt5_client.sell_order(symbol, tp1, 0.5)
+                            mt5_client.sell_order(symbol, tp2 * 10, 0.5)
+                            # mt5_client.sell_order(symbol, tp1, 0.5)
 
                 service.users().messages().modify(userId='me', id=message["id"], body={'removeLabelIds': ['UNREAD']}).execute()
                 # XAUUSD M1 Buy Signal @1924.47 TP1=76Pts TP2=251Pts TP1 Hit=79.17% TP2 Hit=57.29% EXIT Win=0.00% EXIT Loss=20.83% Success Rate=79.17%

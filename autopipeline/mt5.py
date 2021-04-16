@@ -28,7 +28,7 @@ class AutoOrder:
         # if os.path.islfile("order.json"):
         #     with open("order.json") as position_file:
         #         self.order_list = json.load(position_file)
-        # self.sell_order('AUDUSD', 50, 100)
+        # self.sell_order('AUDUSD', 50, 0.5)
         # self.close_order('USDCAD')  # type 0  Buy
         # self.close_order('AUDUSD')  # type 1  Sell
 
