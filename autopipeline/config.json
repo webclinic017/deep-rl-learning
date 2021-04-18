@@ -1,49 +1,61 @@
 {
-  "XAUUSD.a" : {
+  "XAUUSD" : {
     "lot": 0.1,
     "division": 100
   },
-  "EURUSD.a" : {
+  "XTIUSD" : {
+    "lot": 0.1,
+    "division": 100
+  },
+  "EURUSD" : {
     "lot": 0.1,
     "division": 100000
   },
-  "GBPUSD.a" : {
+  "GBPUSD" : {
     "lot": 0.1,
     "division": 100000
   },
-  "USDCHF.a" : {
-    "lot": 0.1,
-    "division": 100000
-  },
-  "AUDUSD.a" : {
-    "lot": 0.1,
-    "division": 100000
-  },
-  "USDJPY.a" : {
-    "lot": 0.1,
-    "division": 100000
-  },
-  "USDCAD.a" : {
-    "lot": 0.1,
-    "division": 100000
-  },
-  "US500.a" : {
-    "lot": 0.1,
-    "division": 10
-  },
-  "NAS100.a" : {
-    "lot": 0.1,
-    "division": 10
-  },
-  "EURGBP.a" : {
-    "lot": 0.1,
-    "division": 100000
-  },
-  "GBPJPY.a" : {
+  "GBPJPY" : {
     "lot": 0.1,
     "division": 1000
   },
-  "Bitcoin.a" : {
+  "USDCHF" : {
+    "lot": 0.1,
+    "division": 100000
+  },
+  "AUDUSD" : {
+    "lot": 0.1,
+    "division": 100000
+  },
+  "AUDJPY" : {
+    "lot": 0.1,
+    "division": 100000
+  },
+  "USDJPY" : {
+    "lot": 0.1,
+    "division": 100000
+  },
+  "USDCAD" : {
+    "lot": 0.1,
+    "division": 100000
+  },
+  "US500" : {
+    "lot": 0.1,
+    "division": 10
+  },
+  "NAS100" : {
+    "lot": 0.1,
+    "division": 10
+  },
+  "EURGBP" : {
+    "lot": 0.1,
+    "division": 100000
+  },
+  "NatGas" : {
+    "lot": 0.1,
+    "division": 100
+  },
+  "SpotBrent" : {
     "lot": 0.1,
     "division": 100
   }
