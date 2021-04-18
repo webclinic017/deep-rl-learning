@@ -32,3 +32,4 @@ DDPG/tensorboard_BreakoutNoFrameskip-v4/
 /autoencoder/data/
 /data/
 /autoencoder/models/
+envs
