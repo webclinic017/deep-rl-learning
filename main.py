@@ -69,7 +69,7 @@ def main(args=None):
     env = TradingEnv(consecutive_frames=args.consecutive_frames)
     env.reset()
     state_dim = (11,)
-    action_dim = 3
+    action_dim = 2
     act_range = 2
     algo = A2C(action_dim, state_dim, args.consecutive_frames)
 
