@@ -21,7 +21,7 @@ class A2C:
     """ Actor-Critic Main Algorithm
     """
 
-    def __init__(self, act_dim, env_dim, k, gamma=0.85, lr=1e-4):
+    def __init__(self, act_dim, env_dim, k, gamma=0.85, lr=1e-5):
         """ Initialization
         """
         # Environment and A2C parameters
@@ -43,10 +43,10 @@ class A2C:
         """ Assemble shared layers
         """
         inp = Input((self.env_dim))
-        x = Dense(256, activation='relu')(inp)
-        x = Dense(128, activation='relu')(x)
+        x = Dense(128, activation='relu')(inp)
         x = Dense(64, activation='relu')(x)
-        x = Dense(64, activation='relu')(x)
+        x = Dense(32, activation='relu')(x)
+        x = Dense(32, activation='relu')(x)
         return Model(inp, x)
 
     def policy_action(self, inp1):
