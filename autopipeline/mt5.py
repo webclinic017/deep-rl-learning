@@ -276,7 +276,7 @@ class AutoOrder:
                 if ptype == "Sell":  # if ordertype sell
                     sl = sticks_frame["high"].iloc[-2] + atr_real
                     sl = round(sl, len(str(prev_sl).split('.')[1]))
-                    if prev_sl < sl or prev_sl == 0:
+                    if prev_sl > sl or prev_sl == 0:
                         request = {
                             "action": mt5.TRADE_ACTION_SLTP,
                             "position": position_id,
@@ -299,7 +299,7 @@ class AutoOrder:
                 elif ptype == 'Buy':  # if ordertype buy
                     sl = sticks_frame["low"].iloc[-2] - atr_real
                     sl = round(sl, len(str(prev_sl).split('.')[1]))
-                    if prev_sl > sl or prev_sl == 0:
+                    if prev_sl < sl or prev_sl == 0:
                         request = {
                             "action": mt5.TRADE_ACTION_SLTP,
                             "position": position_id,

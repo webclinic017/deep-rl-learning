@@ -4,6 +4,7 @@ import json
 import pickle
 import os.path
 import time
+from datetime import datetime
 
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -107,7 +108,9 @@ def main():
                 # XAUUSD M1 Buy Signal @1924.47 TP1=76Pts TP2=251Pts TP1 Hit=79.17% TP2 Hit=57.29% EXIT Win=0.00% EXIT Loss=20.83% Success Rate=79.17%
 
         # check order profit
-        mt5_client.modify_stoploss()
+        a = datetime.now().minute
+        if (a % 15) == 0:  # every 15 minutes
+            mt5_client.modify_stoploss()
 
 
 if __name__ == '__main__':
