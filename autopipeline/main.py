@@ -53,7 +53,7 @@ def main():
         config = json.load(config_file)
 
     while True:
-        time.sleep(1)
+        time.sleep(2)
         results = None
         try:
             results = service.users().messages().list(userId='me', labelIds=["UNREAD", "INBOX"], maxResults=10).execute()
@@ -96,10 +96,10 @@ def main():
                         tp2 = info['tp2'].replace("Pts", "")
                         tp2 = float(tp2.split("=")[1])
 
-                        if info['side'] == 'Buy' and tp1_hit_percent > 68:
+                        if info['side'] == 'Buy' and tp1_hit_percent > 65:
                             mt5_client.buy_order(symbol, tp2 * 10, 0.5)
                             # mt5_client.buy_order(symbol, tp1, 0.5)
-                        elif info['side'] == 'Sell' and tp1_hit_percent > 68:
+                        elif info['side'] == 'Sell' and tp1_hit_percent > 65:
                             mt5_client.sell_order(symbol, tp2 * 10, 0.5)
                             # mt5_client.sell_order(symbol, tp1, 0.5)
 
@@ -107,7 +107,7 @@ def main():
                 # XAUUSD M1 Buy Signal @1924.47 TP1=76Pts TP2=251Pts TP1 Hit=79.17% TP2 Hit=57.29% EXIT Win=0.00% EXIT Loss=20.83% Success Rate=79.17%
 
         # check order profit
-        # mt5_client.check_take_profit()
+        mt5_client.modify_stoploss()
 
 
 if __name__ == '__main__':
