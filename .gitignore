@@ -33,3 +33,6 @@ DDPG/tensorboard_BreakoutNoFrameskip-v4/
 /data/
 /autoencoder/models/
 envs
+/A2C/.idea/
+/DDPG/.idea/
+/.idea
