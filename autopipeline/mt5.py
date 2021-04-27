@@ -34,23 +34,19 @@ class AutoOrder:
         # self.close_order('USDCAD')  # type 0  Buy
         # self.close_order('AUDUSD')  # type 1  Sell
 
-    def get_ema(self, symbol):
+    def get_ema(self, symbol, period):
         rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 300)
         # Deinitializing MT5 connection
 
         # create DataFrame out of the obtained data
         rates_frame = pd.DataFrame(rates)
-        rates_frame['time'] = pd.to_datetime(rates_frame['time'], unit='s')
-
+        # rates_frame['time'] = pd.to_datetime(rates_frame['time'], unit='s')
         # display data
         # print("\nDisplay dataframe with data")
         # print(rates_frame)
-
         # uses close prices (default)
-        rates_frame['EMA70'] = EMA(rates_frame.close, timeperiod=70)
-        rates_frame['EMA100'] = EMA(rates_frame.close, timeperiod=100)
-        rates_frame['DMI'] = ADX(rates_frame.high, rates_frame.low, rates_frame.close)
-        return rates_frame['EMA70'].iat[-1], rates_frame['EMA100'].iat[-1], rates_frame['DMI'].iat[-1], rates_frame['close'].iat[-1]
+        ema200 = stream.EMA(rates_frame.close, timeperiod=period)
+        return ema200
 
     def save_frame(self, request):
         """
