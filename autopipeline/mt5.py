@@ -7,11 +7,7 @@ import MetaTrader5 as mt5
 from talib import EMA, ATR, stream
 from pymongo import MongoClient
 from bson.objectid import ObjectId
-from utils import ST
-
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+from utils import ST, logger
 
 
 class AutoOrder:
@@ -293,12 +289,12 @@ class AutoOrder:
                         # send a trading request
                         result = mt5.order_send(request)
                         # check the execution result
-                        logger.info("3. SL SELL update sent on position #{}: {} {} lots".format(position_id, symbol, lot))
+                        logger.info("SL SELL update sent on position #{}: {} {} lots".format(position_id, symbol, lot))
                         if result.retcode != mt5.TRADE_RETCODE_DONE:
-                            logger.info("4. order_send failed, retcode={}".format(result.retcode))
-                            logger.info("   result", result)
+                            logger.info("order_send failed, retcode={}".format(result.retcode))
+                            logger.info("result", result)
                         else:
-                            logger.info("4. position #{} SL Updated, {}".format(position_id, result))
+                            logger.info("position #{} SL Updated, {}".format(position_id, result))
                 elif ptype == 'Buy':  # if ordertype buy
                     sl = float(sticks_frame.close.tail(1)) - atr_real
                     sl = round(sl, len(str(prev_sl).split('.')[1]))
@@ -316,12 +312,12 @@ class AutoOrder:
                         # send a trading request
                         result = mt5.order_send(request)
                         # check the execution result
-                        logger.info("3. SL BUY update sent on position #{}: {} {} lots".format(position_id, symbol, lot))
+                        logger.info("SL BUY update sent on position #{}: {} {} lots".format(position_id, symbol, lot))
                         if result.retcode != mt5.TRADE_RETCODE_DONE:
-                            logger.info("4. order_send failed, retcode={}".format(result.retcode))
-                            logger.info("   result", result)
+                            logger.info("order_send failed, retcode={}".format(result.retcode))
+                            logger.info("result", result)
                         else:
-                            logger.info("4. position #{} SL Updated, {}".format(position_id, result))
+                            logger.info("position #{} SL Updated, {}".format(position_id, result))
 
     def check_order_exist(self, order_symbol: str, order_type: str) -> bool:
         positions = mt5.positions_get()
