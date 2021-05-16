@@ -3,10 +3,10 @@ import os
 import json
 import pandas as pd
 import MetaTrader5 as mt5
-from talib import stream
-from talib._ta_lib import EMA, ADX
+from talib import EMA, ATR, stream
 from pymongo import MongoClient
 from bson.objectid import ObjectId
+from utils import ST
 
 
 class AutoOrder:
@@ -18,6 +18,7 @@ class AutoOrder:
     # order_list = []
     client = MongoClient()
     db = client.stockprice
+    default_time_frame = mt5.TIMEFRAME_H1
 
     def __init__(self):
         # establish connection to the MetaTrader 5 terminal
@@ -34,8 +35,8 @@ class AutoOrder:
         # self.close_order('USDCAD')  # type 0  Buy
         # self.close_order('AUDUSD')  # type 1  Sell
 
-    def get_ema(self, symbol, period):
-        rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 300)
+    def get_frames(self, symbol):
+        rates = mt5.copy_rates_from_pos(symbol, self.default_time_frame, 0, 300)
         # Deinitializing MT5 connection
 
         # create DataFrame out of the obtained data
@@ -45,8 +46,12 @@ class AutoOrder:
         # print("\nDisplay dataframe with data")
         # print(rates_frame)
         # uses close prices (default)
-        ema200 = stream.EMA(rates_frame.close, timeperiod=period)
-        return ema200
+        stream_ema = stream.EMA(rates_frame.close, timeperiod=200)
+        stream_atr = stream.ATR(rates_frame.high, rates_frame.low, rates_frame.close, timeperiod=14)
+        rates_frame = ST(rates_frame, f=3, n=12)
+        rates_frame = ST(rates_frame, f=1, n=10)
+        rates_frame = ST(rates_frame, f=2, n=11)
+        return rates_frame, stream_ema, stream_atr
 
     def save_frame(self, request):
         """
@@ -88,7 +93,7 @@ class AutoOrder:
                 mt5.shutdown()
                 quit()
 
-    def buy_order(self, symbol, tp, lot):
+    def buy_order(self, symbol, lot, sl):
         self.check_symbol(symbol)
         point = mt5.symbol_info(symbol).point
         price = mt5.symbol_info_tick(symbol).ask
@@ -99,8 +104,7 @@ class AutoOrder:
             "volume": lot,
             "type": mt5.ORDER_TYPE_BUY,
             "price": price,
-            "sl": price - tp * point / 10,
-            "tp": price + tp * point,
+            "sl": sl,
             "deviation": deviation,
             "magic": 234000,
             "comment": "Buy",
@@ -111,7 +115,7 @@ class AutoOrder:
         # send a trading request
         result = mt5.order_send(request)
         print("order_send done, ", result)
-        self.save_frame(request)
+        # self.save_frame(request)
         # check the execution result
         print("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
 
@@ -130,7 +134,7 @@ class AutoOrder:
         #     mt5.shutdown()
         #     quit()
 
-    def sell_order(self, symbol, tp, lot):
+    def sell_order(self, symbol, lot, sl):
         self.check_symbol(symbol)
         point = mt5.symbol_info(symbol).point
         price = mt5.symbol_info_tick(symbol).bid
@@ -141,8 +145,7 @@ class AutoOrder:
             "volume": lot,
             "type": mt5.ORDER_TYPE_SELL,
             "price": price,
-            "sl": price + tp * point / 10,
-            "tp": price - tp * point,
+            "sl": sl,
             "deviation": deviation,
             "magic": 234000,
             "comment": "Sell",
@@ -153,7 +156,7 @@ class AutoOrder:
         # send a trading request
         result = mt5.order_send(request)
         print("order_send done, ", result)
-        self.save_frame(request)
+        # self.save_frame(request)
         # check the execution result
         print("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
 
@@ -245,8 +248,7 @@ class AutoOrder:
                 #                     print("       traderequest: {}={}".format(tradereq_filed,
                 #                                                               traderequest_dict[tradereq_filed]))
 
-    @staticmethod
-    def modify_stoploss():
+    def modify_stoploss(self):
         positions = mt5.positions_get()
         if len(positions) > 0:
             # print("Total positions",":",len(positions))
@@ -260,9 +262,9 @@ class AutoOrder:
                 else:
                     ptype = None
                 # print("id:", position.identifier, ptype, position.profit, position.volume)
-                sticks = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 50)
+                sticks = mt5.copy_rates_from_pos(symbol, self.default_time_frame, 0, 70)
                 sticks_frame = pd.DataFrame(sticks)
-                sticks_frame['time'] = pd.to_datetime(sticks_frame['time'], unit='s')
+                # sticks_frame['time'] = pd.to_datetime(sticks_frame['time'], unit='s')
                 # stick_time = str(sticks_frame['time'].iloc[-1])
                 atr_real = stream.ATR(sticks_frame.high, sticks_frame.low, sticks_frame.close, timeperiod=14)
                 lot = position.volume
@@ -270,7 +272,7 @@ class AutoOrder:
                 prev_sl = position.sl
                 position_id = position.identifier
                 if ptype == "Sell":  # if ordertype sell
-                    sl = sticks_frame["high"].iloc[-2] + atr_real
+                    sl = float(sticks_frame.close.tail(1)) + atr_real
                     sl = round(sl, len(str(prev_sl).split('.')[1]))
                     if prev_sl > sl or prev_sl == 0:
                         request = {
@@ -293,7 +295,7 @@ class AutoOrder:
                         else:
                             print("4. position #{} SL Updated, {}".format(position_id, result))
                 elif ptype == 'Buy':  # if ordertype buy
-                    sl = sticks_frame["low"].iloc[-2] - atr_real
+                    sl = float(sticks_frame.close.tail(1)) - atr_real
                     sl = round(sl, len(str(prev_sl).split('.')[1]))
                     if prev_sl < sl or prev_sl == 0:
                         request = {
@@ -315,3 +317,22 @@ class AutoOrder:
                             print("   result", result)
                         else:
                             print("4. position #{} SL Updated, {}".format(position_id, result))
+
+    def check_order_exist(self, order_symbol: str, order_type: str) -> bool:
+        positions = mt5.positions_get()
+        if len(positions) > 0:
+            # print("Total positions",":",len(positions))
+            # display all active orders
+            for position in positions:
+                symbol = position.symbol
+                if position.type == 0:
+                    ptype = "Buy"
+                elif position.type == 1:
+                    ptype = "Sell"
+                else:
+                    ptype = None
+
+                if symbol == order_symbol and order_type == ptype:
+                    print(f"{order_symbol} {order_type} exist")
+                    return True
+        return False

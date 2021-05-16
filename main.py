@@ -32,7 +32,7 @@ def parse_args(args):
     #
     parser.add_argument('--nb_episodes', type=int, default=500000, help="Number of training episodes")
     parser.add_argument('--batch_size', type=int, default=64, help="Batch size (experience replay)")
-    parser.add_argument('--consecutive_frames', type=int, default=1,
+    parser.add_argument('--consecutive_frames', type=int, default=14,
                         help="Number of consecutive frames (action repeat)")
     parser.add_argument('--training_interval', type=int, default=30, help="Network training frequency")
     parser.add_argument('--n_threads', type=int, default=32, help="Number of threads (A3C)")
@@ -69,10 +69,10 @@ def main(args=None):
 
     env = TradingEnv(consecutive_frames=args.consecutive_frames)
     env.reset()
-    state_dim = (11,)
+    state_dim = (15,)
     action_dim = 2
     act_range = 2
-    algo = A3C(action_dim, state_dim, args.consecutive_frames)
+    algo = A2C(action_dim, state_dim, args.consecutive_frames)
 
     # Train
     stats = algo.train(env, args, summary_writer)

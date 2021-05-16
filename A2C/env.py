@@ -3,13 +3,13 @@ import numpy as np
 import ta
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn import decomposition
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 from sklearn import preprocessing
 
 
 class TradingEnv:
-    def __init__(self, consecutive_frames=40):
-        self.starting_point = 40
+    def __init__(self, consecutive_frames=14):
+        self.starting_point = 70
         self.t = self.starting_point
         self.budget = 0
         self.order = 0
@@ -18,9 +18,9 @@ class TradingEnv:
         self.consecutive_frames = consecutive_frames
         df = pd.read_csv(f"D:\Code\Thinh\deep-rl-learning\data\XAUUSD.csv")
         close = df.Close.values
-        self.train_data = close[:200]
+        self.train_data = close[0:200]
         self.train_data = preprocessing.StandardScaler().fit_transform(self.train_data.reshape(-1, 1)).flatten()
-        self.prices = close[:200]
+        self.prices = close[0:200]
         # self.fig, self.ax = plt.subplots()  # Create a figure containing a single axes.
         # self.ax.plot(self.prices)  # Plot some data on the axes.
 
@@ -29,11 +29,11 @@ class TradingEnv:
 
     def step(self, action):
         current_price = self.prices[self.t]
-        # plt.cla()
-        # plt.plot(self.prices)  # Plot some data on the axes.
-        # colors = ['#dbdbdb', '#e31010', '#55cc23']
-        # plt.scatter(self.t, current_price, color=colors[action])
-        # plt.pause(0.1)
+        plt.cla()
+        plt.plot(self.prices)  # Plot some data on the axes.
+        colors = ['#dbdbdb', '#e31010', '#55cc23']
+        plt.scatter(self.t, current_price, color=colors[action])
+        plt.pause(0.1)
 
         diff = current_price - self.prices[self.starting_point]
         # r = -0.1 if action == 1 else 0
@@ -41,14 +41,12 @@ class TradingEnv:
         done = False
         if action == 1:
             self.budget = diff
-            # if diff > 3:
-            r = diff
+            if current_price > 1326:
+                r += diff
             done = True
-            # if diff > 50:
-            #     done = True
 
-        inp1 = self.train_data[self.t-10:self.t]
-        state = np.concatenate((inp1, np.array([diff/np.argmax(self.train_data)])), axis=0)
+        inp1 = self.train_data[self.t-self.consecutive_frames:self.t]
+        state = np.concatenate((inp1, np.array([diff])), axis=0)
         self.t += 1
         if self.t == self.train_data.shape[0]:
             self.t = 0
@@ -69,7 +67,7 @@ class TradingEnv:
         # colors = ['#dbdbdb', '#e31010', '#55cc23']
         # plt.scatter(self.t, self.prices[self.t], color="#55cc23")
         # plt.pause(0.1)
-        inp1 = self.train_data[self.t-10:self.t]
+        inp1 = self.train_data[self.t-self.consecutive_frames:self.t]
         state = np.concatenate((inp1, np.array([0])), axis=0)
         self.t += 1
         return state
