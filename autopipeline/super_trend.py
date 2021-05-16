@@ -1,7 +1,9 @@
 from __future__ import print_function
-import schedule
 import json
 import time
+
+import schedule
+from datetime import datetime
 from mt5 import AutoOrder
 from utils import get_trend, logger
 mt5_client = AutoOrder()
@@ -44,8 +46,8 @@ def scheduler_job():
 
 
 if __name__ == '__main__':
-    schedule.every().hour.do(scheduler_job)
-    logger.info("Start scheduler")
+    # Run job every hour at the 42rd minute
+    schedule.every().hour.at(":00").do(scheduler_job)
     while True:
         schedule.run_pending()
         time.sleep(1)
