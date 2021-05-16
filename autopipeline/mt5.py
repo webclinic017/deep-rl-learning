@@ -1,6 +1,7 @@
 import decimal
 import os
 import json
+import logging
 import pandas as pd
 import MetaTrader5 as mt5
 from talib import EMA, ATR, stream
@@ -9,10 +10,14 @@ from bson.objectid import ObjectId
 from utils import ST
 
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+
 class AutoOrder:
     # display data on the MetaTrader 5 package
-    print("MetaTrader5 package author: ", mt5.__author__)
-    print("MetaTrader5 package version: ", mt5.__version__)
+    logger.info("MetaTrader5 package author: ", mt5.__author__)
+    logger.info("MetaTrader5 package version: ", mt5.__version__)
     lot = 0.1
     position_id = None
     # order_list = []
@@ -23,7 +28,7 @@ class AutoOrder:
     def __init__(self):
         # establish connection to the MetaTrader 5 terminal
         if not mt5.initialize():
-            print("initialize() failed, error code =", mt5.last_error())
+            logger.info("initialize() failed, error code =", mt5.last_error())
             quit()
 
         # orders = mt5.positions_get(symbol='USDCAD')
@@ -81,15 +86,15 @@ class AutoOrder:
     def check_symbol(self, symbol):
         symbol_info = mt5.symbol_info(symbol)
         if symbol_info is None:
-            print(symbol, "not found, can not call order_check()")
+            logger.info(symbol, "not found, can not call order_check()")
             mt5.shutdown()
             quit()
 
         # if the symbol is unavailable in MarketWatch, add it
         if not symbol_info.visible:
-            print(symbol, "is not visible, trying to switch on")
+            logger.info(symbol, "is not visible, trying to switch on")
             if not mt5.symbol_select(symbol, True):
-                print("symbol_select({}}) failed, exit", symbol)
+                logger.info("symbol_select({}}) failed, exit", symbol)
                 mt5.shutdown()
                 quit()
 
@@ -114,11 +119,11 @@ class AutoOrder:
 
         # send a trading request
         result = mt5.order_send(request)
-        print("order_send done, ", result)
+        logger.info("order_send done, ", result)
         # self.save_frame(request)
         # check the execution result
-        print("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
-
+        logger.info("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
+        logger.info(result)
         # if result.retcode != mt5.TRADE_RETCODE_DONE:
         #     print("2. order_send failed, retcode={}".format(result.retcode))
         #     # request the result as a dictionary and display it element by element
@@ -155,11 +160,11 @@ class AutoOrder:
 
         # send a trading request
         result = mt5.order_send(request)
-        print("order_send done, ", result)
+        logger.info("order_send done, ", result)
         # self.save_frame(request)
         # check the execution result
-        print("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
-
+        logger.info("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
+        logger.info(result)
         # if result.retcode != mt5.TRADE_RETCODE_DONE:
         #     print("2. order_send failed, retcode={}".format(result.retcode))
         #     # request the result as a dictionary and display it element by element
@@ -177,13 +182,13 @@ class AutoOrder:
 
     def close_order(self, symbol):
         # create a close request
-        print("Close order")
+        logger.info("Close order")
         # display data on active orders on GBPUSD
         orders = mt5.positions_get(symbol=symbol)
         if orders is None:
-            print(f"No orders on {symbol}, error code={mt5.last_error()}")
+            logger.info(f"No orders on {symbol}, error code={mt5.last_error()}")
         else:
-            print(f"Total orders on {symbol}: {len(orders)}")
+            logger.info(f"Total orders on {symbol}: {len(orders)}")
             # display all active orders
             for order in orders:
                 position_id = order.identifier
@@ -221,13 +226,13 @@ class AutoOrder:
                         "type_filling": mt5.ORDER_FILLING_IOC,
                     }
                 else:
-                    print("Can not close order")
+                    logger.info("Can not close order")
                     return
 
                 # send a trading request
                 result = mt5.order_send(request)
                 # check the execution result
-                print(
+                logger.info(
                     "close position #{}: sell {} {} lots at {} with deviation={} points".format(position_id, symbol,
                                                                                                 self.lot, price,
                                                                                                 deviation))
@@ -288,12 +293,12 @@ class AutoOrder:
                         # send a trading request
                         result = mt5.order_send(request)
                         # check the execution result
-                        print("3. SL SELL update sent on position #{}: {} {} lots".format(position_id, symbol, lot))
+                        logger.info("3. SL SELL update sent on position #{}: {} {} lots".format(position_id, symbol, lot))
                         if result.retcode != mt5.TRADE_RETCODE_DONE:
-                            print("4. order_send failed, retcode={}".format(result.retcode))
-                            print("   result", result)
+                            logger.info("4. order_send failed, retcode={}".format(result.retcode))
+                            logger.info("   result", result)
                         else:
-                            print("4. position #{} SL Updated, {}".format(position_id, result))
+                            logger.info("4. position #{} SL Updated, {}".format(position_id, result))
                 elif ptype == 'Buy':  # if ordertype buy
                     sl = float(sticks_frame.close.tail(1)) - atr_real
                     sl = round(sl, len(str(prev_sl).split('.')[1]))
@@ -311,12 +316,12 @@ class AutoOrder:
                         # send a trading request
                         result = mt5.order_send(request)
                         # check the execution result
-                        print("3. SL BUY update sent on position #{}: {} {} lots".format(position_id, symbol, lot))
+                        logger.info("3. SL BUY update sent on position #{}: {} {} lots".format(position_id, symbol, lot))
                         if result.retcode != mt5.TRADE_RETCODE_DONE:
-                            print("4. order_send failed, retcode={}".format(result.retcode))
-                            print("   result", result)
+                            logger.info("4. order_send failed, retcode={}".format(result.retcode))
+                            logger.info("   result", result)
                         else:
-                            print("4. position #{} SL Updated, {}".format(position_id, result))
+                            logger.info("4. position #{} SL Updated, {}".format(position_id, result))
 
     def check_order_exist(self, order_symbol: str, order_type: str) -> bool:
         positions = mt5.positions_get()
@@ -333,6 +338,6 @@ class AutoOrder:
                     ptype = None
 
                 if symbol == order_symbol and order_type == ptype:
-                    print(f"{order_symbol} {order_type} exist")
+                    logger.info(f"{order_symbol} {order_type} exist")
                     return True
         return False
