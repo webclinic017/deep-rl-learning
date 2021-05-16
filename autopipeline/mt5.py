@@ -37,6 +37,7 @@ class AutoOrder:
         # self.close_order('AUDUSD')  # type 1  Sell
 
     def get_frames(self, symbol):
+        self.check_symbol(symbol)
         rates = mt5.copy_rates_from_pos(symbol, self.default_time_frame, 0, 300)
         # Deinitializing MT5 connection
 
