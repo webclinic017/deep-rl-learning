@@ -14,6 +14,7 @@ def scheduler_job():
     Lists the user's Gmail labels.
     """
     logger.info(f"Start job at: {datetime.now()}")
+    logger.info("-"*50)
     with open("config.json") as config_file:
         config = json.load(config_file)
 
@@ -35,14 +36,14 @@ def scheduler_job():
             # TODO put a new order, stop loss is close_p - atr
             mt5_client.close_order(symbol_name)  # close all open positions
             if close_p > ema_200:
-                sl = close_p - atr
+                sl = low_p - atr
                 mt5_client.buy_order(symbol_name, lot=lot, sl=sl)  # default tp at 1000 pips
         elif current_trend == 'Sell' and not order_placed:
             # TODO Query all sell order and close
             # TODO put a new order, stop loss is close_p + atr
             mt5_client.close_order(symbol_name)  # close all open positions
             if close_p < ema_200:
-                sl = close_p + atr
+                sl = high_p + atr
                 mt5_client.sell_order(symbol_name, lot=lot, sl=sl)  # default tp at 1000 pips
         else:
             mt5_client.modify_stoploss()
