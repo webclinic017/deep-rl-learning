@@ -276,7 +276,7 @@ class AutoOrder:
                 prev_sl = position.sl
                 position_id = position.identifier
                 if ptype == "Sell":  # if ordertype sell
-                    sl = float(sticks_frame.close.tail(1)) + atr_real
+                    sl = float(sticks_frame.high.tail(1)) + atr_real
                     sl = round(sl, len(str(prev_sl).split('.')[1]))
                     if prev_sl > sl or prev_sl == 0:
                         request = {
@@ -299,7 +299,7 @@ class AutoOrder:
                         else:
                             logger.info("position #{} SL Updated, {}".format(position_id, result))
                 elif ptype == 'Buy':  # if ordertype buy
-                    sl = float(sticks_frame.close.tail(1)) - atr_real
+                    sl = float(sticks_frame.low.tail(1)) - atr_real
                     sl = round(sl, len(str(prev_sl).split('.')[1]))
                     if prev_sl < sl or prev_sl == 0:
                         request = {
