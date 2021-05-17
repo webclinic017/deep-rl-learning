@@ -37,6 +37,7 @@ class AutoOrder:
         # self.close_order('AUDUSD')  # type 1  Sell
 
     def get_frames(self, symbol):
+        logger.info(f"Generate super trend for {symbol}")
         self.check_symbol(symbol)
         rates = mt5.copy_rates_from_pos(symbol, self.default_time_frame, 0, 300)
         # Deinitializing MT5 connection
@@ -50,6 +51,7 @@ class AutoOrder:
         # uses close prices (default)
         stream_ema = stream.EMA(rates_frame.close, timeperiod=200)
         rates_frame['ATR'] = ATR(rates_frame.high, rates_frame.low, rates_frame.close, timeperiod=14)
+        rates_frame = rates_frame.dropna().reset_index(drop=True)
         rates_frame = ST(rates_frame, f=3, n=12)
         rates_frame = ST(rates_frame, f=1, n=10)
         rates_frame = ST(rates_frame, f=2, n=11)

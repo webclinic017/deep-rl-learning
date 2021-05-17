@@ -1,10 +1,11 @@
 from __future__ import print_function
 import json
 import time
+from datetime import datetime
 
 import schedule
 from mt5 import AutoOrder
-from utils import get_trend
+from utils import get_trend, logger
 mt5_client = AutoOrder()
 
 
@@ -12,11 +13,12 @@ def scheduler_job():
     """Shows basic usage of the Gmail API.
     Lists the user's Gmail labels.
     """
+    logger.info(f"Start job at: {datetime.now()}")
     with open("config.json") as config_file:
         config = json.load(config_file)
 
     for symbol_name, value in zip(config.keys(), config.values()):
-        # symbol_name = "Bitcoin"
+        # symbol_name = "NAS100"
         df, ema_200 = mt5_client.get_frames(symbol_name)
         close_p = float(df.close.tail(1))
         high_p = float(df.high.tail(1))
