@@ -19,6 +19,7 @@ def scheduler_job():
 
     for symbol_name, value in zip(config.keys(), config.values()):
         # symbol_name = "NAS100"
+        lot = value.get('lot')
         df, ema_200 = mt5_client.get_frames(symbol_name)
         close_p = float(df.close.tail(1))
         high_p = float(df.high.tail(1))
@@ -35,14 +36,14 @@ def scheduler_job():
             mt5_client.close_order(symbol_name)  # close all open positions
             if close_p > ema_200:
                 sl = close_p - atr
-                mt5_client.buy_order(symbol_name, lot=0.1, sl=sl)  # default tp at 1000 pips
+                mt5_client.buy_order(symbol_name, lot=lot, sl=sl)  # default tp at 1000 pips
         elif current_trend == 'Sell' and not order_placed:
             # TODO Query all sell order and close
             # TODO put a new order, stop loss is close_p + atr
             mt5_client.close_order(symbol_name)  # close all open positions
             if close_p < ema_200:
                 sl = close_p + atr
-                mt5_client.sell_order(symbol_name, lot=0.1, sl=sl)  # default tp at 1000 pips
+                mt5_client.sell_order(symbol_name, lot=lot, sl=sl)  # default tp at 1000 pips
         else:
             mt5_client.modify_stoploss()
 
