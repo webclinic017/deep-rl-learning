@@ -49,11 +49,11 @@ class AutoOrder:
         # print(rates_frame)
         # uses close prices (default)
         stream_ema = stream.EMA(rates_frame.close, timeperiod=200)
-        stream_atr = stream.ATR(rates_frame.high, rates_frame.low, rates_frame.close, timeperiod=14)
+        rates_frame['ATR'] = ATR(rates_frame.high, rates_frame.low, rates_frame.close, timeperiod=14)
         rates_frame = ST(rates_frame, f=3, n=12)
         rates_frame = ST(rates_frame, f=1, n=10)
         rates_frame = ST(rates_frame, f=2, n=11)
-        return rates_frame, stream_ema, stream_atr
+        return rates_frame, stream_ema
 
     def save_frame(self, request):
         """

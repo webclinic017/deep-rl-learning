@@ -3,9 +3,8 @@ import json
 import time
 
 import schedule
-from datetime import datetime
 from mt5 import AutoOrder
-from utils import get_trend, logger
+from utils import get_trend
 mt5_client = AutoOrder()
 
 
@@ -18,10 +17,11 @@ def scheduler_job():
 
     for symbol_name, value in zip(config.keys(), config.values()):
         # symbol_name = "Bitcoin"
-        df, ema_200, atr = mt5_client.get_frames(symbol_name)
+        df, ema_200 = mt5_client.get_frames(symbol_name)
         close_p = float(df.close.tail(1))
         high_p = float(df.high.tail(1))
         low_p = float(df.low.tail(1))
+        atr = float(df.ATR.tail(1))
         sp_trend_1 = float(df.SuperTrend312.tail(1))
         sp_trend_2 = float(df.SuperTrend110.tail(1))
         sp_trend_3 = float(df.SuperTrend211.tail(1))
