@@ -257,25 +257,38 @@ class AutoOrder:
             # display all active orders
             for position in positions:
                 symbol = position.symbol
+                price_open = position.price_open
+                price_current = position.price_current
+                lot = position.volume
+                prev_sl = position.sl
+                position_id = position.identifier
+                profit = position.profit
+                diff = 0
+                pip_profit = 0
+                ptype = None
                 if position.type == 0:
                     ptype = "Buy"
+                    diff = price_current - price_open
+                    pip_profit = (diff * profit * lot) / diff
                 elif position.type == 1:
                     ptype = "Sell"
-                else:
-                    ptype = None
+                    diff = price_open - price_current
+                    pip_profit = diff * profit * lot / diff
                 # print("id:", position.identifier, ptype, position.profit, position.volume)
                 sticks = mt5.copy_rates_from_pos(symbol, self.default_time_frame, 0, 70)
                 sticks_frame = pd.DataFrame(sticks)
                 # sticks_frame['time'] = pd.to_datetime(sticks_frame['time'], unit='s')
                 # stick_time = str(sticks_frame['time'].iloc[-1])
                 atr_real = stream.ATR(sticks_frame.high, sticks_frame.low, sticks_frame.close, timeperiod=14)
-                lot = position.volume
-                # stop loss
-                prev_sl = position.sl
-                position_id = position.identifier
+                price_per_pip = profit * lot / pip_profit
+
                 if ptype == "Sell":  # if ordertype sell
-                    sl = float(sticks_frame.close.tail(1)) + atr_real
-                    sl = round(sl, len(str(prev_sl).split('.')[1]))
+                    sl = sticks_frame.close.iloc[-2] + atr_real
+                    pip_sl = price_open - price_per_pip
+                    logger.info(f"atr_sl {sl} pip_sl {pip_sl}")
+                    if pip_profit > 4 and pip_sl < sl:
+                        sl = pip_sl
+
                     if prev_sl > sl or prev_sl == 0:
                         request = {
                             "action": mt5.TRADE_ACTION_SLTP,
@@ -297,8 +310,12 @@ class AutoOrder:
                         else:
                             logger.info("position #{} SL Updated, {}".format(position_id, result))
                 elif ptype == 'Buy':  # if ordertype buy
-                    sl = float(sticks_frame.close.tail(1)) - atr_real
-                    sl = round(sl, len(str(prev_sl).split('.')[1]))
+                    sl = sticks_frame.close.iloc[-2] - atr_real
+                    pip_sl = price_open + price_per_pip
+                    logger.info(f"atr_sl {sl} pip_sl {pip_sl}")
+                    if pip_profit > 4 and pip_sl > sl:
+                        sl = pip_sl
+
                     if prev_sl < sl or prev_sl == 0:
                         request = {
                             "action": mt5.TRADE_ACTION_SLTP,
