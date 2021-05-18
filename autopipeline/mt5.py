@@ -44,6 +44,7 @@ class AutoOrder:
 
         # create DataFrame out of the obtained data
         rates_frame = pd.DataFrame(rates)
+        rates_frame = rates_frame.dropna().reset_index(drop=True)
         # rates_frame['time'] = pd.to_datetime(rates_frame['time'], unit='s')
         # display data
         # print("\nDisplay dataframe with data")
@@ -51,7 +52,6 @@ class AutoOrder:
         # uses close prices (default)
         stream_ema = stream.EMA(rates_frame.close, timeperiod=200)
         rates_frame['ATR'] = ATR(rates_frame.high, rates_frame.low, rates_frame.close, timeperiod=14)
-        rates_frame = rates_frame.dropna().reset_index(drop=True)
         rates_frame = ST(rates_frame, f=3, n=12)
         rates_frame = ST(rates_frame, f=1, n=10)
         rates_frame = ST(rates_frame, f=2, n=11)
@@ -271,11 +271,13 @@ class AutoOrder:
                 if position.type == 0:
                     ptype = "Buy"
                     diff = price_current - price_open
-                    pip_profit = (diff * profit * lot) / diff
+                    if diff != 0:
+                        pip_profit = (diff * profit * lot) / diff
                 elif position.type == 1:
                     ptype = "Sell"
                     diff = price_open - price_current
-                    pip_profit = diff * profit * lot / diff
+                    if diff != 0:
+                        pip_profit = diff * profit * lot / diff
                 # print("id:", position.identifier, ptype, position.profit, position.volume)
                 sticks = mt5.copy_rates_from_pos(symbol, self.default_time_frame, 0, 70)
                 sticks_frame = pd.DataFrame(sticks)
