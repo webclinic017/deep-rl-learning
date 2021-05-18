@@ -286,10 +286,10 @@ class AutoOrder:
 
                 if ptype == "Sell":  # if ordertype sell
                     sl = sticks_frame.close.iloc[-2] + atr_real
-                    pip_sl = price_open - price_per_pip
-                    logger.info(f"atr_sl {sl} pip_sl {pip_sl}")
-                    if pip_profit > 4 and pip_sl < sl:
-                        sl = pip_sl
+                    # pip_sl = price_open - price_per_pip
+                    # logger.info(f"atr_sl {sl} pip_sl {pip_sl}")
+                    # if pip_profit > 4 and pip_sl < sl:
+                    #     sl = pip_sl
 
                     if prev_sl > sl or prev_sl == 0:
                         request = {
@@ -313,10 +313,10 @@ class AutoOrder:
                             logger.info("position #{} SL Updated, {}".format(position_id, result))
                 elif ptype == 'Buy':  # if ordertype buy
                     sl = sticks_frame.close.iloc[-2] - atr_real
-                    pip_sl = price_open + price_per_pip
-                    logger.info(f"atr_sl {sl} pip_sl {pip_sl}")
-                    if pip_profit > 4 and pip_sl > sl:
-                        sl = pip_sl
+                    # pip_sl = price_open + price_per_pip
+                    # logger.info(f"atr_sl {sl} pip_sl {pip_sl}")
+                    # if pip_profit > 4 and pip_sl > sl:
+                    #     sl = pip_sl
 
                     if prev_sl < sl or prev_sl == 0:
                         request = {
