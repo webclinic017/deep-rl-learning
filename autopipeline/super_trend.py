@@ -21,7 +21,12 @@ def scheduler_job():
     for symbol_name, value in zip(config.keys(), config.values()):
         # symbol_name = "NAS100"
         lot = value.get('lot')
-        df, ema_200 = mt5_client.get_frames(symbol_name)
+        try:
+            df, ema_200 = mt5_client.get_frames(symbol_name)
+        except Exception as ex:
+            logger.error(ex)
+            continue
+
         close_p = float(df.close.tail(1))
         high_p = float(df.high.tail(1))
         low_p = float(df.low.tail(1))
@@ -51,6 +56,7 @@ def scheduler_job():
 
 if __name__ == '__main__':
     # Run job every hour at the 42rd minute
+    scheduler_job()
     schedule.every().hour.at(":00").do(scheduler_job)
     while True:
         schedule.run_pending()

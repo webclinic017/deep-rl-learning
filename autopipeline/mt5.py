@@ -44,14 +44,13 @@ class AutoOrder:
 
         # create DataFrame out of the obtained data
         rates_frame = pd.DataFrame(rates)
-        rates_frame = rates_frame.dropna().reset_index(drop=True)
         # rates_frame['time'] = pd.to_datetime(rates_frame['time'], unit='s')
         # display data
         # print("\nDisplay dataframe with data")
         # print(rates_frame)
         # uses close prices (default)
         stream_ema = stream.EMA(rates_frame.close, timeperiod=200)
-        rates_frame['ATR'] = ATR(rates_frame.high, rates_frame.low, rates_frame.close, timeperiod=14)
+        rates_frame = rates_frame.dropna().reset_index(drop=True)
         rates_frame = ST(rates_frame, f=3, n=12)
         rates_frame = ST(rates_frame, f=1, n=10)
         rates_frame = ST(rates_frame, f=2, n=11)
@@ -284,10 +283,11 @@ class AutoOrder:
                 # sticks_frame['time'] = pd.to_datetime(sticks_frame['time'], unit='s')
                 # stick_time = str(sticks_frame['time'].iloc[-1])
                 atr_real = stream.ATR(sticks_frame.high, sticks_frame.low, sticks_frame.close, timeperiod=14)
-                price_per_pip = profit * lot / pip_profit
+                if pip_profit != 0:
+                    price_per_pip = profit * lot / pip_profit
 
                 if ptype == "Sell":  # if ordertype sell
-                    sl = sticks_frame.close.iloc[-2] + atr_real
+                    sl = sticks_frame.high.iloc[-2] + atr_real
                     # pip_sl = price_open - price_per_pip
                     # logger.info(f"atr_sl {sl} pip_sl {pip_sl}")
                     # if pip_profit > 4 and pip_sl < sl:
@@ -314,7 +314,7 @@ class AutoOrder:
                         else:
                             logger.info("position #{} SL Updated, {}".format(position_id, result))
                 elif ptype == 'Buy':  # if ordertype buy
-                    sl = sticks_frame.close.iloc[-2] - atr_real
+                    sl = sticks_frame.low.iloc[-2] - atr_real
                     # pip_sl = price_open + price_per_pip
                     # logger.info(f"atr_sl {sl} pip_sl {pip_sl}")
                     # if pip_profit > 4 and pip_sl > sl:

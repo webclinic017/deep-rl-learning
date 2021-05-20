@@ -58,5 +58,8 @@
   "SpotBrent" : {
     "lot": 0.1,
     "division": 100
+  },
+  "Bitcoin": {
+    "lot": 0.1
   }
 }
