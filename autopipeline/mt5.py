@@ -1,13 +1,10 @@
-import decimal
-import os
-import json
-import logging
+import numpy as np
 import pandas as pd
 import MetaTrader5 as mt5
-from talib import EMA, ATR, stream
-from pymongo import MongoClient
+from talib import EMA, stream, MACD
 from bson.objectid import ObjectId
 from utils import ST, logger
+from pymongo import MongoClient
 
 
 class AutoOrder:
@@ -19,7 +16,8 @@ class AutoOrder:
     # order_list = []
     client = MongoClient()
     db = client.stockprice
-    default_time_frame = mt5.TIMEFRAME_H1
+    # default_time_frame = mt5.TIMEFRAME_H1
+    default_time_frame = mt5.TIMEFRAME_M15
 
     def __init__(self):
         # establish connection to the MetaTrader 5 terminal
@@ -36,25 +34,48 @@ class AutoOrder:
         # self.close_order('USDCAD')  # type 0  Buy
         # self.close_order('AUDUSD')  # type 1  Sell
 
+    @staticmethod
+    def heikin_ashi(df):
+        heikin_ashi_df = pd.DataFrame(index=df.index.values, columns=['open', 'high', 'low', 'close'])
+
+        heikin_ashi_df['close'] = (df['open'] + df['high'] + df['low'] + df['close']) / 4
+
+        for i in range(len(df)):
+            if i == 0:
+                heikin_ashi_df.iat[0, 0] = df['open'].iloc[0]
+            else:
+                heikin_ashi_df.iat[i, 0] = (heikin_ashi_df.iat[i - 1, 0] + heikin_ashi_df.iat[i - 1, 3]) / 2
+
+        heikin_ashi_df['high'] = heikin_ashi_df.loc[:, ['open', 'close']].join(df['high']).max(axis=1)
+        heikin_ashi_df['low'] = heikin_ashi_df.loc[:, ['open', 'close']].join(df['low']).min(axis=1)
+        return heikin_ashi_df
+
     def get_frames(self, symbol):
         logger.info(f"Generate super trend for {symbol}")
         self.check_symbol(symbol)
         rates = mt5.copy_rates_from_pos(symbol, self.default_time_frame, 0, 300)
-        # Deinitializing MT5 connection
-
         # create DataFrame out of the obtained data
         rates_frame = pd.DataFrame(rates)
         # rates_frame['time'] = pd.to_datetime(rates_frame['time'], unit='s')
-        # display data
-        # print("\nDisplay dataframe with data")
-        # print(rates_frame)
-        # uses close prices (default)
-        stream_ema = stream.EMA(rates_frame.close, timeperiod=200)
-        rates_frame = rates_frame.dropna().reset_index(drop=True)
-        rates_frame = ST(rates_frame, f=3, n=12)
-        rates_frame = ST(rates_frame, f=1, n=10)
-        rates_frame = ST(rates_frame, f=2, n=11)
-        return rates_frame, stream_ema
+        df = self.heikin_ashi(rates_frame)
+        df['EMA_200'] = EMA(df.close, timeperiod=200)
+        df['EMA_50'] = EMA(df.close, timeperiod=50)
+        df['EMA_20'] = EMA(df.close, timeperiod=20)
+        df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
+        df = df.dropna().reset_index(drop=True)
+        df = ST(df, f=1, n=12)
+        df = ST(df, f=3, n=10)
+
+        # trend conditional
+        conditions = [
+            (df['SuperTrend310'] > df['close']) & (df['SuperTrend112'] > df['close']) & (
+                        df['HIST'] < df['HIST'].shift(3)),
+            (df['SuperTrend310'] < df['close']) & (df['SuperTrend112'] < df['close']) & (
+                        df['HIST'] > df['HIST'].shift(3))
+        ]
+        values = ['Sell', 'Buy']
+        df['Trend'] = np.select(conditions, values)
+        return df
 
     def save_frame(self, request):
         """
@@ -117,25 +138,25 @@ class AutoOrder:
 
         # send a trading request
         result = mt5.order_send(request)
-        logger.info("order_send done, ", result)
+        # logger.info("order_send done, ", result)
         # self.save_frame(request)
         # check the execution result
         logger.info("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
         logger.info(result)
-        # if result.retcode != mt5.TRADE_RETCODE_DONE:
-        #     print("2. order_send failed, retcode={}".format(result.retcode))
-        #     # request the result as a dictionary and display it element by element
-        #     result_dict = result._asdict()
-        #     for field in result_dict.keys():
-        #         print("   {}={}".format(field, result_dict[field]))
-        #         # if this is a trading request structure, display it element by element as well
-        #         if field == "request":
-        #             traderequest_dict = result_dict[field]._asdict()
-        #             for tradereq_filed in traderequest_dict:
-        #                 print("       traderequest: {}={}".format(tradereq_filed, traderequest_dict[tradereq_filed]))
-        #     print("shutdown() and quit")
-        #     mt5.shutdown()
-        #     quit()
+        if result.retcode != mt5.TRADE_RETCODE_DONE:
+            print("2. order_send failed, retcode={}".format(result.retcode))
+            # request the result as a dictionary and display it element by element
+            result_dict = result._asdict()
+            for field in result_dict.keys():
+                print("   {}={}".format(field, result_dict[field]))
+                # if this is a trading request structure, display it element by element as well
+                if field == "request":
+                    traderequest_dict = result_dict[field]._asdict()
+                    for tradereq_filed in traderequest_dict:
+                        print("       traderequest: {}={}".format(tradereq_filed, traderequest_dict[tradereq_filed]))
+            print("shutdown() and quit")
+            mt5.shutdown()
+            quit()
 
     def sell_order(self, symbol, lot, sl):
         self.check_symbol(symbol)
@@ -158,25 +179,25 @@ class AutoOrder:
 
         # send a trading request
         result = mt5.order_send(request)
-        logger.info("order_send done, ", result)
+        # logger.info(f"order_send done {result}")
         # self.save_frame(request)
         # check the execution result
         logger.info("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
         logger.info(result)
-        # if result.retcode != mt5.TRADE_RETCODE_DONE:
-        #     print("2. order_send failed, retcode={}".format(result.retcode))
-        #     # request the result as a dictionary and display it element by element
-        #     result_dict = result._asdict()
-        #     for field in result_dict.keys():
-        #         print("   {}={}".format(field, result_dict[field]))
-        #         # if this is a trading request structure, display it element by element as well
-        #         if field == "request":
-        #             traderequest_dict = result_dict[field]._asdict()
-        #             for tradereq_filed in traderequest_dict:
-        #                 print("       traderequest: {}={}".format(tradereq_filed, traderequest_dict[tradereq_filed]))
-        #     print("shutdown() and quit")
-        #     mt5.shutdown()
-        #     quit()
+        if result.retcode != mt5.TRADE_RETCODE_DONE:
+            print("2. order_send failed, retcode={}".format(result.retcode))
+            # request the result as a dictionary and display it element by element
+            result_dict = result._asdict()
+            for field in result_dict.keys():
+                print("   {}={}".format(field, result_dict[field]))
+                # if this is a trading request structure, display it element by element as well
+                if field == "request":
+                    traderequest_dict = result_dict[field]._asdict()
+                    for tradereq_filed in traderequest_dict:
+                        print("       traderequest: {}={}".format(tradereq_filed, traderequest_dict[tradereq_filed]))
+            print("shutdown() and quit")
+            mt5.shutdown()
+            quit()
 
     def close_order(self, symbol):
         # create a close request
@@ -341,21 +362,31 @@ class AutoOrder:
                         else:
                             logger.info("position #{} SL Updated, {}".format(position_id, result))
 
-    def check_order_exist(self, order_symbol: str, order_type: str) -> bool:
+    @staticmethod
+    def check_order_exist(order_symbol: str, order_type: str) -> bool:
+        """
+        order_symbol: str required
+            example: Bitcoin
+        order_type: str require
+            example: Buy
+
+        return:
+            True if exist order
+            False if not exist
+        """
         positions = mt5.positions_get()
         if len(positions) > 0:
-            # print("Total positions",":",len(positions))
+            logger.info(f"Total positions: {len(positions)}")
             # display all active orders
             for position in positions:
                 symbol = position.symbol
+                position_type = None
                 if position.type == 0:
-                    ptype = "Buy"
-                elif position.type == 1:
-                    ptype = "Sell"
-                else:
-                    ptype = None
+                    position_type = "Buy"
+                if position.type == 1:
+                    position_type = "Sell"
 
-                if symbol == order_symbol and order_type == ptype:
+                if symbol == order_symbol and order_type == position_type:
                     logger.info(f"{order_symbol} {order_type} exist")
                     return True
         return False

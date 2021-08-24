@@ -3,10 +3,6 @@
     "lot": 0.1,
     "division": 100
   },
-  "XTIUSD" : {
-    "lot": 0.1,
-    "division": 100
-  },
   "EURUSD" : {
     "lot": 0.1,
     "division": 100000
@@ -50,10 +46,6 @@
   "EURGBP" : {
     "lot": 0.1,
     "division": 100000
-  },
-  "NatGas" : {
-    "lot": 0.1,
-    "division": 100
   },
   "SpotBrent" : {
     "lot": 0.1,

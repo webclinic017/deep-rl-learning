@@ -5,7 +5,7 @@ from datetime import datetime
 
 import schedule
 from mt5 import AutoOrder
-from utils import get_trend, logger
+from utils import logger
 mt5_client = AutoOrder()
 
 
@@ -13,8 +13,11 @@ def scheduler_job():
     """Shows basic usage of the Gmail API.
     Lists the user's Gmail labels.
     """
+    if datetime.now().minute not in {0, 15, 30, 45}:
+        return
+
     logger.info(f"Start job at: {datetime.now()}")
-    logger.info("-"*50)
+    logger.info("="*50)
     with open("config.json") as config_file:
         config = json.load(config_file)
 
@@ -22,42 +25,33 @@ def scheduler_job():
         # symbol_name = "NAS100"
         lot = value.get('lot')
         try:
-            df, ema_200 = mt5_client.get_frames(symbol_name)
+            df = mt5_client.get_frames(symbol_name)
         except Exception as ex:
-            logger.error(ex)
+            logger.error(f"Get frames errors: {ex}")
             continue
 
-        close_p = float(df.close.tail(1))
-        high_p = float(df.high.tail(1))
-        low_p = float(df.low.tail(1))
-        atr = float(df.ATR.tail(1))
-        sp_trend_1 = float(df.SuperTrend312.tail(1))
-        sp_trend_2 = float(df.SuperTrend110.tail(1))
-        sp_trend_3 = float(df.SuperTrend211.tail(1))
-        current_trend = get_trend(close_p, sp_trend_1, sp_trend_2, sp_trend_3)
+        high_p = df.high.iat[-1]
+        low_p = df.low.iat[-1]
+        atr = df.ATR.iat[-1]
+        current_trend = df.Trend.iat[-1]
         order_placed = mt5_client.check_order_exist(symbol_name, current_trend)
+        # do not place an order if the symbol order is placed to Metatrader
         if current_trend == "Buy" and not order_placed:
-            # TODO Query all sell order and close
-            # TODO put a new order, stop loss is close_p - atr
             mt5_client.close_order(symbol_name)  # close all open positions
-            if close_p > ema_200:
-                sl = low_p - atr
-                mt5_client.buy_order(symbol_name, lot=lot, sl=sl)  # default tp at 1000 pips
+            sl = low_p - atr
+            mt5_client.buy_order(symbol_name, lot=lot, sl=sl)  # default tp at 1000 pips
         elif current_trend == 'Sell' and not order_placed:
-            # TODO Query all sell order and close
-            # TODO put a new order, stop loss is close_p + atr
             mt5_client.close_order(symbol_name)  # close all open positions
-            if close_p < ema_200:
-                sl = high_p + atr
-                mt5_client.sell_order(symbol_name, lot=lot, sl=sl)  # default tp at 1000 pips
-        else:
-            mt5_client.modify_stoploss()
+            sl = high_p + atr
+            mt5_client.sell_order(symbol_name, lot=lot, sl=sl)  # default tp at 1000 pips
+        # else:
+        #     mt5_client.modify_stoploss()
 
 
 if __name__ == '__main__':
     # Run job every hour at the 42rd minute
     scheduler_job()
-    schedule.every().hour.at(":00").do(scheduler_job)
+    schedule.every().minutes.do(scheduler_job)
     while True:
         schedule.run_pending()
         time.sleep(1)
