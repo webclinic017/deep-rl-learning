@@ -16,8 +16,8 @@ class AutoOrder:
     # order_list = []
     client = MongoClient()
     db = client.stockprice
-    # default_time_frame = mt5.TIMEFRAME_H1
-    default_time_frame = mt5.TIMEFRAME_M15
+    default_time_frame = mt5.TIMEFRAME_H1
+    # default_time_frame = mt5.TIMEFRAME_M15
 
     def __init__(self):
         # establish connection to the MetaTrader 5 terminal

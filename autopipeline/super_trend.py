@@ -13,8 +13,8 @@ def scheduler_job():
     """Shows basic usage of the Gmail API.
     Lists the user's Gmail labels.
     """
-    if datetime.now().minute not in {0, 15, 30, 45}:
-        return
+    # if datetime.now().minute not in {0, 15, 30, 45}:
+    #     return
 
     logger.info(f"Start job at: {datetime.now()}")
     logger.info("="*50)
@@ -55,7 +55,7 @@ def scheduler_job():
 if __name__ == '__main__':
     # Run job every hour at the 42rd minute
     scheduler_job()
-    schedule.every().minutes.do(scheduler_job)
+    schedule.every().hours.do(scheduler_job)
     while True:
         schedule.run_pending()
         time.sleep(1)
