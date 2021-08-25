@@ -22,7 +22,7 @@ def scheduler_job():
         config = json.load(config_file)
 
     for symbol_name, value in zip(config.keys(), config.values()):
-        # symbol_name = "NAS100"
+        # symbol_name = "Bitcoin"
         lot = value.get('lot')
         factor = 2
         try:
@@ -55,7 +55,7 @@ def scheduler_job():
 if __name__ == '__main__':
     # Run job every hour at the 42rd minute
     scheduler_job()
-    schedule.every().hours.do(scheduler_job)
+    schedule.every(1).hours.at(":00").do(scheduler_job)
     while True:
         schedule.run_pending()
         time.sleep(1)
