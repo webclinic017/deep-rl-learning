@@ -9,8 +9,8 @@ from pymongo import MongoClient
 
 class AutoOrder:
     # display data on the MetaTrader 5 package
-    logger.info("MetaTrader5 package author: ", mt5.__author__)
-    logger.info("MetaTrader5 package version: ", mt5.__version__)
+    logger.info(f"MetaTrader5 package author: {mt5.__author__}")
+    logger.info(f"MetaTrader5 package version: {mt5.__version__}")
     lot = 0.1
     position_id = None
     # order_list = []
@@ -22,7 +22,7 @@ class AutoOrder:
     def __init__(self):
         # establish connection to the MetaTrader 5 terminal
         if not mt5.initialize():
-            logger.info("initialize() failed, error code =", mt5.last_error())
+            logger.info(f"initialize() failed, error code = {mt5.last_error()}", )
             quit()
 
         # orders = mt5.positions_get(symbol='USDCAD')
@@ -117,7 +117,7 @@ class AutoOrder:
                 mt5.shutdown()
                 quit()
 
-    def buy_order(self, symbol, lot, sl):
+    def buy_order(self, symbol, lot, sl, tp):
         self.check_symbol(symbol)
         point = mt5.symbol_info(symbol).point
         price = mt5.symbol_info_tick(symbol).ask
@@ -129,6 +129,7 @@ class AutoOrder:
             "type": mt5.ORDER_TYPE_BUY,
             "price": price,
             "sl": sl,
+            "tp": tp,
             "deviation": deviation,
             "magic": 234000,
             "comment": "Buy",
@@ -158,7 +159,7 @@ class AutoOrder:
             mt5.shutdown()
             quit()
 
-    def sell_order(self, symbol, lot, sl):
+    def sell_order(self, symbol, lot, sl, tp):
         self.check_symbol(symbol)
         point = mt5.symbol_info(symbol).point
         price = mt5.symbol_info_tick(symbol).bid
@@ -170,6 +171,7 @@ class AutoOrder:
             "type": mt5.ORDER_TYPE_SELL,
             "price": price,
             "sl": sl,
+            "tp": tp,
             "deviation": deviation,
             "magic": 234000,
             "comment": "Sell",
@@ -212,9 +214,9 @@ class AutoOrder:
             for order in orders:
                 position_id = order.identifier
                 order_type = order.type
+                deviation = 20
                 if order_type == 1:
                     price = mt5.symbol_info_tick(symbol).bid
-                    deviation = 20
                     request = {
                         "action": mt5.TRADE_ACTION_DEAL,
                         "symbol": symbol,
@@ -230,7 +232,6 @@ class AutoOrder:
                     }
                 elif order_type == 0:
                     price = mt5.symbol_info_tick(symbol).ask
-                    deviation = 20
                     request = {
                         "action": mt5.TRADE_ACTION_DEAL,
                         "symbol": symbol,
@@ -256,21 +257,21 @@ class AutoOrder:
                                                                                                 self.lot, price,
                                                                                                 deviation))
                 # if result:
-                #     if result.retcode != mt5.TRADE_RETCODE_DONE:
-                #         print("order_send failed, retcode={}".format(result.retcode))
-                #         print("   result", result)
-                #     else:
-                #         print("position #{} closed, {}".format(position_id, result))
-                #         # request the result as a dictionary and display it element by element
-                #         result_dict = result._asdict()
-                #         for field in result_dict.keys():
-                #             print("   {}={}".format(field, result_dict[field]))
-                #             # if this is a trading request structure, display it element by element as well
-                #             if field == "request":
-                #                 traderequest_dict = result_dict[field]._asdict()
-                #                 for tradereq_filed in traderequest_dict:
-                #                     print("       traderequest: {}={}".format(tradereq_filed,
-                #                                                               traderequest_dict[tradereq_filed]))
+                if result.retcode != mt5.TRADE_RETCODE_DONE:
+                    logger.error("order_send failed, retcode={}".format(result.retcode))
+                    logger.error("   result", result)
+                else:
+                    logger.error("position #{} closed, {}".format(position_id, result))
+                    # request the result as a dictionary and display it element by element
+                    result_dict = result._asdict()
+                    for field in result_dict.keys():
+                        logger.error("   {}={}".format(field, result_dict[field]))
+                        # if this is a trading request structure, display it element by element as well
+                        if field == "request":
+                            traderequest_dict = result_dict[field]._asdict()
+                            for tradereq_filed in traderequest_dict:
+                                logger.error("       traderequest: {}={}".format(tradereq_filed,
+                                                                          traderequest_dict[tradereq_filed]))
 
     def modify_stoploss(self):
         positions = mt5.positions_get()

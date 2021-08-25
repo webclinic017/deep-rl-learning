@@ -24,6 +24,7 @@ def scheduler_job():
     for symbol_name, value in zip(config.keys(), config.values()):
         # symbol_name = "NAS100"
         lot = value.get('lot')
+        factor = 2
         try:
             df = mt5_client.get_frames(symbol_name)
         except Exception as ex:
@@ -32,6 +33,7 @@ def scheduler_job():
 
         high_p = df.high.iat[-1]
         low_p = df.low.iat[-1]
+        close_p = df.close.iat[-1]
         atr = df.ATR.iat[-1]
         current_trend = df.Trend.iat[-1]
         order_placed = mt5_client.check_order_exist(symbol_name, current_trend)
@@ -39,11 +41,13 @@ def scheduler_job():
         if current_trend == "Buy" and not order_placed:
             mt5_client.close_order(symbol_name)  # close all open positions
             sl = low_p - atr
-            mt5_client.buy_order(symbol_name, lot=lot, sl=sl)  # default tp at 1000 pips
+            tp = close_p + (factor * atr)  # ROE=2
+            mt5_client.buy_order(symbol_name, lot=lot, sl=sl, tp=tp)  # default tp at 1000 pips
         elif current_trend == 'Sell' and not order_placed:
             mt5_client.close_order(symbol_name)  # close all open positions
             sl = high_p + atr
-            mt5_client.sell_order(symbol_name, lot=lot, sl=sl)  # default tp at 1000 pips
+            tp = close_p - (factor * atr)  # ROE=2
+            mt5_client.sell_order(symbol_name, lot=lot, sl=sl, tp=tp)  # default tp at 1000 pips
         # else:
         #     mt5_client.modify_stoploss()
 
