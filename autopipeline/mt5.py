@@ -58,9 +58,9 @@ class AutoOrder:
         rates_frame = pd.DataFrame(rates)
         # rates_frame['time'] = pd.to_datetime(rates_frame['time'], unit='s')
         df = self.heikin_ashi(rates_frame)
-        df['EMA_200'] = EMA(df.close, timeperiod=200)
-        df['EMA_50'] = EMA(df.close, timeperiod=50)
-        df['EMA_20'] = EMA(df.close, timeperiod=20)
+        # df['EMA_200'] = EMA(df.close, timeperiod=200)
+        # df['EMA_50'] = EMA(df.close, timeperiod=50)
+        # df['EMA_20'] = EMA(df.close, timeperiod=20)
         df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
         df = df.dropna().reset_index(drop=True)
         df = ST(df, f=1, n=12)
@@ -156,8 +156,8 @@ class AutoOrder:
                     for tradereq_filed in traderequest_dict:
                         print("       traderequest: {}={}".format(tradereq_filed, traderequest_dict[tradereq_filed]))
             print("shutdown() and quit")
-            mt5.shutdown()
-            quit()
+            # mt5.shutdown()
+            # quit()
 
     def sell_order(self, symbol, lot, sl, tp):
         self.check_symbol(symbol)
@@ -198,8 +198,8 @@ class AutoOrder:
                     for tradereq_filed in traderequest_dict:
                         print("       traderequest: {}={}".format(tradereq_filed, traderequest_dict[tradereq_filed]))
             print("shutdown() and quit")
-            mt5.shutdown()
-            quit()
+            # mt5.shutdown()
+            # quit()
 
     def close_order(self, symbol):
         # create a close request
@@ -214,6 +214,7 @@ class AutoOrder:
             for order in orders:
                 position_id = order.identifier
                 order_type = order.type
+                profit = order.profit
                 deviation = 20
                 if order_type == 1:
                     price = mt5.symbol_info_tick(symbol).bid
@@ -252,26 +253,23 @@ class AutoOrder:
                 # send a trading request
                 result = mt5.order_send(request)
                 # check the execution result
-                logger.info(
-                    "close position #{}: sell {} {} lots at {} with deviation={} points".format(position_id, symbol,
-                                                                                                self.lot, price,
-                                                                                                deviation))
+                logger.info("close position #{}: symbol {} profit {}".format(position_id, symbol, profit))
                 # if result:
-                if result.retcode != mt5.TRADE_RETCODE_DONE:
-                    logger.error("order_send failed, retcode={}".format(result.retcode))
-                    logger.error("   result", result)
-                else:
-                    logger.error("position #{} closed, {}".format(position_id, result))
-                    # request the result as a dictionary and display it element by element
-                    result_dict = result._asdict()
-                    for field in result_dict.keys():
-                        logger.error("   {}={}".format(field, result_dict[field]))
-                        # if this is a trading request structure, display it element by element as well
-                        if field == "request":
-                            traderequest_dict = result_dict[field]._asdict()
-                            for tradereq_filed in traderequest_dict:
-                                logger.error("       traderequest: {}={}".format(tradereq_filed,
-                                                                          traderequest_dict[tradereq_filed]))
+                # if result.retcode != mt5.TRADE_RETCODE_DONE:
+                #     logger.error("order_send failed, retcode={}".format(result.retcode))
+                #     logger.error("   result", result)
+                # else:
+                #     # logger.error("position #{} closed, {}".format(position_id, result))
+                #     # request the result as a dictionary and display it element by element
+                #     result_dict = result._asdict()
+                #     for field in result_dict.keys():
+                #         logger.info("   {}={}".format(field, result_dict[field]))
+                #         # if this is a trading request structure, display it element by element as well
+                #         if field == "request":
+                #             traderequest_dict = result_dict[field]._asdict()
+                #             for tradereq_filed in traderequest_dict:
+                #                 logger.info("       traderequest: {}={}".format(tradereq_filed,
+                #                                                           traderequest_dict[tradereq_filed]))
 
     def modify_stoploss(self):
         positions = mt5.positions_get()
