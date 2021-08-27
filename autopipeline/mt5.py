@@ -69,13 +69,13 @@ class AutoOrder:
 
         # trend conditional
         conditions = [
-            (df['SuperTrend112'] > df['Close']) & (df['SuperTrend211'] > df['Close']) & (
+            (df['SuperTrend112'] > df['close']) & (df['SuperTrend211'] > df['close']) & (
                         df['HIST'] < df['HIST'].shift(3)) & (df['HIST'] < 0),
-            (df['SuperTrend112'] < df['Close']) & (df['SuperTrend211'] < df['Close']) & (
+            (df['SuperTrend112'] < df['close']) & (df['SuperTrend211'] < df['close']) & (
                         df['HIST'] > df['HIST'].shift(3)) & (df['HIST'] > 0),
-            (df['SuperTrend112'] < df['Close']) & (df['SuperTrend211'] > df['Close']) & (
+            (df['SuperTrend112'] < df['close']) & (df['SuperTrend211'] > df['close']) & (
                         df['HIST'] > df['HIST'].shift(3)),
-            (df['SuperTrend112'] > df['Close']) & (df['SuperTrend211'] < df['Close']) & (
+            (df['SuperTrend112'] > df['close']) & (df['SuperTrend211'] < df['close']) & (
                         df['HIST'] < df['HIST'].shift(3))
         ]
         values = ['Sell', 'Buy', 'Close', 'Close']
@@ -204,7 +204,7 @@ class AutoOrder:
 
     def close_order(self, symbol):
         # create a close request
-        logger.info("Close order")
+        logger.info("close order")
         # display data on active orders on GBPUSD
         orders = mt5.positions_get(symbol=symbol)
         if orders is None:
@@ -331,7 +331,7 @@ class AutoOrder:
                         logger.info("SL SELL update sent on position #{}: {} {} lots".format(position_id, symbol, lot))
                         if result.retcode != mt5.TRADE_RETCODE_DONE:
                             logger.info("order_send failed, retcode={}".format(result.retcode))
-                            logger.info("result", result)
+                            logger.info(f"result: {result}")
                         else:
                             logger.info("position #{} SL Updated, {}".format(position_id, result))
                 elif ptype == 'Buy':  # if ordertype buy
@@ -358,7 +358,7 @@ class AutoOrder:
                         logger.info("SL BUY update sent on position #{}: {} {} lots".format(position_id, symbol, lot))
                         if result.retcode != mt5.TRADE_RETCODE_DONE:
                             logger.info("order_send failed, retcode={}".format(result.retcode))
-                            logger.info("result", result)
+                            logger.info(f"result: {result}")
                         else:
                             logger.info("position #{} SL Updated, {}".format(position_id, result))
 
