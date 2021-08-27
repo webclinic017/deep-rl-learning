@@ -65,15 +65,20 @@ class AutoOrder:
         df = df.dropna().reset_index(drop=True)
         df = ST(df, f=1, n=12)
         df = ST(df, f=3, n=10)
+        df = ST(df, f=2, n=11)
 
         # trend conditional
         conditions = [
-            (df['SuperTrend310'] > df['close']) & (df['SuperTrend112'] > df['close']) & (
-                        df['HIST'] < df['HIST'].shift(3)),
-            (df['SuperTrend310'] < df['close']) & (df['SuperTrend112'] < df['close']) & (
-                        df['HIST'] > df['HIST'].shift(3))
+            (df['SuperTrend112'] > df['Close']) & (df['SuperTrend211'] > df['Close']) & (
+                        df['HIST'] < df['HIST'].shift(3)) & (df['HIST'] < 0),
+            (df['SuperTrend112'] < df['Close']) & (df['SuperTrend211'] < df['Close']) & (
+                        df['HIST'] > df['HIST'].shift(3)) & (df['HIST'] > 0),
+            (df['SuperTrend112'] < df['Close']) & (df['SuperTrend211'] > df['Close']) & (
+                        df['HIST'] > df['HIST'].shift(3)),
+            (df['SuperTrend112'] > df['Close']) & (df['SuperTrend211'] < df['Close']) & (
+                        df['HIST'] < df['HIST'].shift(3))
         ]
-        values = ['Sell', 'Buy']
+        values = ['Sell', 'Buy', 'Close', 'Close']
         df['Trend'] = np.select(conditions, values)
         return df
 
