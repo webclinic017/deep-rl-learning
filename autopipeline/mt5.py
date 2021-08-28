@@ -1,3 +1,4 @@
+import math
 import numpy as np
 import pandas as pd
 import MetaTrader5 as mt5
@@ -272,95 +273,87 @@ class AutoOrder:
                 #                 logger.info("       traderequest: {}={}".format(tradereq_filed,
                 #                                                           traderequest_dict[tradereq_filed]))
 
-    def modify_stoploss(self):
-        positions = mt5.positions_get()
-        if len(positions) > 0:
-            # print("Total positions",":",len(positions))
-            # display all active orders
-            for position in positions:
-                symbol = position.symbol
-                price_open = position.price_open
-                price_current = position.price_current
-                lot = position.volume
-                prev_sl = position.sl
-                position_id = position.identifier
-                profit = position.profit
-                diff = 0
-                pip_profit = 0
-                ptype = None
-                if position.type == 0:
-                    ptype = "Buy"
-                    diff = price_current - price_open
-                    if diff != 0:
-                        pip_profit = (diff * profit * lot) / diff
-                elif position.type == 1:
-                    ptype = "Sell"
-                    diff = price_open - price_current
-                    if diff != 0:
-                        pip_profit = diff * profit * lot / diff
-                # print("id:", position.identifier, ptype, position.profit, position.volume)
-                sticks = mt5.copy_rates_from_pos(symbol, self.default_time_frame, 0, 70)
-                sticks_frame = pd.DataFrame(sticks)
-                # sticks_frame['time'] = pd.to_datetime(sticks_frame['time'], unit='s')
-                # stick_time = str(sticks_frame['time'].iloc[-1])
-                atr_real = stream.ATR(sticks_frame.high, sticks_frame.low, sticks_frame.close, timeperiod=14)
-                if pip_profit != 0:
-                    price_per_pip = profit * lot / pip_profit
+    def modify_stoploss(self, symbol, sl):
+        positions = mt5.positions_get(symbol=symbol)
+        # print("Total positions",":",len(positions))
+        # display all active orders
+        for position in positions:
+            symbol = position.symbol
+            symbol_info = mt5.symbol_info(symbol)
+            price_open = position.price_open
+            price_current = position.price_current
+            lot = position.volume
+            prev_sl = position.sl
+            position_id = position.identifier
+            profit = position.profit
+            comment = position.comment
+            diff = 0
+            pip_profit = 0
+            ptype = None
+            if position.type == 0:
+                ptype = "Buy"
+                diff = price_current - price_open
+                pip_profit = diff / profit
+            elif position.type == 1:
+                ptype = "Sell"
+                diff = price_open - price_current
+                pip_profit = diff / profit
 
-                if ptype == "Sell":  # if ordertype sell
-                    sl = sticks_frame.high.iloc[-2] + atr_real
-                    # pip_sl = price_open - price_per_pip
-                    # logger.info(f"atr_sl {sl} pip_sl {pip_sl}")
-                    # if pip_profit > 4 and pip_sl < sl:
-                    #     sl = pip_sl
+            if ptype == "Sell":  # if ordertype sell
+                # digits = mt5.symbol_info(position.symbol).digits
+                # sl = price_open - (5 * pip_profit)  # keep 5 pips
+                # pip_sl = price_open - price_per_pip
+                # logger.info(f"atr_sl {sl} pip_sl {pip_sl}")
+                # if pip_profit > 4 and pip_sl < sl:
+                #     sl = pip_sl
+                if prev_sl > sl or prev_sl == 0:
+                    request = {
+                        "action": mt5.TRADE_ACTION_SLTP,
+                        "position": position_id,
+                        "sl": sl,
+                        "comment": f"python trailing sl",
+                        "deviation": 20,
+                        "type_time": mt5.ORDER_TIME_GTC,
+                        "type_filling": mt5.ORDER_FILLING_RETURN,
+                        "volume": position.volume
+                    }
+                    # send a trading request
+                    result = mt5.order_send(request)
+                    # check the execution result
+                    logger.info("SL SELL update sent on position #{}: {} {} lots".format(position_id, symbol, lot))
+                    if result.retcode != mt5.TRADE_RETCODE_DONE:
+                        logger.info("order_send failed, retcode={}".format(result.retcode))
+                        logger.info(f"result: {result}")
+                    else:
+                        logger.info("position #{} SL Updated, {}".format(position_id, result))
+            elif ptype == 'Buy':  # if ordertype buy
+                # digits = mt5.symbol_info(position.symbol).digits
+                # sl = price_open + (5 * pip_profit)  # keep 5 pips
+                # pip_sl = price_open + price_per_pip
+                # logger.info(f"atr_sl {sl} pip_sl {pip_sl}")
+                # if pip_profit > 4 and pip_sl > sl:
+                #     sl = pip_sl
 
-                    if prev_sl > sl or prev_sl == 0:
-                        request = {
-                            "action": mt5.TRADE_ACTION_SLTP,
-                            "position": position_id,
-                            "sl": sl,
-                            "comment": f"python trailing sl",
-                            "deviation": 20,
-                            "type_time": mt5.ORDER_TIME_GTC,
-                            "type_filling": mt5.ORDER_FILLING_RETURN,
-                            "volume": position.volume
-                        }
-                        # send a trading request
-                        result = mt5.order_send(request)
-                        # check the execution result
-                        logger.info("SL SELL update sent on position #{}: {} {} lots".format(position_id, symbol, lot))
-                        if result.retcode != mt5.TRADE_RETCODE_DONE:
-                            logger.info("order_send failed, retcode={}".format(result.retcode))
-                            logger.info(f"result: {result}")
-                        else:
-                            logger.info("position #{} SL Updated, {}".format(position_id, result))
-                elif ptype == 'Buy':  # if ordertype buy
-                    sl = sticks_frame.low.iloc[-2] - atr_real
-                    # pip_sl = price_open + price_per_pip
-                    # logger.info(f"atr_sl {sl} pip_sl {pip_sl}")
-                    # if pip_profit > 4 and pip_sl > sl:
-                    #     sl = pip_sl
-
-                    if prev_sl < sl or prev_sl == 0:
-                        request = {
-                            "action": mt5.TRADE_ACTION_SLTP,
-                            "position": position_id,
-                            "sl": sl,
-                            "comment": f"python trailing sl",
-                            "deviation": 20,
-                            "type_time": mt5.ORDER_TIME_GTC,
-                            "type_filling": mt5.ORDER_FILLING_RETURN,
-                            "volume": position.volume
-                        }
-                        # send a trading request
-                        result = mt5.order_send(request)
-                        # check the execution result
-                        logger.info("SL BUY update sent on position #{}: {} {} lots".format(position_id, symbol, lot))
-                        if result.retcode != mt5.TRADE_RETCODE_DONE:
-                            logger.info("order_send failed, retcode={}".format(result.retcode))
-                            logger.info(f"result: {result}")
-                        else:
-                            logger.info("position #{} SL Updated, {}".format(position_id, result))
+                if prev_sl < sl or prev_sl == 0:
+                    request = {
+                        "action": mt5.TRADE_ACTION_SLTP,
+                        "position": position_id,
+                        "sl": sl,
+                        "comment": f"python trailing sl",
+                        "deviation": 20,
+                        "type_time": mt5.ORDER_TIME_GTC,
+                        "type_filling": mt5.ORDER_FILLING_RETURN,
+                        "volume": position.volume
+                    }
+                    # send a trading request
+                    result = mt5.order_send(request)
+                    # check the execution result
+                    logger.info("SL BUY update sent on position #{}: {} {} lots".format(position_id, symbol, lot))
+                    if result.retcode != mt5.TRADE_RETCODE_DONE:
+                        logger.info("order_send failed, retcode={}".format(result.retcode))
+                        logger.info(f"result: {result}")
+                    else:
+                        logger.info("position #{} SL Updated, {}".format(position_id, result))
 
     @staticmethod
     def check_order_exist(order_symbol: str, order_type: str) -> bool:

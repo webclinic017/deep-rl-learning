@@ -13,8 +13,8 @@ def scheduler_job():
     """Shows basic usage of the Gmail API.
     Lists the user's Gmail labels.
     """
-    if datetime.now().minute not in {0, 15, 30, 45}:
-        return
+    # if datetime.now().minute not in {0, 15, 30, 45}:
+    #     return
 
     logger.info(f"Start job at: {datetime.now()}")
     logger.info("="*50)
@@ -36,6 +36,7 @@ def scheduler_job():
         close_p = df.close.iat[-1]
         atr = df.ATR.iat[-1]
         current_trend = df.Trend.iat[-1]
+        stop_loss = df.SuperTrend211.iat[-1]
         order_placed = mt5_client.check_order_exist(symbol_name, current_trend)
         # do not place an order if the symbol order is placed to Metatrader
         if current_trend == "Buy" and not order_placed:
@@ -51,11 +52,15 @@ def scheduler_job():
         elif current_trend == "Close" and order_placed:
             mt5_client.close_order(symbol_name)  # close all open positions of the symbol_name
 
+        if order_placed:
+            # modify stoploss for the order
+            mt5_client.modify_stoploss(symbol_name, stop_loss)
+
 
 if __name__ == '__main__':
     # Run job every hour at the 42rd minute
-    scheduler_job()
-    schedule.every().minutes.do(scheduler_job)
+    # scheduler_job()
+    schedule.every().hours.at(":00").do(scheduler_job)
     while True:
         schedule.run_pending()
         time.sleep(1)
