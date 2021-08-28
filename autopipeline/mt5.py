@@ -367,19 +367,21 @@ class AutoOrder:
             True if exist order
             False if not exist
         """
-        positions = mt5.positions_get()
+        positions = mt5.positions_get(symbol=order_symbol)
         if len(positions) > 0:
-            logger.info(f"Total positions: {len(positions)}")
-            # display all active orders
-            for position in positions:
-                symbol = position.symbol
-                position_type = None
-                if position.type == 0:
-                    position_type = "Buy"
-                if position.type == 1:
-                    position_type = "Sell"
+            return True
 
-                if symbol == order_symbol and (order_type == position_type or order_type == "Close"):
-                    logger.info(f"{order_symbol} {order_type} exist")
-                    return True
+        #     logger.info(f"Total positions: {len(positions)}")
+        #     # display all active orders
+        #     for position in positions:
+        #         symbol = position.symbol
+        #         position_type = None
+        #         if position.type == 0:
+        #             position_type = "Buy"
+        #         if position.type == 1:
+        #             position_type = "Sell"
+        #
+        #         if symbol == order_symbol and (order_type == position_type or order_type == "Close"):
+        #             logger.info(f"{order_symbol} {order_type} exist")
+        #             return True
         return False

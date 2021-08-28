@@ -49,17 +49,16 @@ def scheduler_job():
             sl = high_p + atr
             tp = close_p - (factor * atr)  # ROE=2
             mt5_client.sell_order(symbol_name, lot=lot, sl=sl, tp=tp)  # default tp at 1000 pips
-        elif current_trend == "Close":
+        elif current_trend == "Close" and order_placed:
             mt5_client.close_order(symbol_name)  # close all open positions of the symbol_name
 
         if order_placed:
-            # modify stoploss for the order
             mt5_client.modify_stoploss(symbol_name, stop_loss)
 
 
 if __name__ == '__main__':
     # Run job every hour at the 42rd minute
-    # scheduler_job()
+    scheduler_job()
     schedule.every().hours.at(":00").do(scheduler_job)
     while True:
         schedule.run_pending()
