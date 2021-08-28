@@ -379,7 +379,7 @@ class AutoOrder:
                 if position.type == 1:
                     position_type = "Sell"
 
-                if symbol == order_symbol and order_type == position_type:
+                if symbol == order_symbol and (order_type == position_type or order_type == "Close"):
                     logger.info(f"{order_symbol} {order_type} exist")
                     return True
         return False
