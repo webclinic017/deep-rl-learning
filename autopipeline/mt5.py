@@ -134,6 +134,7 @@ class AutoOrder:
             "volume": lot,
             "type": mt5.ORDER_TYPE_BUY,
             "price": price,
+            "sl": sl,
             "deviation": deviation,
             "magic": 234000,
             "comment": "Buy",
@@ -174,6 +175,7 @@ class AutoOrder:
             "volume": lot,
             "type": mt5.ORDER_TYPE_SELL,
             "price": price,
+            "sl": sl,
             "deviation": deviation,
             "magic": 234000,
             "comment": "Sell",
@@ -306,7 +308,7 @@ class AutoOrder:
                 # logger.info(f"atr_sl {sl} pip_sl {pip_sl}")
                 # if pip_profit > 4 and pip_sl < sl:
                 #     sl = pip_sl
-                if prev_sl > sl or prev_sl == 0:
+                if sl < prev_sl or prev_sl == 0:
                     request = {
                         "action": mt5.TRADE_ACTION_SLTP,
                         "position": position_id,
@@ -325,7 +327,7 @@ class AutoOrder:
                         logger.info("order_send failed, retcode={}".format(result.retcode))
                         logger.info(f"result: {result}")
                     else:
-                        logger.info("position #{} SL Updated, {}".format(position_id, result))
+                        logger.info("position #{} SL Updated at: {}".format(position_id, sl))
             elif ptype == 'Buy':  # if ordertype buy
                 # digits = mt5.symbol_info(position.symbol).digits
                 # sl = price_open + (5 * pip_profit)  # keep 5 pips
@@ -334,7 +336,7 @@ class AutoOrder:
                 # if pip_profit > 4 and pip_sl > sl:
                 #     sl = pip_sl
 
-                if prev_sl < sl or prev_sl == 0:
+                if sl > prev_sl or prev_sl == 0:
                     request = {
                         "action": mt5.TRADE_ACTION_SLTP,
                         "position": position_id,
@@ -353,7 +355,7 @@ class AutoOrder:
                         logger.info("order_send failed, retcode={}".format(result.retcode))
                         logger.info(f"result: {result}")
                     else:
-                        logger.info("position #{} SL Updated, {}".format(position_id, result))
+                        logger.info("position #{} SL Updated at: {}".format(position_id, sl))
 
     @staticmethod
     def check_order_exist(order_symbol: str, order_type: str) -> bool:
@@ -368,20 +370,17 @@ class AutoOrder:
             False if not exist
         """
         positions = mt5.positions_get(symbol=order_symbol)
-        if len(positions) > 0:
-            return True
+        # logger.info(f"Total positions: {len(positions)}")
+        # display all active orders
+        for position in positions:
+            symbol = position.symbol
+            position_type = None
+            if position.type == 0:
+                position_type = "Buy"
+            if position.type == 1:
+                position_type = "Sell"
 
-        #     logger.info(f"Total positions: {len(positions)}")
-        #     # display all active orders
-        #     for position in positions:
-        #         symbol = position.symbol
-        #         position_type = None
-        #         if position.type == 0:
-        #             position_type = "Buy"
-        #         if position.type == 1:
-        #             position_type = "Sell"
-        #
-        #         if symbol == order_symbol and (order_type == position_type or order_type == "Close"):
-        #             logger.info(f"{order_symbol} {order_type} exist")
-        #             return True
+            if order_type == position_type:
+                logger.info(f"{order_symbol} {order_type} exist")
+                return True
         return False

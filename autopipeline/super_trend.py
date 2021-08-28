@@ -37,22 +37,21 @@ def scheduler_job():
         atr = df.ATR.iat[-1]
         current_trend = df.Trend.iat[-1]
         stop_loss = df.SuperTrend211.iat[-1]
-        order_placed = mt5_client.check_order_exist(symbol_name, current_trend)
+        order_exist = mt5_client.check_order_exist(symbol_name, current_trend)
         # do not place an order if the symbol order is placed to Metatrader
-        if current_trend == "Buy" and not order_placed:
+        if current_trend == "Buy" and not order_exist:
             mt5_client.close_order(symbol_name)  # close all open positions
             sl = low_p - atr
             tp = close_p + (factor * atr)  # ROE=2
-            mt5_client.buy_order(symbol_name, lot=lot, sl=sl, tp=tp)  # default tp at 1000 pips
-        elif current_trend == 'Sell' and not order_placed:
+            mt5_client.buy_order(symbol_name, lot=lot, sl=stop_loss, tp=tp)  # default tp at 1000 pips
+        elif current_trend == 'Sell' and not order_exist:
             mt5_client.close_order(symbol_name)  # close all open positions
             sl = high_p + atr
             tp = close_p - (factor * atr)  # ROE=2
-            mt5_client.sell_order(symbol_name, lot=lot, sl=sl, tp=tp)  # default tp at 1000 pips
-        elif current_trend == "Close" and order_placed:
+            mt5_client.sell_order(symbol_name, lot=lot, sl=stop_loss, tp=tp)  # default tp at 1000 pips
+        elif current_trend == "Close":
             mt5_client.close_order(symbol_name)  # close all open positions of the symbol_name
-
-        if order_placed:
+        if order_exist:
             mt5_client.modify_stoploss(symbol_name, stop_loss)
 
 
