@@ -49,7 +49,7 @@ def scheduler_job():
             sl = high_p + atr
             tp = close_p - (factor * atr)  # ROE=2
             mt5_client.sell_order(symbol_name, lot=lot, sl=sl, tp=tp)  # default tp at 1000 pips
-        elif current_trend == "Close" and order_placed:
+        elif current_trend == "Close":
             mt5_client.close_order(symbol_name)  # close all open positions of the symbol_name
 
         if order_placed:
