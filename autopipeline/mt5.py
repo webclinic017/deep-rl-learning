@@ -295,11 +295,11 @@ class AutoOrder:
             if position.type == 0:
                 ptype = "Buy"
                 diff = price_current - price_open
-                pip_profit = diff / profit
+                # pip_profit = diff / profit
             elif position.type == 1:
                 ptype = "Sell"
                 diff = price_open - price_current
-                pip_profit = diff / profit
+                # pip_profit = diff / profit
 
             if ptype == "Sell":  # if ordertype sell
                 # digits = mt5.symbol_info(position.symbol).digits
