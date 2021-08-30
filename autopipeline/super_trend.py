@@ -37,6 +37,8 @@ def scheduler_job():
         atr = df.ATR.iat[-1]
         current_trend = df.Trend.iat[-1]
         stop_loss = df.SuperTrend211.iat[-1]
+        super_trend112 = df.SuperTrend112.iat[-1]
+        logger.info(f"high_p: {close_p} current_trend: {current_trend} SuperTrend211 {stop_loss} SuperTrend112 {super_trend112}")
         order_exist = mt5_client.check_order_exist(symbol_name, current_trend)
         # do not place an order if the symbol order is placed to Metatrader
         if current_trend == "Buy" and not order_exist:
