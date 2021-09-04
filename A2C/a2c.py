@@ -2,13 +2,15 @@ import os
 import random
 import numpy as np
 import logging
+
+from keras.utils.np_utils import to_categorical
+
 os.makedirs('log', exist_ok=True)
 logging.basicConfig(filename='log/a2c.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
 from tqdm import tqdm
 from keras.models import Model
 from keras import regularizers
-from keras.utils import to_categorical
 from keras.layers import Input, Dense, Flatten, LSTM
 
 from .critic import Critic
@@ -134,11 +136,11 @@ class A2C:
             # if(args.gather_stats):
             #     mean, stdev = gather_stats(self, env)
             #     results.append([e, mean, stdev])
-            tqdm_e.set_description("budget: " + str(round(info['budget'], 1)) + " reward: " + str(round(cumul_reward, 1)))
+            tqdm_e.set_description(f"total loss: {round(info['max_loss'], 1)} total profit {round(info['max_profit'], 1)} real profit {round(info['profit'], 1)}")
             tqdm_e.refresh()
             # Export results for Tensorboard
             score = tfSummary('score', cumul_reward)
-            budget = tfSummary('budget', info['budget'])
+            budget = tfSummary('profit', info['profit'])
             summary_writer.add_summary(score, global_step=e)
             summary_writer.add_summary(budget, global_step=e)
             summary_writer.flush()

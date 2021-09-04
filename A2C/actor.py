@@ -3,8 +3,8 @@ import keras.backend as K
 
 from keras.models import Model, load_model
 from keras.layers import Input, Dense, Flatten
-from keras.optimizers import Adam
 from .agent import Agent
+
 
 class Actor(Agent):
     """ Actor for the A2C Algorithm

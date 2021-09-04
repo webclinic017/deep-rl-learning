@@ -1,10 +1,10 @@
 import pandas as pd
 import numpy as np
-import ta
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn import decomposition
 import matplotlib.pyplot as plt
 from sklearn import preprocessing
+import talib
 
 
 class TradingEnv:
@@ -16,64 +16,274 @@ class TradingEnv:
         self.normalize_order = 0
         self.done = False
         self.consecutive_frames = consecutive_frames
-        df = pd.read_csv(f"D:\Code\Thinh\deep-rl-learning\data\XAUUSD.csv")
-        close = df.Close.values
-        self.train_data = close[0:200]
-        self.train_data = preprocessing.StandardScaler().fit_transform(self.train_data.reshape(-1, 1)).flatten()
-        self.prices = close[0:200]
+        self.df, self.close_prices = self.load_data()
         # self.fig, self.ax = plt.subplots()  # Create a figure containing a single axes.
         # self.ax.plot(self.prices)  # Plot some data on the axes.
+        self.order_p = None
+        self.order_size = None
+        self.order_index = None
+        self.profit = 0
+        self.max_profit = 0
+        self.max_loss = 0
+        self.num_loss = 0
+        self.num_profit = 0
+        self.stop_loss = None
+        self.all_profit = []
+        self.lock_back_frame = 14
+        self.max_diff = 0
+        self.min_diff = 0
+        self.accept_next = ""
+        self.all_max_diff = []
+        self.all_min_diff = []
+        self.training_step = 100
 
-    def get_valid_actions(self):
-        return [0, 1] if not self.order else [0, 2]
+    def load_data(self):
+        df = pd.read_csv(f"E:\Code\Thinh\deep-rl-learning\data\XAUUSDDaily.csv")
+        close_price = df.Close
+        df = self.heikin_ashi(df)
+        df['EMA_200'] = talib.EMA(df.Close, timeperiod=200)
+        df['EMA_50'] = talib.EMA(df.Close, timeperiod=50)
+        df['EMA_20'] = talib.EMA(df.Close, timeperiod=20)
+        df['ADX'] = talib.ADX(df.High, df.Low, df.Close, timeperiod=14)
+        df['RSI'] = talib.RSI(df.Close, timeperiod=14)
+        df['MACD'], df['SIGNAL'], df['HIST'] = talib.MACD(df.Close, fastperiod=12, slowperiod=26, signalperiod=9)
+        # df = self.ST(df, f=1, n=12)
+        df = self.ST(df, f=3, n=10)
+        # df = self.ST(df, f=2, n=11)
+
+        lookback = 1
+        conditions = [
+            (df['SuperTrend310'] > df['Close']) & (df['HIST'] < df['HIST'].shift(lookback)) & (
+                    df['ADX'] > df['ADX'].shift(lookback)),
+            (df['SuperTrend310'] < df['Close']) & (df['HIST'] > df['HIST'].shift(lookback)) & (
+                    df['ADX'] > df['ADX'].shift(lookback))
+        ]
+        values = ['Sell', 'Buy']
+        df['Trend'] = np.select(conditions, values)
+
+        return df, close_price
+
+    # SuperTrend
+    @staticmethod
+    def ST(df, f, n):  # df is the dataframe, n is the period, f is the factor; f=3, n=7 are commonly used.
+        # Calculation of ATR
+        col_name = f"SuperTrend{f}{n}"
+        df['H-L'] = abs(df['High'] - df['Low'])
+        df['H-PC'] = abs(df['High'] - df['Close'].shift(1))
+        df['L-PC'] = abs(df['Low'] - df['Close'].shift(1))
+        df['TR'] = df[['H-L', 'H-PC', 'L-PC']].max(axis=1)
+        df['ATR'] = np.nan
+        df.loc[n - 1, 'ATR'] = df['TR'][:n - 1].mean()  # .ix is deprecated from pandas verion- 0.19
+        for i in range(n, len(df)):
+            df['ATR'][i] = (df['ATR'][i - 1] * (n - 1) + df['TR'][i]) / n
+
+        # Calculation of SuperTrend
+        df['Upper Basic'] = (df['High'] + df['Low']) / 2 + (f * df['ATR'])
+        df['Lower Basic'] = (df['High'] + df['Low']) / 2 - (f * df['ATR'])
+        df['Upper Band'] = df['Upper Basic']
+        df['Lower Band'] = df['Lower Basic']
+        for i in range(n, len(df)):
+            if df['Close'][i - 1] <= df['Upper Band'][i - 1]:
+                df['Upper Band'][i] = min(df['Upper Basic'][i], df['Upper Band'][i - 1])
+            else:
+                df['Upper Band'][i] = df['Upper Basic'][i]
+        for i in range(n, len(df)):
+            if df['Close'][i - 1] >= df['Lower Band'][i - 1]:
+                df['Lower Band'][i] = max(df['Lower Basic'][i], df['Lower Band'][i - 1])
+            else:
+                df['Lower Band'][i] = df['Lower Basic'][i]
+        df[col_name] = np.nan
+        for i in df[col_name]:
+            if df['Close'][n - 1] <= df['Upper Band'][n - 1]:
+                df[col_name][n - 1] = df['Upper Band'][n - 1]
+            elif df['Close'][n - 1] > df['Upper Band'][i]:
+                df[col_name][n - 1] = df['Lower Band'][n - 1]
+        for i in range(n, len(df)):
+            if df[col_name][i - 1] == df['Upper Band'][i - 1] and df['Close'][i] <= df['Upper Band'][i]:
+                df[col_name][i] = df['Upper Band'][i]
+            elif df[col_name][i - 1] == df['Upper Band'][i - 1] and df['Close'][i] >= df['Upper Band'][i]:
+                df[col_name][i] = df['Lower Band'][i]
+            elif df[col_name][i - 1] == df['Lower Band'][i - 1] and df['Close'][i] >= df['Lower Band'][i]:
+                df[col_name][i] = df['Lower Band'][i]
+            elif df[col_name][i - 1] == df['Lower Band'][i - 1] and df['Close'][i] <= df['Lower Band'][i]:
+                df[col_name][i] = df['Upper Band'][i]
+        return df
+
+    @staticmethod
+    def heikin_ashi(df):
+        heikin_ashi_df = pd.DataFrame(index=df.index.values, columns=['Open', 'High', 'Low', 'Close'])
+
+        heikin_ashi_df['Close'] = (df['Open'] + df['High'] + df['Low'] + df['Close']) / 4
+
+        for i in range(len(df)):
+            if i == 0:
+                heikin_ashi_df.iat[0, 0] = df['Open'].iloc[0]
+            else:
+                heikin_ashi_df.iat[i, 0] = (heikin_ashi_df.iat[i - 1, 0] + heikin_ashi_df.iat[i - 1, 3]) / 2
+
+        heikin_ashi_df['High'] = heikin_ashi_df.loc[:, ['Open', 'Close']].join(df['High']).max(axis=1)
+
+        heikin_ashi_df['Low'] = heikin_ashi_df.loc[:, ['Open', 'Close']].join(df['Low']).min(axis=1)
+
+        return heikin_ashi_df
 
     def step(self, action):
-        current_price = self.prices[self.t]
-        plt.cla()
-        plt.plot(self.prices)  # Plot some data on the axes.
-        colors = ['#dbdbdb', '#e31010', '#55cc23']
-        plt.scatter(self.t, current_price, color=colors[action])
-        plt.pause(0.1)
+        dfindex = self.training_step
+        current_trend = self.df.Trend.iat[self.training_step]
+        adx = self.df.ADX.iat[self.training_step]
+        current_price = self.close_prices.iat[self.training_step]
+        sp_112 = self.df.SuperTrend310.iat[self.training_step]
+        atr = self.df.ATR.iat[self.training_step]
 
-        diff = current_price - self.prices[self.starting_point]
-        # r = -0.1 if action == 1 else 0
+        # actions
+        # 0 hold, 1 close buy, 2 close sell
+        if self.order_p and self.order_size == "Sell" and (action == 2 or current_trend == "Buy"):
+            diff = self.order_p - current_price
+            #         if max_diff > 10 and diff < 0:
+            #             diff = 1
+
+            self.profit += diff
+            # save_result(dfindex, "Close Sell", str(diff))
+            # print(f"{dfindex} close \x1B[31m{self.order_size}\x1b[0m order at price {current_price}, max diff {round(self.max_diff, 2)} diff {round(diff, 2)}")
+            self.all_profit.append(self.profit)
+            if diff < 0:
+                self.all_min_diff.append(self.max_diff)
+                self.max_loss += diff
+                self.num_loss += 1
+            else:
+                self.all_max_diff.append(self.max_diff)
+                self.max_profit += diff
+                self.num_profit += 1
+
+            # if diff < 0:
+            #     label = 0
+            #     x_train = df.HIST.iloc[order_index - lock_back_frame:order_index].values.flatten().tolist()
+            #     if len(x_train) == lock_back_frame:
+            #         X_raw.append(x_train)
+            #         y_raw.append(label)
+            # elif diff >= 0:
+            #     label = 1
+            #     x_train = df.HIST.iloc[order_index - lock_back_frame:order_index].values.flatten().tolist()
+            #     if len(x_train) == lock_back_frame:
+            #         X_raw.append(x_train)
+            #         y_raw.append(label)
+
+            # accept_next = "Buy"
+            # reset flags
+            self.order_p = None
+            self.order_size = None
+            self.stop_loss = None
+            self.order_index = None
+            self.max_diff = 0
+        if self.order_p is None and current_trend == "Buy":
+            # save_result(dfindex, "Buy", adx)
+            self.order_p = current_price
+            self.order_size = current_trend
+            self.stop_loss = current_price - (1 * atr)
+            self.accept_next = ""
+            self.order_index = dfindex
+            # print(f"{dfindex} new \x1b[48;5;2m{self.order_size}\x1b[0m order at price {current_price}")
+        if self.order_p and self.order_size == "Buy" and (action == 1 or current_trend == "Sell"):
+            diff = current_price - self.order_p
+            #         if max_diff > 10 and diff < 0:
+            #             diff = 1
+
+            self.profit += diff
+            self.all_profit.append(self.profit)
+            # self.save_result(dfindex, "Close Buy", str(diff))
+            # print(f"{dfindex} close \x1b[48;5;4m{self.order_size}\x1b[0m order at price {current_price}, max diff {round(self.max_diff, 2)} diff {round(diff, 2)}")
+            if diff < 0:
+                self.all_min_diff.append(self.max_diff)
+                self.max_loss += diff
+                self.num_loss += 1
+            else:
+                self.all_max_diff.append(self.max_diff)
+                self.max_profit += diff
+                self.num_profit += 1
+
+            # if diff < 0:
+            #     label = 0
+            #     x_train = df.HIST.iloc[order_index - lock_back_frame:order_index].values.flatten().tolist()
+            #     if len(x_train) == lock_back_frame:
+            #         X_raw.append(x_train)
+            #         y_raw.append(label)
+            # elif diff >= 0:
+            #     label = 1
+            #     x_train = df.HIST.iloc[order_index - lock_back_frame:order_index].values.flatten().tolist()
+            #     if len(x_train) == lock_back_frame:
+            #         X_raw.append(x_train)
+            #         y_raw.append(label)
+
+            # accept_next = "Sell"
+            # reset flags
+            self.order_p = None
+            self.order_size = None
+            self.stop_loss = None
+            self.order_index = None
+            self.max_diff = 0
+        if self.order_p is None and current_trend == "Sell":
+            # save_result(dfindex, "Sell", adx)
+            self.order_p = current_price
+            self.order_size = current_trend
+            self.stop_loss = current_price + (1 * atr)
+            self.accept_next = ""
+            self.order_index = dfindex
+            # print(f"{dfindex} new \x1B[31m{self.order_size}\x1b[0m order at price {current_price}")
+
+        if self.order_p:
+            if self.order_size == "Sell":
+                diff = self.order_p - current_price
+                if diff > self.max_diff:
+                    self.stop_loss = current_price + atr
+                    self.max_diff = diff
+            if self.order_size == "Buy":
+                diff = current_price - self.order_p
+                if diff > self.max_diff:
+                    self.stop_loss = current_price - atr
+                    self.max_diff = diff
+
+        # new_state, r, done, info
+        new_state = self.df.HIST.iloc[self.training_step-self.lock_back_frame:self.training_step]
+        done = True if self.training_step == self.df.shape[0] - 1 else False
         r = 0
-        done = False
-        if action == 1:
-            self.budget = diff
-            if current_price > 1326:
-                r += diff
-            done = True
-
-        inp1 = self.train_data[self.t-self.consecutive_frames:self.t]
-        state = np.concatenate((inp1, np.array([diff])), axis=0)
-        self.t += 1
-        if self.t == self.train_data.shape[0]:
-            self.t = 0
-            self.order = 0
-            # r = -10
-            done = True
-        info = {'diff': diff, 'budget': self.budget}
-        return state, r, done, info
+        if done:
+            r = self.profit/self.max_profit
+        info = {
+            "all_profit": self.all_profit,
+            "max_loss": self.max_loss,
+            "num_loss": self.num_loss,
+            "max_profit": self.max_profit,
+            "num_profit": self.num_profit,
+            "profit": self.profit
+        }
+        self.training_step += 1
+        return new_state, r, done, info
 
     def reset(self):
-        self.t = self.starting_point
-        self.budget = 0
-        self.order = 0
-        self.normalize_order = 0
-        self.done = False
-        # plt.cla()
-        # plt.plot(self.prices)  # Plot some data on the axes.
-        # colors = ['#dbdbdb', '#e31010', '#55cc23']
-        # plt.scatter(self.t, self.prices[self.t], color="#55cc23")
-        # plt.pause(0.1)
-        inp1 = self.train_data[self.t-self.consecutive_frames:self.t]
-        state = np.concatenate((inp1, np.array([0])), axis=0)
-        self.t += 1
-        return state
+        self.training_step = 100
+        self.order_p = None
+        self.order_size = None
+        self.order_index = None
+        self.profit = 0
+        self.max_profit = 0
+        self.max_loss = 0
+        self.num_loss = 0
+        self.num_profit = 0
+        self.stop_loss = None
+        self.all_profit = []
+        self.lock_back_frame = 14
+        self.max_diff = 0
+        self.min_diff = 0
+        self.accept_next = ""
+        self.all_max_diff = []
+        self.all_min_diff = []
+
+        new_state = self.df.HIST.iloc[self.training_step-self.lock_back_frame:self.training_step]
+        self.training_step += 1
+        return new_state
 
     def get_state_size(self):
-        return self.train_data.shape[1]
+        return self.df.HIST.values.shape[1]
 
     @staticmethod
     def get_action_space():

@@ -3,7 +3,6 @@ import keras.backend as K
 
 from keras.models import Model
 from keras.layers import Input, Dense, Flatten
-from keras.optimizers import Adam
 from .agent import Agent
 
 
