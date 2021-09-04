@@ -2,7 +2,7 @@ import math
 import numpy as np
 import pandas as pd
 import MetaTrader5 as mt5
-from talib import EMA, stream, MACD
+from talib import EMA, stream, MACD, ADX
 from bson.objectid import ObjectId
 from utils import ST, logger
 from pymongo import MongoClient
@@ -59,7 +59,7 @@ class AutoOrder:
         rates_frame = pd.DataFrame(rates)
         # rates_frame['time'] = pd.to_datetime(rates_frame['time'], unit='s')
         df = self.heikin_ashi(rates_frame)
-        # df['EMA_200'] = EMA(df.close, timeperiod=200)
+        df['ADX'] = ADX(df.high, df.low, df.close, timeperiod=14)
         # df['EMA_50'] = EMA(df.close, timeperiod=50)
         # df['EMA_20'] = EMA(df.close, timeperiod=20)
         df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
@@ -69,15 +69,14 @@ class AutoOrder:
         df = ST(df, f=2, n=11)
 
         # trend conditional
+        lookback = 5
         conditions = [
-            (df['SuperTrend112'] > df['close']) & (df['SuperTrend211'] > df['close']) & (
-                        df['HIST'] < df['HIST'].shift(3)),
-            (df['SuperTrend112'] < df['close']) & (df['SuperTrend211'] < df['close']) & (
-                        df['HIST'] > df['HIST'].shift(3)),
-            (df['SuperTrend112'] < df['close']) & (df['HIST'] > df['HIST'].shift()),
-            (df['SuperTrend112'] > df['close']) & (df['HIST'] < df['HIST'].shift())
+            (df['SuperTrend310'] > df['close']) & (df['HIST'] < df['HIST'].shift(lookback)) & (
+                    df['ADX'] > df['ADX'].shift(lookback)),
+            (df['SuperTrend310'] < df['close']) & (df['HIST'] > df['HIST'].shift(lookback)) & (
+                    df['ADX'] > df['ADX'].shift(lookback))
         ]
-        values = ['Sell', 'Buy', 'Close', 'Close']
+        values = ['Sell', 'Buy']
         df['Trend'] = np.select(conditions, values)
         return df
 
@@ -273,7 +272,7 @@ class AutoOrder:
                 #                 logger.info("       traderequest: {}={}".format(tradereq_filed,
                 #                                                           traderequest_dict[tradereq_filed]))
 
-    def modify_stoploss(self, symbol, sl):
+    def modify_stoploss(self, symbol):
         positions = mt5.positions_get(symbol=symbol)
         # print("Total positions",":",len(positions))
         # display all active orders
@@ -306,11 +305,11 @@ class AutoOrder:
                 # logger.info(f"atr_sl {sl} pip_sl {pip_sl}")
                 # if pip_profit > 4 and pip_sl < sl:
                 #     sl = pip_sl
-                if sl < prev_sl or prev_sl == 0:
+                if profit > 40:
                     request = {
                         "action": mt5.TRADE_ACTION_SLTP,
                         "position": position_id,
-                        "sl": sl,
+                        "sl": price_open,
                         "comment": f"python trailing sl",
                         "deviation": 20,
                         "type_time": mt5.ORDER_TIME_GTC,
@@ -325,7 +324,7 @@ class AutoOrder:
                         logger.info("order_send failed, retcode={}".format(result.retcode))
                         logger.info(f"result: {result}")
                     else:
-                        logger.info("position #{} SL Updated at: {}".format(position_id, sl))
+                        logger.info("position #{} SL Updated at: {}".format(position_id, price_open))
             elif ptype == 'Buy':  # if ordertype buy
                 # digits = mt5.symbol_info(position.symbol).digits
                 # sl = price_open + (5 * pip_profit)  # keep 5 pips
@@ -334,11 +333,11 @@ class AutoOrder:
                 # if pip_profit > 4 and pip_sl > sl:
                 #     sl = pip_sl
 
-                if sl > prev_sl or prev_sl == 0:
+                if profit > 40:
                     request = {
                         "action": mt5.TRADE_ACTION_SLTP,
                         "position": position_id,
-                        "sl": sl,
+                        "sl": price_open,
                         "comment": f"python trailing sl",
                         "deviation": 20,
                         "type_time": mt5.ORDER_TIME_GTC,
@@ -353,7 +352,7 @@ class AutoOrder:
                         logger.info("order_send failed, retcode={}".format(result.retcode))
                         logger.info(f"result: {result}")
                     else:
-                        logger.info("position #{} SL Updated at: {}".format(position_id, sl))
+                        logger.info("position #{} SL Updated at: {}".format(position_id, price_open))
 
     @staticmethod
     def check_order_exist(order_symbol: str, order_type: str) -> bool:

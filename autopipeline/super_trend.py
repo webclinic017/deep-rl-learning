@@ -36,25 +36,22 @@ def scheduler_job():
         close_p = df.close.iat[-1]
         atr = df.ATR.iat[-1]
         current_trend = df.Trend.iat[-1]
-        stop_loss = df.SuperTrend211.iat[-1]
-        super_trend112 = df.SuperTrend112.iat[-1]
-        logger.info(f"high_p: {close_p} current_trend: {current_trend} SuperTrend211 {stop_loss} SuperTrend112 {super_trend112}")
+        super_trend = df.SuperTrend310.iat[-1]
+        logger.info(f"close_p: {close_p} current_trend: {current_trend} SuperTrend {round(super_trend, 2)}")
         order_exist = mt5_client.check_order_exist(symbol_name, current_trend)
         # do not place an order if the symbol order is placed to Metatrader
         if current_trend == "Buy" and not order_exist:
             mt5_client.close_order(symbol_name)  # close all open positions
-            sl = low_p - atr
             tp = close_p + (factor * atr)  # ROE=2
-            mt5_client.buy_order(symbol_name, lot=lot, sl=stop_loss, tp=tp)  # default tp at 1000 pips
+            mt5_client.buy_order(symbol_name, lot=lot, sl=super_trend, tp=tp)  # default tp at 1000 pips
         elif current_trend == 'Sell' and not order_exist:
             mt5_client.close_order(symbol_name)  # close all open positions
-            sl = high_p + atr
             tp = close_p - (factor * atr)  # ROE=2
-            mt5_client.sell_order(symbol_name, lot=lot, sl=stop_loss, tp=tp)  # default tp at 1000 pips
-        elif current_trend == "Close":
-            mt5_client.close_order(symbol_name)  # close all open positions of the symbol_name
-        if order_exist:
-            mt5_client.modify_stoploss(symbol_name, stop_loss)
+            mt5_client.sell_order(symbol_name, lot=lot, sl=super_trend, tp=tp)  # default tp at 1000 pips
+        # elif current_trend == "Close_Sell" or current_trend == "Close_Buy":
+        #     mt5_client.close_order(symbol_name)  # close all open positions of the symbol_name
+        # if order_exist:
+        mt5_client.modify_stoploss(symbol_name)
 
 
 if __name__ == '__main__':
