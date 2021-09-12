@@ -9,16 +9,13 @@ import talib
 
 class TradingEnv:
     def __init__(self, consecutive_frames=14):
-        self.starting_point = 70
-        self.t = self.starting_point
         self.budget = 0
         self.order = 0
         self.normalize_order = 0
         self.done = False
         self.consecutive_frames = consecutive_frames
         self.df, self.close_prices = self.load_data()
-        # self.fig, self.ax = plt.subplots()  # Create a figure containing a single axes.
-        # self.ax.plot(self.prices)  # Plot some data on the axes.
+        self.X_train = MinMaxScaler().fit_transform(np.expand_dims(self.df.HIST, axis=1)).flatten().tolist()
         self.order_p = None
         self.order_size = None
         self.order_index = None
@@ -29,7 +26,7 @@ class TradingEnv:
         self.num_profit = 0
         self.stop_loss = None
         self.all_profit = []
-        self.lock_back_frame = 14
+        self.lock_back_frame = consecutive_frames
         self.max_diff = 0
         self.min_diff = 0
         self.accept_next = ""
@@ -38,7 +35,7 @@ class TradingEnv:
         self.training_step = 100
 
     def load_data(self):
-        df = pd.read_csv(f"E:\Code\Thinh\deep-rl-learning\data\XAUUSDDaily.csv")
+        df = pd.read_csv(f"E:\\Code\\Thinh\\deep-rl-learning\\data\\XAUUSDH1.csv")
         close_price = df.Close
         df = self.heikin_ashi(df)
         df['EMA_200'] = talib.EMA(df.Close, timeperiod=200)
@@ -134,17 +131,15 @@ class TradingEnv:
         current_price = self.close_prices.iat[self.training_step]
         sp_112 = self.df.SuperTrend310.iat[self.training_step]
         atr = self.df.ATR.iat[self.training_step]
-
+        r = 0
         # actions
         # 0 hold, 1 close buy, 2 close sell
-        if self.order_p and self.order_size == "Sell" and (action == 2 or current_trend == "Buy"):
+        if self.order_p and self.order_size == "Sell" and (action == 2):
             diff = self.order_p - current_price
             #         if max_diff > 10 and diff < 0:
             #             diff = 1
 
             self.profit += diff
-            # save_result(dfindex, "Close Sell", str(diff))
-            # print(f"{dfindex} close \x1B[31m{self.order_size}\x1b[0m order at price {current_price}, max diff {round(self.max_diff, 2)} diff {round(diff, 2)}")
             self.all_profit.append(self.profit)
             if diff < 0:
                 self.all_min_diff.append(self.max_diff)
@@ -154,19 +149,7 @@ class TradingEnv:
                 self.all_max_diff.append(self.max_diff)
                 self.max_profit += diff
                 self.num_profit += 1
-
-            # if diff < 0:
-            #     label = 0
-            #     x_train = df.HIST.iloc[order_index - lock_back_frame:order_index].values.flatten().tolist()
-            #     if len(x_train) == lock_back_frame:
-            #         X_raw.append(x_train)
-            #         y_raw.append(label)
-            # elif diff >= 0:
-            #     label = 1
-            #     x_train = df.HIST.iloc[order_index - lock_back_frame:order_index].values.flatten().tolist()
-            #     if len(x_train) == lock_back_frame:
-            #         X_raw.append(x_train)
-            #         y_raw.append(label)
+                r = 0.01 * diff
 
             # accept_next = "Buy"
             # reset flags
@@ -183,15 +166,13 @@ class TradingEnv:
             self.accept_next = ""
             self.order_index = dfindex
             # print(f"{dfindex} new \x1b[48;5;2m{self.order_size}\x1b[0m order at price {current_price}")
-        if self.order_p and self.order_size == "Buy" and (action == 1 or current_trend == "Sell"):
+        if self.order_p and self.order_size == "Buy" and (action == 1):
             diff = current_price - self.order_p
             #         if max_diff > 10 and diff < 0:
             #             diff = 1
 
             self.profit += diff
             self.all_profit.append(self.profit)
-            # self.save_result(dfindex, "Close Buy", str(diff))
-            # print(f"{dfindex} close \x1b[48;5;4m{self.order_size}\x1b[0m order at price {current_price}, max diff {round(self.max_diff, 2)} diff {round(diff, 2)}")
             if diff < 0:
                 self.all_min_diff.append(self.max_diff)
                 self.max_loss += diff
@@ -200,19 +181,7 @@ class TradingEnv:
                 self.all_max_diff.append(self.max_diff)
                 self.max_profit += diff
                 self.num_profit += 1
-
-            # if diff < 0:
-            #     label = 0
-            #     x_train = df.HIST.iloc[order_index - lock_back_frame:order_index].values.flatten().tolist()
-            #     if len(x_train) == lock_back_frame:
-            #         X_raw.append(x_train)
-            #         y_raw.append(label)
-            # elif diff >= 0:
-            #     label = 1
-            #     x_train = df.HIST.iloc[order_index - lock_back_frame:order_index].values.flatten().tolist()
-            #     if len(x_train) == lock_back_frame:
-            #         X_raw.append(x_train)
-            #         y_raw.append(label)
+                r = 0.01 * diff
 
             # accept_next = "Sell"
             # reset flags
@@ -228,26 +197,25 @@ class TradingEnv:
             self.stop_loss = current_price + (1 * atr)
             self.accept_next = ""
             self.order_index = dfindex
-            # print(f"{dfindex} new \x1B[31m{self.order_size}\x1b[0m order at price {current_price}")
 
         if self.order_p:
             if self.order_size == "Sell":
                 diff = self.order_p - current_price
                 if diff > self.max_diff:
-                    self.stop_loss = current_price + atr
                     self.max_diff = diff
             if self.order_size == "Buy":
                 diff = current_price - self.order_p
                 if diff > self.max_diff:
-                    self.stop_loss = current_price - atr
                     self.max_diff = diff
 
         # new_state, r, done, info
-        new_state = self.df.HIST.iloc[self.training_step-self.lock_back_frame:self.training_step]
-        done = True if self.training_step == self.df.shape[0] - 1 else False
-        r = 0
+        new_state = self.X_train[self.training_step-self.lock_back_frame:self.training_step]
+        new_state.append(self.profit/100)
+        new_state.append(1 if self.order_p else 0)
+        new_state = np.array(new_state)
+        done = True if self.training_step >= self.df.shape[0] - 1 else False
         if done:
-            r = self.profit/self.max_profit
+            r += 0.01 * self.max_loss
         info = {
             "all_profit": self.all_profit,
             "max_loss": self.max_loss,
@@ -256,7 +224,11 @@ class TradingEnv:
             "num_profit": self.num_profit,
             "profit": self.profit
         }
-        self.training_step += 1
+        if not done:
+            self.training_step += 1
+        else:
+            self.reset()
+
         return new_state, r, done, info
 
     def reset(self):
@@ -271,23 +243,33 @@ class TradingEnv:
         self.num_profit = 0
         self.stop_loss = None
         self.all_profit = []
-        self.lock_back_frame = 14
         self.max_diff = 0
         self.min_diff = 0
         self.accept_next = ""
         self.all_max_diff = []
         self.all_min_diff = []
 
-        new_state = self.df.HIST.iloc[self.training_step-self.lock_back_frame:self.training_step]
+        new_state = self.X_train[self.training_step-self.lock_back_frame:self.training_step]
+        new_state.append(self.profit/100)
+        new_state.append(1 if self.order_p else 0)
+        new_state = np.array(new_state)
         self.training_step += 1
         return new_state
 
     def get_state_size(self):
-        return self.df.HIST.values.shape[1]
+        return self.df.X_train.values.shape[1]
 
     @staticmethod
     def get_action_space():
         return 3
+
+    def get_valid_actions(self):
+        if self.order_p:
+            if self.order_size == "Sell":
+                return [0, 2]
+            if self.order_size == "Buy":
+                return [0, 1]
+        return [0]
 
 
 if __name__ == '__main__':

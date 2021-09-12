@@ -89,7 +89,7 @@ class A3C:
         self.c_opt([states, discounted_rewards])
 
     def train(self, env, args, summary_writer):
-        envs = [env for i in range(args.n_threads)]
+        envs = [env] * args.n_threads
         # state_dim = (10, 1)
         # action_dim = 3
 

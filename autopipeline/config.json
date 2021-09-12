@@ -35,21 +35,9 @@
     "lot": 0.1,
     "division": 100000
   },
-  "US500" : {
-    "lot": 0.1,
-    "division": 10
-  },
-  "NAS100" : {
-    "lot": 0.1,
-    "division": 10
-  },
   "EURGBP" : {
     "lot": 0.1,
     "division": 100000
-  },
-  "SpotBrent" : {
-    "lot": 0.1,
-    "division": 100
   },
   "Bitcoin": {
     "lot": 0.1

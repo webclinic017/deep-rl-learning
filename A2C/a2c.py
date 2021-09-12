@@ -23,7 +23,7 @@ class A2C:
     """ Actor-Critic Main Algorithm
     """
 
-    def __init__(self, act_dim, env_dim, k, gamma=0.85, lr=1e-5):
+    def __init__(self, act_dim, env_dim, k, gamma=0.99, lr=0.0001):
         """ Initialization
         """
         # Environment and A2C parameters
@@ -46,9 +46,9 @@ class A2C:
         """
         inp = Input((self.env_dim))
         x = Dense(128, activation='relu')(inp)
-        x = Dense(64, activation='relu')(x)
-        x = Dense(32, activation='relu')(x)
-        x = Dense(32, activation='relu')(x)
+        x = Dense(128, activation='relu')(x)
+        x = Dense(128, activation='relu')(x)
+        x = Dense(128, activation='relu')(x)
         return Model(inp, x)
 
     def policy_action(self, inp1):
@@ -114,12 +114,16 @@ class A2C:
             while not done:
                 # if args.render: env.render()
                 # Actor picks an action (following the policy)
-                a = self.policy_action(old_state)
+                valid_actions = env.get_valid_actions()
+                action = self.policy_action(old_state)
+                if action not in valid_actions:
+                    action = 0  # do not do any think
+
                 # Retrieve new state, reward, and whether the state is terminal
-                new_state, r, done, info = env.step(a)
+                new_state, r, done, info = env.step(action)
                 # logging.warning(info)
                 # Memorize (s, a, r) for training
-                actions.append(to_categorical(a, self.act_dim))
+                actions.append(to_categorical(action, self.act_dim))
                 rewards.append(r)
                 states.append(old_state)
                 # Update current state

@@ -6,9 +6,9 @@ from tensorflow.python.keras.layers import Conv2D, MaxPooling2D
 def get_session():
     """ Limit session memory usage
     """
-    config = tf.ConfigProto()
+    config =  tf.compat.v1.ConfigProto()
     config.gpu_options.allow_growth = True
-    return tf.Session(config=config)
+    return tf.compat.v1.Session(config=config)
 
 def tfSummary(tag, val):
     """ Scalar Value Tensorflow Summary

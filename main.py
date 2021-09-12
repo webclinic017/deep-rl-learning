@@ -13,6 +13,7 @@ from A2C.a2c import A2C
 from keras.backend.tensorflow_backend import set_session
 
 from A2C.env import TradingEnv
+from A3C.a3c import A3C
 from utils.networks import get_session
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -29,12 +30,12 @@ def parse_args(args):
                         help="Use Prioritized Experience Replay (DDQN + PER)")
     parser.add_argument('--dueling', dest='dueling', action='store_true', help="Use a Dueling Architecture (DDQN)")
     #
-    parser.add_argument('--nb_episodes', type=int, default=500000, help="Number of training episodes")
+    parser.add_argument('--nb_episodes', type=int, default=5000, help="Number of training episodes")
     parser.add_argument('--batch_size', type=int, default=64, help="Batch size (experience replay)")
-    parser.add_argument('--consecutive_frames', type=int, default=14,
+    parser.add_argument('--consecutive_frames', type=int, default=26,
                         help="Number of consecutive frames (action repeat)")
     parser.add_argument('--training_interval', type=int, default=30, help="Network training frequency")
-    parser.add_argument('--n_threads', type=int, default=32, help="Number of threads (A3C)")
+    parser.add_argument('--n_threads', type=int, default=2, help="Number of threads (A3C)")
     #
     parser.add_argument('--gather_stats', dest='gather_stats', action='store_true',
                         help="Compute Average reward per episode (slower)")
@@ -64,11 +65,10 @@ def main(args=None):
     print("Log dir" + args.type + "/tensorboard_" + args.env)
     for file in os.listdir(args.type + "/tensorboard_" + args.env):
         os.remove(args.type + "/tensorboard_" + args.env + '/' + file)
-    summary_writer = tf.summary.FileWriter(args.type + "/tensorboard_" + args.env)
+    summary_writer = tf.compat.v1.summary.FileWriter(args.type + "/tensorboard_" + args.env)
 
     env = TradingEnv(consecutive_frames=args.consecutive_frames)
-    env.reset()
-    state_dim = (14,)
+    state_dim = (args.consecutive_frames + 2,)
     action_dim = 3
     act_range = 2
     algo = A2C(action_dim, state_dim, args.consecutive_frames)
