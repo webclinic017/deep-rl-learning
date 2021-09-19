@@ -17,8 +17,8 @@ class AutoOrder:
     # order_list = []
     client = MongoClient()
     db = client.stockprice
-    default_time_frame = mt5.TIMEFRAME_H1
-    # default_time_frame = mt5.TIMEFRAME_M15
+    # default_time_frame = mt5.TIMEFRAME_H1
+    default_time_frame = mt5.TIMEFRAME_M15
 
     def __init__(self):
         # establish connection to the MetaTrader 5 terminal
@@ -51,34 +51,42 @@ class AutoOrder:
         heikin_ashi_df['low'] = heikin_ashi_df.loc[:, ['open', 'close']].join(df['low']).min(axis=1)
         return heikin_ashi_df
 
-    def get_frames(self, symbol):
+    def get_frames(self, symbol, timeframe=mt5.TIMEFRAME_M15):
         logger.info(f"Generate super trend for {symbol}")
         self.check_symbol(symbol)
-        rates = mt5.copy_rates_from_pos(symbol, self.default_time_frame, 0, 300)
+        rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 300)
+        rates_h1 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_H1, 0, 300)
         # create DataFrame out of the obtained data
         rates_frame = pd.DataFrame(rates)
+        rates_frame_h1 = pd.DataFrame(rates_h1)
         # rates_frame['time'] = pd.to_datetime(rates_frame['time'], unit='s')
         df = self.heikin_ashi(rates_frame)
+        df_h1 = self.heikin_ashi(rates_frame_h1)
         df['ADX'] = ADX(df.high, df.low, df.close, timeperiod=14)
-        # df['EMA_50'] = EMA(df.close, timeperiod=50)
-        # df['EMA_20'] = EMA(df.close, timeperiod=20)
+        df['EMA_100'] = EMA(df.close, timeperiod=100)
+        h1_ema = stream.EMA(df_h1.close, timeperiod=100)
+        h1_close = df_h1.close.iat[-1]
+        h1_trend = "Buy" if h1_ema < h1_close else "Sell"
+
         df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
         df = df.dropna().reset_index(drop=True)
-        df = ST(df, f=1, n=12)
-        df = ST(df, f=3, n=10)
-        df = ST(df, f=2, n=11)
+        # df = ST(df, f=1, n=12)
+        # df = ST(df, f=2, n=11)
+        # df = ST(df, f=3, n=10)
 
         # trend conditional
-        lookback = 5
         conditions = [
-            (df['SuperTrend310'] > df['close']) & (df['HIST'] < df['HIST'].shift(lookback)) & (
-                    df['ADX'] > df['ADX'].shift(lookback)),
-            (df['SuperTrend310'] < df['close']) & (df['HIST'] > df['HIST'].shift(lookback)) & (
-                    df['ADX'] > df['ADX'].shift(lookback))
+            (df['EMA_100'] < df['close']) & (df['MACD'] > df['SIGNAL']) & (df['HIST'] > df['HIST'].shift()),
+            (df['EMA_100'] > df['close']) & (df['MACD'] < df['SIGNAL']) & (df['HIST'] < df['HIST'].shift()),
+            (df['HIST'] < df['HIST'].shift(3)),
+            (df['HIST'] > df['HIST'].shift(3))
         ]
-        values = ['Sell', 'Buy']
+        values = ['Buy', 'Sell', 'Close_Buy', 'Close_Sell']
         df['Trend'] = np.select(conditions, values)
-        return df
+
+        close_p = df.close.iat[-1]
+        current_trend = df.Trend.iat[-1]
+        return close_p, current_trend, h1_trend
 
     def save_frame(self, request):
         """
@@ -131,7 +139,6 @@ class AutoOrder:
             "volume": lot,
             "type": mt5.ORDER_TYPE_BUY,
             "price": price,
-            "sl": sl,
             "deviation": deviation,
             "magic": 234000,
             "comment": "Buy",
@@ -172,7 +179,6 @@ class AutoOrder:
             "volume": lot,
             "type": mt5.ORDER_TYPE_SELL,
             "price": price,
-            "sl": sl,
             "deviation": deviation,
             "magic": 234000,
             "comment": "Sell",

@@ -13,8 +13,8 @@ def scheduler_job():
     """Shows basic usage of the Gmail API.
     Lists the user's Gmail labels.
     """
-    # if datetime.now().minute not in {0, 15, 30, 45}:
-    #     return
+    if datetime.now().minute not in {0, 15, 30, 45}:
+        return
 
     logger.info(f"Start job at: {datetime.now()}")
     logger.info("="*50)
@@ -26,38 +26,34 @@ def scheduler_job():
         lot = value.get('lot')
         factor = 2
         try:
-            df = mt5_client.get_frames(symbol_name)
+            close_p, current_trend, h1_trend = mt5_client.get_frames(symbol_name)
         except Exception as ex:
             logger.error(f"Get frames errors: {ex}")
             continue
 
-        high_p = df.high.iat[-1]
-        low_p = df.low.iat[-1]
-        close_p = df.close.iat[-1]
-        atr = df.ATR.iat[-1]
-        current_trend = df.Trend.iat[-1]
-        super_trend = df.SuperTrend310.iat[-1]
-        logger.info(f"close_p: {close_p} current_trend: {current_trend} SuperTrend {round(super_trend, 2)}")
+        logger.info(f"close_p: {close_p} current_trend: {current_trend}")
         order_exist = mt5_client.check_order_exist(symbol_name, current_trend)
         # do not place an order if the symbol order is placed to Metatrader
         if current_trend == "Buy" and not order_exist:
             mt5_client.close_order(symbol_name)  # close all open positions
-            tp = close_p + (factor * atr)  # ROE=2
-            mt5_client.buy_order(symbol_name, lot=lot, sl=super_trend, tp=tp)  # default tp at 1000 pips
+            # tp = close_p + (factor * atr)  # ROE=2
+            mt5_client.buy_order(symbol_name, lot=lot, sl=None, tp=None)  # default tp at 1000 pips
         elif current_trend == 'Sell' and not order_exist:
             mt5_client.close_order(symbol_name)  # close all open positions
-            tp = close_p - (factor * atr)  # ROE=2
-            mt5_client.sell_order(symbol_name, lot=lot, sl=super_trend, tp=tp)  # default tp at 1000 pips
-        # elif current_trend == "Close_Sell" or current_trend == "Close_Buy":
-        #     mt5_client.close_order(symbol_name)  # close all open positions of the symbol_name
+            # tp = close_p - (factor * atr)  # ROE=2
+            mt5_client.sell_order(symbol_name, lot=lot, sl=None, tp=None)  # default tp at 1000 pips
+        elif current_trend == "Close_Buy" and mt5_client.check_order_exist(symbol_name, "Buy"):
+            mt5_client.close_order(symbol_name)  # close all open positions of the symbol_name
+        elif current_trend == "Close_Sell" and mt5_client.check_order_exist(symbol_name, "Sell"):
+            mt5_client.close_order(symbol_name)  # close all open positions of the symbol_name
         # if order_exist:
-        mt5_client.modify_stoploss(symbol_name)
+        # mt5_client.modify_stoploss(symbol_name)
 
 
 if __name__ == '__main__':
     # Run job every hour at the 42rd minute
     scheduler_job()
-    schedule.every().hours.at(":00").do(scheduler_job)
+    schedule.every().minutes.do(scheduler_job)
     while True:
         schedule.run_pending()
         time.sleep(1)
