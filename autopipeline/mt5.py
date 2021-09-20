@@ -64,7 +64,7 @@ class AutoOrder:
         df_h1 = self.heikin_ashi(rates_frame_h1)
         df['ADX'] = ADX(df.high, df.low, df.close, timeperiod=14)
         df['EMA_100'] = EMA(df.close, timeperiod=100)
-        h1_ema = stream.EMA(df_h1.close, timeperiod=100)
+        h1_ema = stream.EMA(df_h1.close, timeperiod=50)
         h1_close = df_h1.close.iat[-1]
         h1_trend = "Buy" if h1_ema < h1_close else "Sell"
 
@@ -78,8 +78,8 @@ class AutoOrder:
         conditions = [
             (df['EMA_100'] < df['close']) & (df['MACD'] > df['SIGNAL']) & (df['HIST'] > df['HIST'].shift()),
             (df['EMA_100'] > df['close']) & (df['MACD'] < df['SIGNAL']) & (df['HIST'] < df['HIST'].shift()),
-            (df['HIST'] < df['HIST'].shift(3)),
-            (df['HIST'] > df['HIST'].shift(3))
+            (df['HIST'] < 0),
+            (df['HIST'] > 0)
         ]
         values = ['Buy', 'Sell', 'Close_Buy', 'Close_Sell']
         df['Trend'] = np.select(conditions, values)
