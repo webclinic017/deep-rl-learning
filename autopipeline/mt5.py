@@ -69,7 +69,7 @@ class AutoOrder:
         # h1_close = df_h1.close.iat[-1]
         # h1_trend = "Buy" if h1_ema < h1_close else "Sell"
 
-        # df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
+        df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
         df = df.dropna().reset_index(drop=True)
         # df = ST(df, f=1, n=12)
         # df = ST(df, f=2, n=11)
@@ -77,8 +77,8 @@ class AutoOrder:
 
         # trend conditional
         conditions = [
-            (df['EMA_100'] < df['close']) & (df['EMA_100'] > df['EMA_100'].shift()) & (df['SuperTrend350'] < df['close']) & (df['EMA_100_H1'] < df['Close_H1']),
-            (df['EMA_100'] > df['close']) & (df['EMA_100'] < df['EMA_100'].shift()) & (df['SuperTrend350'] > df['close']) & (df['EMA_100_H1'] > df['Close_H1']),
+            (df['HIST'] > df['HIST'].shift()) & (df['EMA_100'] < df['close']) & (df['EMA_100'] > df['EMA_100'].shift()) & (df['SuperTrend350'] < df['close']) & (df['EMA_100_H1'] < df['Close_H1']),
+            (df['HIST'] < df['HIST'].shift()) & (df['EMA_100'] > df['close']) & (df['EMA_100'] < df['EMA_100'].shift()) & (df['SuperTrend350'] > df['close']) & (df['EMA_100_H1'] > df['Close_H1']),
         ]
         values = ['Buy', 'Sell']
         df['Trend'] = np.select(conditions, values)
