@@ -41,5 +41,8 @@
   },
   "Bitcoin": {
     "lot": 0.1
+  },
+  "USDCHN": {
+    "lot": 0.1
   }
 }

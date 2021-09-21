@@ -77,8 +77,8 @@ class AutoOrder:
 
         # trend conditional
         conditions = [
-            (df['HIST'] > df['HIST'].shift()) & (df['EMA_100'] < df['close']) & (df['EMA_100'] > df['EMA_100'].shift()) & (df['SuperTrend350'] < df['close']) & (df['EMA_100_H1'] < df['Close_H1']),
-            (df['HIST'] < df['HIST'].shift()) & (df['EMA_100'] > df['close']) & (df['EMA_100'] < df['EMA_100'].shift()) & (df['SuperTrend350'] > df['close']) & (df['EMA_100_H1'] > df['Close_H1']),
+            (df['EMA_100'] < df['close']) & (df['EMA_100'] > df['EMA_100'].shift()) & (df['SuperTrend350'] < df['close']) & (df['EMA_100_H1'] < df['Close_H1']),
+            (df['EMA_100'] > df['close']) & (df['EMA_100'] < df['EMA_100'].shift()) & (df['SuperTrend350'] > df['close']) & (df['EMA_100_H1'] > df['Close_H1']),
         ]
         values = ['Buy', 'Sell']
         df['Trend'] = np.select(conditions, values)
