@@ -57,36 +57,36 @@ class AutoOrder:
         rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 300)
         rates_h1 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_H1, 0, 300)
         # create DataFrame out of the obtained data
-        rates_frame = pd.DataFrame(rates)
-        rates_frame_h1 = pd.DataFrame(rates_h1)
+        df = pd.DataFrame(rates)
+        df_h1 = pd.DataFrame(rates_h1)
         # rates_frame['time'] = pd.to_datetime(rates_frame['time'], unit='s')
-        df = self.heikin_ashi(rates_frame)
-        df_h1 = self.heikin_ashi(rates_frame_h1)
-        df['ADX'] = ADX(df.high, df.low, df.close, timeperiod=14)
+        # df = self.heikin_ashi(rates_frame)
+        # df['ADX'] = ADX(df.high, df.low, df.close, timeperiod=14)
         df['EMA_100'] = EMA(df.close, timeperiod=100)
-        h1_ema = stream.EMA(df_h1.close, timeperiod=50)
-        h1_close = df_h1.close.iat[-1]
-        h1_trend = "Buy" if h1_ema < h1_close else "Sell"
+        df['EMA_100_H1'] = EMA(df_h1.close, timeperiod=100)
+        df['Close_H1'] = df_h1.close
+        # h1_ema = stream.EMA(df_h1.close, timeperiod=50)
+        # h1_close = df_h1.close.iat[-1]
+        # h1_trend = "Buy" if h1_ema < h1_close else "Sell"
 
-        df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
+        # df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
         df = df.dropna().reset_index(drop=True)
         # df = ST(df, f=1, n=12)
         # df = ST(df, f=2, n=11)
-        # df = ST(df, f=3, n=10)
+        df = ST(df, f=3, n=50)
 
         # trend conditional
         conditions = [
-            (df['EMA_100'] < df['close']) & (df['MACD'] > df['SIGNAL']) & (df['HIST'] > df['HIST'].shift()),
-            (df['EMA_100'] > df['close']) & (df['MACD'] < df['SIGNAL']) & (df['HIST'] < df['HIST'].shift()),
-            (df['HIST'] < 0),
-            (df['HIST'] > 0)
+            (df['EMA_100'] < df['close']) & (df['SuperTrend350'] < df['close']) & (df['EMA_100_H1'] < df['Close_H1']),
+            (df['EMA_100'] > df['close']) & (df['SuperTrend350'] > df['close']) & (df['EMA_100_H1'] > df['Close_H1']),
         ]
-        values = ['Buy', 'Sell', 'Close_Buy', 'Close_Sell']
+        values = ['Buy', 'Sell']
         df['Trend'] = np.select(conditions, values)
 
         close_p = df.close.iat[-1]
         current_trend = df.Trend.iat[-1]
-        return close_p, current_trend, h1_trend
+        super_trend_350 = df.SuperTrend350.iat[-1]
+        return close_p, current_trend, super_trend_350
 
     def save_frame(self, request):
         """
