@@ -26,12 +26,12 @@ def scheduler_job():
         lot = value.get('lot')
         factor = 2
         try:
-            close_p, current_trend, super_trend_350 = mt5_client.get_frames(symbol_name)
+            close_p, current_trend, super_trend_310 = mt5_client.get_frames(symbol_name)
         except Exception as ex:
             logger.error(f"Get frames errors: {ex}")
             continue
 
-        logger.info(f"close_p: {close_p} current_trend: {current_trend} super_trend_350 {super_trend_350}")
+        logger.info(f"close_p: {close_p} current_trend: {current_trend} super_trend_310 {super_trend_310}")
         order_exist = mt5_client.check_order_exist(symbol_name, current_trend)
         # do not place an order if the symbol order is placed to Metatrader
         if current_trend == "Buy" and not order_exist:
