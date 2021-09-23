@@ -54,22 +54,27 @@ class AutoOrder:
     def get_frames(self, symbol, timeframe=mt5.TIMEFRAME_M15):
         logger.info(f"Generate super trend for {symbol}")
         self.check_symbol(symbol)
-        rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_H1, 0, 300)
-        rates_h1 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_D1, 0, 300)
+        rates_h1 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_H1, 0, 300)
+        rates_d1 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_D1, 0, 300)
+        rates_m15 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 300)
         # create DataFrame out of the obtained data
-        df = pd.DataFrame(rates)
+        df = pd.DataFrame(rates_m15)
+        df = self.heikin_ashi(df)
+        df_d1 = pd.DataFrame(rates_d1)
+        df_d1 = self.heikin_ashi(df_d1)
         df_h1 = pd.DataFrame(rates_h1)
+        df_h1 = self.heikin_ashi(df_h1)
         # rates_frame['time'] = pd.to_datetime(rates_frame['time'], unit='s')
         # df = self.heikin_ashi(rates_frame)
         # df['ADX'] = ADX(df.high, df.low, df.close, timeperiod=14)
-        df['EMA_100'] = EMA(df.close, timeperiod=100)
-        df['EMA_100_H1'] = EMA(df_h1.close, timeperiod=100)
-        df['Close_H1'] = df_h1.close
-        # h1_ema = stream.EMA(df_h1.close, timeperiod=50)
-        # h1_close = df_h1.close.iat[-1]
-        # h1_trend = "Buy" if h1_ema < h1_close else "Sell"
+        df['EMA_100_M15'] = EMA(df.close, timeperiod=100)
 
-        df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
+        df['Close_D1'] = df_d1.close
+        df['EMA_100_D1'] = EMA(df_d1.close, timeperiod=100)
+        df['Close_H1'] = df_h1.close
+        df['EMA_100_H1'] = EMA(df_h1.close, timeperiod=100)
+
+        # df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
         df = df.dropna().reset_index(drop=True)
         # df = ST(df, f=1, n=12)
         # df = ST(df, f=2, n=11)
@@ -77,8 +82,14 @@ class AutoOrder:
 
         # trend conditional
         conditions = [
-            (df['EMA_100'] < df['close']) & (df['SuperTrend310'] < df['close']) & (df['EMA_100_H1'] < df['Close_H1']),
-            (df['EMA_100'] > df['close']) & (df['SuperTrend310'] > df['close']) & (df['EMA_100_H1'] > df['Close_H1']),
+            (df['SuperTrend310'] < df['close']) &
+            (df['EMA_100_M15'] < df['close']) &
+            (df['EMA_100_D1'] < df['Close_D1']) &
+            (df['EMA_100_H1'] < df['Close_H1']),
+            (df['SuperTrend310'] > df['close']) &
+            (df['EMA_100_M15'] > df['close']) &
+            (df['EMA_100_D1'] > df['Close_D1']) &
+            (df['EMA_100_H1'] > df['Close_H1']),
         ]
         values = ['Buy', 'Sell']
         df['Trend'] = np.select(conditions, values)

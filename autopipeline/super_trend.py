@@ -13,7 +13,7 @@ def scheduler_job():
     """Shows basic usage of the Gmail API.
     Lists the user's Gmail labels.
     """
-    if datetime.now().minute not in {0, 30}:
+    if datetime.now().minute not in {0, 15, 30, 45}:
         return
 
     logger.info(f"Start job at: {datetime.now()}")
@@ -25,11 +25,11 @@ def scheduler_job():
         # symbol_name = "Bitcoin"
         lot = value.get('lot')
         factor = 2
-        try:
-            close_p, current_trend, super_trend_350 = mt5_client.get_frames(symbol_name)
-        except Exception as ex:
-            logger.error(f"Get frames errors: {ex}")
-            continue
+        # try:
+        close_p, current_trend, super_trend_350 = mt5_client.get_frames(symbol_name)
+        # except Exception as ex:
+        #     logger.error(f"Get frames errors: {ex}")
+        #     continue
 
         logger.info(f"close_p: {close_p} current_trend: {current_trend} super_trend_350 {super_trend_350}")
         order_exist = mt5_client.check_order_exist(symbol_name, current_trend)
