@@ -54,8 +54,8 @@ class AutoOrder:
     def get_frames(self, symbol, timeframe=mt5.TIMEFRAME_M15):
         logger.info(f"Generate super trend for {symbol}")
         self.check_symbol(symbol)
-        rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 300)
-        rates_h1 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_H1, 0, 300)
+        rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_H1, 0, 300)
+        rates_h1 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_D1, 0, 300)
         # create DataFrame out of the obtained data
         df = pd.DataFrame(rates)
         df_h1 = pd.DataFrame(rates_h1)
@@ -73,19 +73,19 @@ class AutoOrder:
         df = df.dropna().reset_index(drop=True)
         # df = ST(df, f=1, n=12)
         # df = ST(df, f=2, n=11)
-        df = ST(df, f=3, n=50)
+        df = ST(df, f=3, n=10)
 
         # trend conditional
         conditions = [
-            (df['EMA_100'] < df['close']) & (df['EMA_100'] > df['EMA_100'].shift()) & (df['SuperTrend350'] < df['close']) & (df['EMA_100_H1'] < df['Close_H1']),
-            (df['EMA_100'] > df['close']) & (df['EMA_100'] < df['EMA_100'].shift()) & (df['SuperTrend350'] > df['close']) & (df['EMA_100_H1'] > df['Close_H1']),
+            (df['EMA_100'] < df['close']) & (df['SuperTrend310'] < df['close']) & (df['EMA_100_H1'] < df['Close_H1']),
+            (df['EMA_100'] > df['close']) & (df['SuperTrend310'] > df['close']) & (df['EMA_100_H1'] > df['Close_H1']),
         ]
         values = ['Buy', 'Sell']
         df['Trend'] = np.select(conditions, values)
 
         close_p = df.close.iat[-1]
         current_trend = df.Trend.iat[-1]
-        super_trend_350 = df.SuperTrend350.iat[-1]
+        super_trend_350 = df.SuperTrend310.iat[-1]
         return close_p, current_trend, super_trend_350
 
     def save_frame(self, request):

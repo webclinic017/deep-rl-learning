@@ -13,7 +13,7 @@ def scheduler_job():
     """Shows basic usage of the Gmail API.
     Lists the user's Gmail labels.
     """
-    if datetime.now().minute not in {0, 15, 30, 45}:
+    if datetime.now().minute not in {0, 30}:
         return
 
     logger.info(f"Start job at: {datetime.now()}")
