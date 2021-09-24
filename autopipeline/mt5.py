@@ -78,15 +78,15 @@ class AutoOrder:
         df = df.dropna().reset_index(drop=True)
         # df = ST(df, f=1, n=12)
         # df = ST(df, f=2, n=11)
-        df = ST(df, f=3, n=10)
+        df = ST(df, f=1, n=10)
 
         # trend conditional
         conditions = [
-            (df['SuperTrend310'] < df['close']) &
+            (df['SuperTrend110'] < df['close']) &
             (df['EMA_100_M15'] < df['close']) &
             (df['EMA_100_D1'] < df['Close_D1']) &
             (df['EMA_100_H1'] < df['Close_H1']),
-            (df['SuperTrend310'] > df['close']) &
+            (df['SuperTrend110'] > df['close']) &
             (df['EMA_100_M15'] > df['close']) &
             (df['EMA_100_D1'] > df['Close_D1']) &
             (df['EMA_100_H1'] > df['Close_H1']),
@@ -96,7 +96,7 @@ class AutoOrder:
 
         close_p = df.close.iat[-1]
         current_trend = df.Trend.iat[-1]
-        super_trend_350 = df.SuperTrend310.iat[-1]
+        super_trend_350 = df.SuperTrend110.iat[-1]
         return close_p, current_trend, super_trend_350
 
     def save_frame(self, request):
