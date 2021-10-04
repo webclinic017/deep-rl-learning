@@ -3,9 +3,9 @@ import numpy as np
 import pandas as pd
 import MetaTrader5 as mt5
 from talib import EMA, stream, MACD, ADX, BBANDS, ATR
-from bson.objectid import ObjectId
+# from bson.objectid import ObjectId
 from utils import ST, logger
-from pymongo import MongoClient
+# from pymongo import MongoClient
 
 
 class AutoOrder:
@@ -15,8 +15,8 @@ class AutoOrder:
     lot = 0.1
     position_id = None
     # order_list = []
-    client = MongoClient()
-    db = client.stockprice
+    # client = MongoClient()
+    # db = client.stockprice
     # default_time_frame = mt5.TIMEFRAME_H1
     default_time_frame = mt5.TIMEFRAME_M15
 
@@ -121,8 +121,8 @@ class AutoOrder:
         # rates_frame['EMA70'] = EMA(rates_frame.close, timeperiod=70)
         # rates_frame['EMA100'] = EMA(rates_frame.close, timeperiod=100)
         # rates_frame['DMI'] = ADX(rates_frame.high, rates_frame.low, rates_frame.close)
-        process_data['_id'] = str(ObjectId())
-        results = self.db.posts.insert_one(process_data)
+        # process_data['_id'] = str(ObjectId())
+        # results = self.db.posts.insert_one(process_data)
 
     def check_symbol(self, symbol):
         symbol_info = mt5.symbol_info(symbol)

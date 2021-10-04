@@ -4,45 +4,45 @@
     "division": 100
   },
   "EURUSD" : {
-    "lot": 0.1,
+    "lot": 0.2,
     "division": 100000
   },
   "GBPUSD" : {
-    "lot": 0.1,
+    "lot": 0.2,
     "division": 100000
   },
   "GBPJPY" : {
-    "lot": 0.1,
+    "lot": 0.2,
     "division": 1000
   },
   "USDCHF" : {
-    "lot": 0.1,
+    "lot": 0.2,
     "division": 100000
   },
   "AUDUSD" : {
-    "lot": 0.1,
+    "lot": 0.2,
     "division": 100000
   },
   "AUDJPY" : {
-    "lot": 0.1,
+    "lot": 0.2,
     "division": 100000
   },
   "USDJPY" : {
-    "lot": 0.1,
+    "lot": 0.2,
     "division": 100000
   },
   "USDCAD" : {
-    "lot": 0.1,
+    "lot": 0.2,
     "division": 100000
   },
   "EURGBP" : {
-    "lot": 0.1,
+    "lot": 0.2,
     "division": 100000
   },
-  "Bitcoin": {
+  "BTCUSD": {
     "lot": 0.1
   },
   "USDCNH": {
-    "lot": 0.1
+    "lot": 0.2
   }
 }
