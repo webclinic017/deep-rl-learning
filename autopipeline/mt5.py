@@ -76,18 +76,12 @@ class AutoOrder:
         # df = ST(df, f=1, n=10)
 
         # trend conditional
-        lookback = 14
+        lookback = 9
         conditions = [
-            (df['close'] > df['MIDDER']) &
-            (df['HIST'] > 0) &
-            (df['HIST'] > df['HIST'].shift(lookback)) &
-            (df['MIDDER'] > df['MIDDER'].shift()) &
-            (df['H4_close'] > df['H4_MIDDER']),
-            (df['close'] < df['MIDDER']) &
-            (df['HIST'] < 0) &
-            (df['HIST'] < df['HIST'].shift(lookback)) &
-            (df['MIDDER'] < df['MIDDER'].shift()) &
-            (df['H4_close'] < df['H4_MIDDER']),
+            (df['close'] > df['MIDDER']) & (df['HIST'] > df['HIST'].shift(lookback)) & (
+                        df['MIDDER'] > df['MIDDER'].shift()),
+            (df['close'] < df['MIDDER']) & (df['HIST'] < df['HIST'].shift(lookback)) & (
+                        df['MIDDER'] < df['MIDDER'].shift()),
         ]
         values = ['Buy', 'Sell']
         df['Trend'] = np.select(conditions, values)
