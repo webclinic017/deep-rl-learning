@@ -67,9 +67,6 @@ class AutoOrder:
         df['UPPER'], df['MIDDER'], df['LOWER'] = BBANDS(df.close, 20, 2, 2)
         df['ATR'] = ATR(df.high, df.low, df.close)
 
-        _, df['H4_MIDDER'], _ = BBANDS(df_h4.close, 20, 2, 2)
-        df['H4_close'] = df_h4.close
-
         # df = df.dropna().reset_index(drop=True)
         # df = ST(df, f=1, n=12)
         # df = ST(df, f=2, n=11)
@@ -78,10 +75,8 @@ class AutoOrder:
         # trend conditional
         lookback = 9
         conditions = [
-            (df['close'] > df['MIDDER']) & (df['HIST'] > df['HIST'].shift(lookback)) & (
-                        df['MIDDER'] > df['MIDDER'].shift()),
-            (df['close'] < df['MIDDER']) & (df['HIST'] < df['HIST'].shift(lookback)) & (
-                        df['MIDDER'] < df['MIDDER'].shift()),
+            (df['close'] > df['MIDDER']) & (df['HIST'] > df['HIST'].shift(lookback)),
+            (df['close'] < df['MIDDER']) & (df['HIST'] < df['HIST'].shift(lookback))
         ]
         values = ['Buy', 'Sell']
         df['Trend'] = np.select(conditions, values)
