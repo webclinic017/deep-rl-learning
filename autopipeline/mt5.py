@@ -54,18 +54,18 @@ class AutoOrder:
     def get_frames(self, symbol, timeframe=mt5.TIMEFRAME_M15):
         logger.info(f"Generate super trend for {symbol}")
         self.check_symbol(symbol)
-        rates_h1 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_H1, 0, 300)
-        rates_h4 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M30, 0, 300)
+        rates_frame = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M30, 0, 300)
+        # rates_h4 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M30, 0, 300)
         # create DataFrame out of the obtained data
-        df = pd.DataFrame(rates_h1)
-        df_h4 = pd.DataFrame(rates_h4)
+        df = pd.DataFrame(rates_frame)
+        # df_h4 = pd.DataFrame(rates_h4)
         # df_h1 = pd.DataFrame(rates_h1)
         # rates_frame['time'] = pd.to_datetime(rates_frame['time'], unit='s')
         # df = self.heikin_ashi(rates_frame)
         # df['ADX'] = ADX(df.high, df.low, df.close, timeperiod=14)
         df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
         df['UPPER'], df['MIDDER'], df['LOWER'] = BBANDS(df.close, 20, 2, 2)
-        df['ATR'] = ATR(df.high, df.low, df.close)
+        atr = stream.ATR(df.high, df.low, df.close)
 
         # df = df.dropna().reset_index(drop=True)
         # df = ST(df, f=1, n=12)
@@ -86,7 +86,7 @@ class AutoOrder:
         middle_band = df.MIDDER.iat[-1]
         upper_band = df.UPPER.iat[-1]
         lower_band = df.LOWER.iat[-1]
-        return close_p, current_trend, middle_band, upper_band, lower_band
+        return close_p, current_trend, middle_band, upper_band, lower_band, atr
 
     def save_frame(self, request):
         """
@@ -281,7 +281,7 @@ class AutoOrder:
                 #                                                           traderequest_dict[tradereq_filed]))
 
     @staticmethod
-    def modify_stoploss(symbol, sl):
+    def modify_stoploss(symbol, sl, atr):
         positions = mt5.positions_get(symbol=symbol)
         # print("Total positions",":",len(positions))
         # display all active orders
@@ -302,12 +302,16 @@ class AutoOrder:
                 ptype = "Buy"
                 diff = price_current - price_open
                 # pip_profit = diff / profit
+                if diff > atr and price_open > sl:
+                    sl = price_open
                 if prev_sl > sl:
                     return True
             elif position.type == 1:
                 ptype = "Sell"
                 diff = price_open - price_current
                 # pip_profit = diff / profit
+                if diff > atr and price_open < sl:
+                    sl = price_open
                 if prev_sl < sl:
                     return True
 
