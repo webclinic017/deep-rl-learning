@@ -49,7 +49,7 @@ def scheduler_job():
 
 if __name__ == '__main__':
     # Run job every hour at the 42rd minute
-    # scheduler_job()
+    scheduler_job()
     schedule.every().hours.at(":01").do(scheduler_job)
     schedule.every().hours.at(":31").do(scheduler_job)
     while True:

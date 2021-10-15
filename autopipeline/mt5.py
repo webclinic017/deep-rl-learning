@@ -65,7 +65,7 @@ class AutoOrder:
         # df['ADX'] = ADX(df.high, df.low, df.close, timeperiod=14)
         df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
         df['UPPER'], df['MIDDER'], df['LOWER'] = BBANDS(df.close, 20, 2, 2)
-        atr = stream.ATR(df.high, df.low, df.close)
+        df['ATR'] = ATR(df.high, df.low, df.close)
 
         # df = df.dropna().reset_index(drop=True)
         # df = ST(df, f=1, n=12)
@@ -86,6 +86,7 @@ class AutoOrder:
         middle_band = df.MIDDER.iat[-1]
         upper_band = df.UPPER.iat[-1]
         lower_band = df.LOWER.iat[-1]
+        atr = df.ATR.iat[-1]
         return close_p, current_trend, middle_band, upper_band, lower_band, atr
 
     def save_frame(self, request):
