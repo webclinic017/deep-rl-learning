@@ -2,7 +2,7 @@ import math
 import numpy as np
 import pandas as pd
 import MetaTrader5 as mt5
-from talib import EMA, stream, MACD, ADX, BBANDS, ATR
+from talib import EMA, stream, MACD, ADX, BBANDS, ATR, NATR
 # from bson.objectid import ObjectId
 from utils import ST, logger
 # from pymongo import MongoClient
@@ -65,7 +65,16 @@ class AutoOrder:
         # df['ADX'] = ADX(df.high, df.low, df.close, timeperiod=14)
         df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
         df['UPPER'], df['MIDDER'], df['LOWER'] = BBANDS(df.close, 20, 2, 2)
-        df['ATR'] = ATR(df.high, df.low, df.close)
+        # df['ATR'] = ATR(df.high, df.low, df.close, timeperiod=14)
+
+        high_low = df['high'] - df['low']
+        high_close = np.abs(df['high'] - df['close'].shift())
+        low_close = np.abs(df['low'] - df['close'].shift())
+
+        ranges = pd.concat([high_low, high_close, low_close], axis=1)
+        true_range = np.max(ranges, axis=1)
+
+        df['ATR'] = true_range.rolling(14).sum() / 14
 
         # df = df.dropna().reset_index(drop=True)
         # df = ST(df, f=1, n=12)
@@ -75,8 +84,8 @@ class AutoOrder:
         # trend conditional
         lookback = 5
         conditions = [
-            (df['close'] > df['MIDDER']) & (df['HIST'] > df['HIST'].shift(lookback)) & (df['ATR'] > df['ATR'].shift()),
-            (df['close'] < df['MIDDER']) & (df['HIST'] < df['HIST'].shift(lookback)) & (df['ATR'] > df['ATR'].shift()),
+            (df['close'] > df['MIDDER']) & (df['HIST'] > df['HIST'].shift()) & (df['ATR'] > df['ATR'].shift()),
+            (df['close'] < df['MIDDER']) & (df['HIST'] < df['HIST'].shift()) & (df['ATR'] > df['ATR'].shift()),
         ]
         values = ['Buy', 'Sell']
         df['Trend'] = np.select(conditions, values)
