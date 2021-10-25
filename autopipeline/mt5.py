@@ -157,7 +157,7 @@ class AutoOrder:
         }
 
         if tp is not None:
-            request.__setattr__('tp', tp)
+            request['tp'] = tp
 
         # send a trading request
         result = mt5.order_send(request)
@@ -200,7 +200,7 @@ class AutoOrder:
         }
 
         if tp is not None:
-            request.__setattr__('tp', tp)
+            request['tp'] = tp
 
         # send a trading request
         result = mt5.order_send(request)
