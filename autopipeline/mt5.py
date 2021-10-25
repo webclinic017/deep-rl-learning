@@ -149,13 +149,15 @@ class AutoOrder:
             "volume": lot,
             "type": mt5.ORDER_TYPE_BUY,
             "price": price,
-            "sl": sl,
             "deviation": deviation,
             "magic": 234000,
             "comment": "Buy",
             "type_time": mt5.ORDER_TIME_GTC,
             "type_filling": mt5.ORDER_FILLING_IOC,
         }
+
+        if tp is not None:
+            request.__setattr__('tp', tp)
 
         # send a trading request
         result = mt5.order_send(request)
@@ -190,13 +192,15 @@ class AutoOrder:
             "volume": lot,
             "type": mt5.ORDER_TYPE_SELL,
             "price": price,
-            "sl": sl,
             "deviation": deviation,
             "magic": 234000,
             "comment": "Sell",
             "type_time": mt5.ORDER_TIME_GTC,
             "type_filling": mt5.ORDER_FILLING_IOC,
         }
+
+        if tp is not None:
+            request.__setattr__('tp', tp)
 
         # send a trading request
         result = mt5.order_send(request)

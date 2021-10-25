@@ -35,13 +35,13 @@ def scheduler_job():
         if current_trend == "Buy" and not order_exist:
             mt5_client.close_order(symbol_name)  # close all open positions
             # tp = close_p + (factor * atr)  # ROE=2
-            mt5_client.buy_order(symbol_name, lot=lot-0.01, sl=middle_band, tp=None)  # default tp at 1000 pips
-            mt5_client.buy_order(symbol_name, lot=0.01, sl=middle_band, tp=None)  # default tp at 1000 pips
+            mt5_client.buy_order(symbol_name, lot=lot-0.01, sl=None, tp=atr)  # default tp at 1000 pips
+            mt5_client.buy_order(symbol_name, lot=0.01, sl=None, tp=None)  # default tp at 1000 pips
         elif current_trend == 'Sell' and not order_exist:
             mt5_client.close_order(symbol_name)  # close all open positions
             # tp = close_p - (factor * atr)  # ROE=2
-            mt5_client.sell_order(symbol_name, lot=lot-0.01, sl=middle_band, tp=None)  # default tp at 1000 pips
-            mt5_client.sell_order(symbol_name, lot=0.01, sl=middle_band, tp=None)  # default tp at 1000 pips
+            mt5_client.sell_order(symbol_name, lot=lot-0.01, sl=None, tp=atr)  # default tp at 1000 pips
+            mt5_client.sell_order(symbol_name, lot=0.01, sl=None, tp=None)  # default tp at 1000 pips
         # elif current_trend == "0":
         #     mt5_client.close_order(symbol_name)  # close all open positions of the symbol_name
         # if order_exist:
