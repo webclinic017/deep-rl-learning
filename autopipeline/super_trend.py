@@ -46,7 +46,7 @@ def scheduler_job():
         #     mt5_client.close_order(symbol_name)  # close all open positions of the symbol_name
         # if order_exist:
             # sl = lower_band if current_trend == "Buy" else upper_band
-        mt5_client.modify_stoploss(symbol_name, middle_band, atr)
+        # mt5_client.modify_stoploss(symbol_name, middle_band, atr)
 
 
 if __name__ == '__main__':
