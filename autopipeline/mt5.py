@@ -51,52 +51,44 @@ class AutoOrder:
         heikin_ashi_df['low'] = heikin_ashi_df.loc[:, ['open', 'close']].join(df['low']).min(axis=1)
         return heikin_ashi_df
 
-    def get_frames(self, symbol, timeframe=mt5.TIMEFRAME_M15):
+    def get_frames(self, symbol):
         logger.info(f"Generate super trend for {symbol}")
         self.check_symbol(symbol)
-        rates_frame = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M30, 0, 300)
-        # rates_h4 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M30, 0, 300)
+        rates_frame_h1 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_H1, 0, 300)
+        rates_frame_m30 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M30, 0, 300)
+        rates_frame_m15 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 300)
+        rates_frame_m5 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M5, 0, 300)
         # create DataFrame out of the obtained data
-        df = pd.DataFrame(rates_frame)
-        # df_h4 = pd.DataFrame(rates_h4)
-        # df_h1 = pd.DataFrame(rates_h1)
+        df_h1 = pd.DataFrame(rates_frame_h1)
+        df_m30 = pd.DataFrame(rates_frame_m30)
+        df_m15 = pd.DataFrame(rates_frame_m15)
+        df_m5 = pd.DataFrame(rates_frame_m5)
+
         # rates_frame['time'] = pd.to_datetime(rates_frame['time'], unit='s')
         # df = self.heikin_ashi(rates_frame)
-        # df['ADX'] = ADX(df.high, df.low, df.close, timeperiod=14)
-        df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
-        df['UPPER'], df['MIDDER'], df['LOWER'] = BBANDS(df.close, 20, 2, 2)
-        # df['ATR'] = ATR(df.high, df.low, df.close, timeperiod=14)
+        # df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
+        # df['UPPER'], df['MIDDER'], df['LOWER'] = BBANDS(df.close, 20, 2, 2)
 
-        high_low = df['high'] - df['low']
-        high_close = np.abs(df['high'] - df['close'].shift())
-        low_close = np.abs(df['low'] - df['close'].shift())
+        h1_ema_50 = stream.EMA(df_h1.close, timeperiod=50)
+        h1_ema_20 = stream.EMA(df_h1.close, timeperiod=20)
 
-        ranges = pd.concat([high_low, high_close, low_close], axis=1)
-        true_range = np.max(ranges, axis=1)
+        m30_ema_50 = stream.EMA(df_h1.close, timeperiod=50)
+        m30_ema_20 = stream.EMA(df_h1.close, timeperiod=20)
 
-        df['ATR'] = true_range.rolling(14).sum() / 14
+        m15_ema_50 = stream.EMA(df_h1.close, timeperiod=50)
+        m15_ema_20 = stream.EMA(df_h1.close, timeperiod=20)
 
-        # df = df.dropna().reset_index(drop=True)
-        # df = ST(df, f=1, n=12)
-        # df = ST(df, f=2, n=11)
-        # df = ST(df, f=1, n=10)
+        m5_ema_50 = stream.EMA(df_h1.close, timeperiod=50)
+        m5_ema_20 = stream.EMA(df_h1.close, timeperiod=20)
 
-        # trend conditional
-        lookback = 5
-        conditions = [
-            (df['close'] > df['MIDDER']) & (df['HIST'] > df['HIST'].shift()) & (df['ATR'] > df['ATR'].shift()),
-            (df['close'] < df['MIDDER']) & (df['HIST'] < df['HIST'].shift()) & (df['ATR'] > df['ATR'].shift()),
-        ]
-        values = ['Buy', 'Sell']
-        df['Trend'] = np.select(conditions, values)
+        current_trend = "0"
+        if h1_ema_50 > h1_ema_20 and m30_ema_50 > m30_ema_20 and m15_ema_50 > m15_ema_20 and m5_ema_50 > m5_ema_20:
+            current_trend = "Sell"
+        elif h1_ema_50 < h1_ema_20 and m30_ema_50 < m30_ema_20 and m15_ema_50 < m15_ema_20 and m5_ema_50 < m5_ema_20:
+            current_trend = "Buy"
 
-        close_p = df.close.iat[-1]
-        current_trend = df.Trend.iat[-1]
-        middle_band = df.MIDDER.iat[-1]
-        upper_band = df.UPPER.iat[-1]
-        lower_band = df.LOWER.iat[-1]
-        atr = df.ATR.iat[-1]
-        return close_p, current_trend, middle_band, upper_band, lower_band, atr
+        close_p = df_h1.close.iat[-1]
+        return close_p, current_trend
 
     def save_frame(self, request):
         """
