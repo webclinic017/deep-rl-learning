@@ -73,23 +73,23 @@ class AutoOrder:
         # df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
         # df['UPPER'], df['MIDDER'], df['LOWER'] = BBANDS(df.close, 20, 2, 2)
 
-        d1_ema_50 = stream.EMA(df_d1.close, timeperiod=50)
-        d1_ema_20 = stream.EMA(df_d1.close, timeperiod=20)
+        d1_ema_50 = df_d1.close.ewm(span=50, adjust=False).mean().iat[-1]
+        d1_ema_20 = df_d1.close.ewm(span=20, adjust=False).mean().iat[-1]
 
-        h4_ema_50 = stream.EMA(df_h4.close, timeperiod=50)
-        h4_ema_20 = stream.EMA(df_h4.close, timeperiod=20)
+        h4_ema_50 = df_h4.close.ewm(span=50, adjust=False).mean().iat[-1]
+        h4_ema_20 = df_h4.close.ewm(span=20, adjust=False).mean().iat[-1]
 
-        h1_ema_50 = stream.EMA(df_h1.close, timeperiod=50)
-        h1_ema_20 = stream.EMA(df_h1.close, timeperiod=20)
+        h1_ema_50 = df_h1.close.ewm(span=50, adjust=False).mean().iat[-1]
+        h1_ema_20 = df_h1.close.ewm(span=20, adjust=False).mean().iat[-1]
 
-        m30_ema_50 = stream.EMA(df_m30.close, timeperiod=50)
-        m30_ema_20 = stream.EMA(df_m30.close, timeperiod=20)
+        m30_ema_50 = df_m30.close.ewm(span=50, adjust=False).mean().iat[-1]
+        m30_ema_20 = df_m30.close.ewm(span=20, adjust=False).mean().iat[-1]
 
-        m15_ema_50 = stream.EMA(df_m15.close, timeperiod=50)
-        m15_ema_20 = stream.EMA(df_m15.close, timeperiod=20)
+        m15_ema_50 = df_m15.close.ewm(span=50, adjust=False).mean().iat[-1]
+        m15_ema_20 = df_m15.close.ewm(span=20, adjust=False).mean().iat[-1]
 
-        m5_ema_50 = stream.EMA(df_m5.close, timeperiod=50)
-        m5_ema_20 = stream.EMA(df_m5.close, timeperiod=20)
+        m5_ema_50 = df_m5.close.ewm(span=50, adjust=False).mean().iat[-1]
+        m5_ema_20 = df_m5.close.ewm(span=20, adjust=False).mean().iat[-1]
 
         current_trend = "0"
         if h1_ema_50 > h1_ema_20 and m30_ema_50 > m30_ema_20 and \
