@@ -54,11 +54,15 @@ class AutoOrder:
     def get_frames(self, symbol):
         logger.info(f"Generate super trend for {symbol}")
         self.check_symbol(symbol)
+        rates_frame_d1 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_D1, 0, 300)
+        rates_frame_h4 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_H4, 0, 300)
         rates_frame_h1 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_H1, 0, 300)
         rates_frame_m30 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M30, 0, 300)
         rates_frame_m15 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 300)
         rates_frame_m5 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M5, 0, 300)
         # create DataFrame out of the obtained data
+        df_d1 = pd.DataFrame(rates_frame_d1)
+        df_h4 = pd.DataFrame(rates_frame_h4)
         df_h1 = pd.DataFrame(rates_frame_h1)
         df_m30 = pd.DataFrame(rates_frame_m30)
         df_m15 = pd.DataFrame(rates_frame_m15)
@@ -68,6 +72,12 @@ class AutoOrder:
         # df = self.heikin_ashi(rates_frame)
         # df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
         # df['UPPER'], df['MIDDER'], df['LOWER'] = BBANDS(df.close, 20, 2, 2)
+
+        d1_ema_50 = stream.EMA(df_d1.close, timeperiod=50)
+        d1_ema_20 = stream.EMA(df_d1.close, timeperiod=20)
+
+        h4_ema_50 = stream.EMA(df_h4.close, timeperiod=50)
+        h4_ema_20 = stream.EMA(df_h4.close, timeperiod=20)
 
         h1_ema_50 = stream.EMA(df_h1.close, timeperiod=50)
         h1_ema_20 = stream.EMA(df_h1.close, timeperiod=20)
@@ -82,9 +92,13 @@ class AutoOrder:
         m5_ema_20 = stream.EMA(df_m5.close, timeperiod=20)
 
         current_trend = "0"
-        if h1_ema_50 > h1_ema_20 and m30_ema_50 > m30_ema_20 and m15_ema_50 > m15_ema_20 and m5_ema_50 > m5_ema_20:
+        if h1_ema_50 > h1_ema_20 and m30_ema_50 > m30_ema_20 and \
+                m15_ema_50 > m15_ema_20 and m5_ema_50 > m5_ema_20 and \
+                d1_ema_50 > d1_ema_20 and h4_ema_50 > h4_ema_20:
             current_trend = "Sell"
-        elif h1_ema_50 < h1_ema_20 and m30_ema_50 < m30_ema_20 and m15_ema_50 < m15_ema_20 and m5_ema_50 < m5_ema_20:
+        elif h1_ema_50 < h1_ema_20 and m30_ema_50 < m30_ema_20 and \
+                m15_ema_50 < m15_ema_20 and m5_ema_50 < m5_ema_20 and \
+                d1_ema_50 < d1_ema_20 and h4_ema_50 < h4_ema_20:
             current_trend = "Buy"
 
         close_p = df_h1.close.iat[-1]
