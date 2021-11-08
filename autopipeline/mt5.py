@@ -72,14 +72,14 @@ class AutoOrder:
         h1_ema_50 = stream.EMA(df_h1.close, timeperiod=50)
         h1_ema_20 = stream.EMA(df_h1.close, timeperiod=20)
 
-        m30_ema_50 = stream.EMA(df_h1.close, timeperiod=50)
-        m30_ema_20 = stream.EMA(df_h1.close, timeperiod=20)
+        m30_ema_50 = stream.EMA(df_m30.close, timeperiod=50)
+        m30_ema_20 = stream.EMA(df_m30.close, timeperiod=20)
 
-        m15_ema_50 = stream.EMA(df_h1.close, timeperiod=50)
-        m15_ema_20 = stream.EMA(df_h1.close, timeperiod=20)
+        m15_ema_50 = stream.EMA(df_m15.close, timeperiod=50)
+        m15_ema_20 = stream.EMA(df_m15.close, timeperiod=20)
 
-        m5_ema_50 = stream.EMA(df_h1.close, timeperiod=50)
-        m5_ema_20 = stream.EMA(df_h1.close, timeperiod=20)
+        m5_ema_50 = stream.EMA(df_m5.close, timeperiod=50)
+        m5_ema_20 = stream.EMA(df_m5.close, timeperiod=20)
 
         current_trend = "0"
         if h1_ema_50 > h1_ema_20 and m30_ema_50 > m30_ema_20 and m15_ema_50 > m15_ema_20 and m5_ema_50 > m5_ema_20:
