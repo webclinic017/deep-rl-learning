@@ -138,7 +138,7 @@ class AutoOrder:
         # check the execution result
         logger.info("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
         logger.info(result)
-        if result.retcode != mt5.TRADE_RETCODE_DONE:
+        if result and result.retcode != mt5.TRADE_RETCODE_DONE:
             print("2. order_send failed, retcode={}".format(result.retcode))
             # request the result as a dictionary and display it element by element
             result_dict = result._asdict()
@@ -181,7 +181,7 @@ class AutoOrder:
         # check the execution result
         logger.info("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
         logger.info(result)
-        if result.retcode != mt5.TRADE_RETCODE_DONE:
+        if result and result.retcode != mt5.TRADE_RETCODE_DONE:
             print("2. order_send failed, retcode={}".format(result.retcode))
             # request the result as a dictionary and display it element by element
             result_dict = result._asdict()
@@ -248,13 +248,11 @@ class AutoOrder:
                 # send a trading request
                 result = mt5.order_send(request)
                 # check the execution result
-                logger.info("close position #{}: symbol {} profit {}".format(position_id, symbol, profit))
-                # if result:
-                # if result.retcode != mt5.TRADE_RETCODE_DONE:
+                # logger.info("close position #{}: symbol {} profit {}".format(position_id, symbol, profit))
+                # if result and result.retcode != mt5.TRADE_RETCODE_DONE:
                 #     logger.error("order_send failed, retcode={}".format(result.retcode))
                 #     logger.error("   result", result)
                 # else:
-                #     # logger.error("position #{} closed, {}".format(position_id, result))
                 #     # request the result as a dictionary and display it element by element
                 #     result_dict = result._asdict()
                 #     for field in result_dict.keys():
