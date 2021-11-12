@@ -1,9 +1,10 @@
 from __future__ import print_function
 import json
 import time
-from datetime import datetime
-
+import MetaTrader5 as mt5
 import schedule
+
+from datetime import datetime
 from mt5 import AutoOrder
 from utils import logger
 mt5_client = AutoOrder()
@@ -24,9 +25,18 @@ def scheduler_job():
     for symbol_name, value in zip(config.keys(), config.values()):
         # symbol_name = "BTCUSD"
         lot = value.get('lot')
-        close_p, current_trend = mt5_client.get_frames(symbol_name)
 
-        logger.info(f"close_p: {close_p} current_trend: {current_trend}")
+        current_price, m15_trend, dfdate = mt5_client.get_frames(timeframe=mt5.TIMEFRAME_M15, symbol=symbol_name)
+        _, m30_trend, _ = mt5_client.get_frames(timeframe=mt5.TIMEFRAME_M30, symbol=symbol_name)
+        _, h1_trend, _ = mt5_client.get_frames(timeframe=mt5.TIMEFRAME_H1, symbol=symbol_name)
+
+        current_trend = '0'
+        if h1_trend == m15_trend == m30_trend == "Sell":
+            current_trend = "Sell"
+        if h1_trend == m15_trend == m30_trend == "Buy":
+            current_trend = "Buy"
+
+        logger.info(f"close_p: {current_price} m15_trend: {m15_trend} m30_trend: {m30_trend} h1_trend: {h1_trend}")
         order_exist = mt5_client.check_order_exist(symbol_name, current_trend)
         # do not place an order if the symbol order is placed to Metatrader
         if current_trend == "Buy" and not order_exist:

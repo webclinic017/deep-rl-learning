@@ -2,10 +2,10 @@ import math
 import numpy as np
 import pandas as pd
 import MetaTrader5 as mt5
+import pytz
 from talib import EMA, stream, MACD, ADX, BBANDS, ATR, NATR
-# from bson.objectid import ObjectId
+from datetime import datetime
 from utils import ST, logger
-# from pymongo import MongoClient
 
 
 class AutoOrder:
@@ -51,58 +51,24 @@ class AutoOrder:
         heikin_ashi_df['low'] = heikin_ashi_df.loc[:, ['open', 'close']].join(df['low']).min(axis=1)
         return heikin_ashi_df
 
-    def get_frames(self, symbol):
-        logger.info(f"Generate super trend for {symbol}")
-        self.check_symbol(symbol)
-        rates_frame_d1 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_D1, 0, 300)
-        rates_frame_h4 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_H4, 0, 300)
-        rates_frame_h1 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_H1, 0, 300)
-        rates_frame_m30 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M30, 0, 300)
-        rates_frame_m15 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 300)
-        rates_frame_m5 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M5, 0, 300)
+    @staticmethod
+    def get_frames(timeframe, symbol):
+        rates_frame = mt5.copy_rates_from_pos(symbol, timeframe, 0, 300)
         # create DataFrame out of the obtained data
-        df_d1 = pd.DataFrame(rates_frame_d1)
-        df_h4 = pd.DataFrame(rates_frame_h4)
-        df_h1 = pd.DataFrame(rates_frame_h1)
-        df_m30 = pd.DataFrame(rates_frame_m30)
-        df_m15 = pd.DataFrame(rates_frame_m15)
-        df_m5 = pd.DataFrame(rates_frame_m5)
-
-        # rates_frame['time'] = pd.to_datetime(rates_frame['time'], unit='s')
-        # df = self.heikin_ashi(rates_frame)
-        # df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
-        # df['UPPER'], df['MIDDER'], df['LOWER'] = BBANDS(df.close, 20, 2, 2)
-
-        d1_ema_50 = df_d1.close.ewm(span=50, adjust=False).mean().iat[-1]
-        d1_ema_20 = df_d1.close.ewm(span=20, adjust=False).mean().iat[-1]
-
-        h4_ema_50 = df_h4.close.ewm(span=50, adjust=False).mean().iat[-1]
-        h4_ema_20 = df_h4.close.ewm(span=20, adjust=False).mean().iat[-1]
-
-        h1_ema_50 = df_h1.close.ewm(span=50, adjust=False).mean().iat[-1]
-        h1_ema_20 = df_h1.close.ewm(span=20, adjust=False).mean().iat[-1]
-
-        m30_ema_50 = df_m30.close.ewm(span=50, adjust=False).mean().iat[-1]
-        m30_ema_20 = df_m30.close.ewm(span=20, adjust=False).mean().iat[-1]
-
-        m15_ema_50 = df_m15.close.ewm(span=50, adjust=False).mean().iat[-1]
-        m15_ema_20 = df_m15.close.ewm(span=20, adjust=False).mean().iat[-1]
-
-        m5_ema_50 = df_m5.close.ewm(span=50, adjust=False).mean().iat[-1]
-        m5_ema_20 = df_m5.close.ewm(span=20, adjust=False).mean().iat[-1]
-
-        current_trend = "0"
-        if h1_ema_50 > h1_ema_20 and m30_ema_50 > m30_ema_20 and \
-                m15_ema_50 > m15_ema_20 and m5_ema_50 > m5_ema_20 and \
-                d1_ema_50 > d1_ema_20 and h4_ema_50 > h4_ema_20:
-            current_trend = "Sell"
-        elif h1_ema_50 < h1_ema_20 and m30_ema_50 < m30_ema_20 and \
-                m15_ema_50 < m15_ema_20 and m5_ema_50 < m5_ema_20 and \
-                d1_ema_50 < d1_ema_20 and h4_ema_50 < h4_ema_20:
-            current_trend = "Buy"
-
-        close_p = df_h1.close.iat[-1]
-        return close_p, current_trend
+        df = pd.DataFrame(rates_frame, columns=['time', 'open', 'high', 'low', 'close'])
+        df['Date'] = pd.to_datetime(df['time'], unit='s')
+        df = df.drop(['time'], axis=1)
+        df = df.reindex(columns=['Date', 'open', 'high', 'low', 'close'])
+        df['EMA_50'] = df.close.ewm(span=50, adjust=False).mean()
+        df['EMA_20'] = df.close.ewm(span=20, adjust=False).mean()
+        df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
+        conditions = [
+            (df['close'] > df['EMA_50']) & (df['HIST'] > 0),
+            (df['close'] < df['EMA_50']) & (df['HIST'] < 0)
+        ]
+        values = ['Buy', 'Sell']
+        df['Trend'] = np.select(conditions, values)
+        return df.close.iat[-1], df.Trend.iat[-1], str(df.Date.iat[-1])
 
     def save_frame(self, request):
         """
