@@ -3,11 +3,21 @@ import json
 import time
 import MetaTrader5 as mt5
 import schedule
-
+import sentry_sdk
 from datetime import datetime
 from mt5 import AutoOrder
 from utils import logger
 mt5_client = AutoOrder()
+
+
+sentry_sdk.init(
+    "https://cc11af54279542189f34a16070babe07@o1068161.ingest.sentry.io/6062320",
+
+    # Set traces_sample_rate to 1.0 to capture 100%
+    # of transactions for performance monitoring.
+    # We recommend adjusting this value in production.
+    traces_sample_rate=1.0
+)
 
 
 def scheduler_job():
