@@ -118,7 +118,7 @@ class AutoOrder:
         request = {
             "action": mt5.TRADE_ACTION_DEAL,
             "symbol": symbol,
-            "volume": lot,
+            "volume": float(lot),
             "type": mt5.ORDER_TYPE_BUY,
             "price": price,
             "magic": 234000,
@@ -158,13 +158,14 @@ class AutoOrder:
         self.check_symbol(symbol)
         point = mt5.symbol_info(symbol).point
         price = mt5.symbol_info_tick(symbol).bid
-        deviation = 40
+        deviation = 20
         request = {
             "action": mt5.TRADE_ACTION_DEAL,
             "symbol": symbol,
-            "volume": lot,
+            "volume": float(lot),
             "type": mt5.ORDER_TYPE_SELL,
             "price": price,
+            "deviation": deviation,
             "magic": 234000,
             "comment": "Sell",
             "type_time": mt5.ORDER_TIME_GTC,
@@ -176,7 +177,7 @@ class AutoOrder:
 
         # send a trading request
         result = mt5.order_send(request)
-        # logger.info(f"order_send done {result}")
+        logger.info(f"order_send done {result}")
         # self.save_frame(request)
         # check the execution result
         if result:
@@ -218,13 +219,13 @@ class AutoOrder:
                     request = {
                         "action": mt5.TRADE_ACTION_DEAL,
                         "symbol": symbol,
-                        "volume": order.volume,
+                        "volume": float(order.volume),
                         "type": mt5.ORDER_TYPE_BUY,
                         "position": position_id,
                         "price": price,
                         "deviation": deviation,
                         "magic": 234000,
-                        "comment": "python script close",
+                        "comment": f"close order {profit}",
                         "type_time": mt5.ORDER_TIME_GTC,
                         "type_filling": mt5.ORDER_FILLING_IOC,
                     }

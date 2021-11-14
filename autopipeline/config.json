@@ -40,7 +40,7 @@
     "division": 100000
   },
   "BTCUSD": {
-    "lot": 1
+    "lot": 1.0
   },
   "USDCNH": {
     "lot": 2
