@@ -24,8 +24,8 @@ def scheduler_job():
     """Shows basic usage of the Gmail API.
     Lists the user's Gmail labels.
     """
-    # if datetime.now().minute % 5 != 0:
-    #     return
+    if datetime.now().minute % 5 != 0:
+        return
 
     logger.info(f"Start job at: {datetime.now()}")
     logger.info("="*50)
@@ -33,7 +33,7 @@ def scheduler_job():
         config = json.load(config_file)
 
     for symbol_name, value in zip(config.keys(), config.values()):
-        symbol_name = "BTCUSD"
+        # symbol_name = "BTCUSD"
         lot = value.get('lot')
 
         current_price, m5_trend, dfdate = mt5_client.get_frames(timeframe=mt5.TIMEFRAME_M5, symbol=symbol_name)
@@ -64,8 +64,8 @@ def scheduler_job():
 
 if __name__ == '__main__':
     # Run job every hour at the 42rd minute
-    scheduler_job()
-    # schedule.every().minutes.do(scheduler_job)
-    # while True:
-    #     schedule.run_pending()
-    #     time.sleep(1)
+    # scheduler_job()
+    schedule.every().minutes.do(scheduler_job)
+    while True:
+        schedule.run_pending()
+        time.sleep(1)

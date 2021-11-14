@@ -60,7 +60,7 @@ class AutoOrder:
         df = df.drop(['time'], axis=1)
         df = df.reindex(columns=['Date', 'open', 'high', 'low', 'close'])
         df['EMA_50'] = df.close.ewm(span=50, adjust=False).mean()
-        df['EMA_20'] = df.close.ewm(span=20, adjust=False).mean()
+        # df['EMA_20'] = df.close.ewm(span=20, adjust=False).mean()
         df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
         conditions = [
             (df['close'] > df['EMA_50']) & (df['HIST'] > 0),
