@@ -136,22 +136,24 @@ class AutoOrder:
         # logger.info("order_send done, ", result)
         # self.save_frame(request)
         # check the execution result
-        logger.info("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
-        logger.info(result)
-        if result and result.retcode != mt5.TRADE_RETCODE_DONE:
-            print("2. order_send failed, retcode={}".format(result.retcode))
-            # request the result as a dictionary and display it element by element
-            result_dict = result._asdict()
-            for field in result_dict.keys():
-                print("   {}={}".format(field, result_dict[field]))
-                # if this is a trading request structure, display it element by element as well
-                if field == "request":
-                    traderequest_dict = result_dict[field]._asdict()
-                    for tradereq_filed in traderequest_dict:
-                        print("       traderequest: {}={}".format(tradereq_filed, traderequest_dict[tradereq_filed]))
-            print("shutdown() and quit")
-            # mt5.shutdown()
-            # quit()
+        if result:
+            if result.retcode != mt5.TRADE_RETCODE_DONE:
+                logger.error("2. order_send failed, retcode={}".format(result.retcode))
+                # request the result as a dictionary and display it element by element
+                result_dict = result._asdict()
+                for field in result_dict.keys():
+                    logger.error("   {}={}".format(field, result_dict[field]))
+                    # if this is a trading request structure, display it element by element as well
+                    if field == "request":
+                        traderequest_dict = result_dict[field]._asdict()
+                        for tradereq_filed in traderequest_dict:
+                            logger.error("       traderequest: {}={}".format(tradereq_filed, traderequest_dict[tradereq_filed]))
+            else:
+                logger.info("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price,
+                                                                                                deviation))
+                logger.info(result)
+        else:
+            logger.error(f"Can not send order for {symbol}")
 
     def sell_order(self, symbol, lot, sl, tp):
         self.check_symbol(symbol)
@@ -179,22 +181,24 @@ class AutoOrder:
         # logger.info(f"order_send done {result}")
         # self.save_frame(request)
         # check the execution result
-        logger.info("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price, deviation))
-        logger.info(result)
-        if result and result.retcode != mt5.TRADE_RETCODE_DONE:
-            print("2. order_send failed, retcode={}".format(result.retcode))
-            # request the result as a dictionary and display it element by element
-            result_dict = result._asdict()
-            for field in result_dict.keys():
-                print("   {}={}".format(field, result_dict[field]))
-                # if this is a trading request structure, display it element by element as well
-                if field == "request":
-                    traderequest_dict = result_dict[field]._asdict()
-                    for tradereq_filed in traderequest_dict:
-                        print("       traderequest: {}={}".format(tradereq_filed, traderequest_dict[tradereq_filed]))
-            print("shutdown() and quit")
-            # mt5.shutdown()
-            # quit()
+        if result:
+            if result.retcode != mt5.TRADE_RETCODE_DONE:
+                logger.error("2. order_send failed, retcode={}".format(result.retcode))
+                # request the result as a dictionary and display it element by element
+                result_dict = result._asdict()
+                for field in result_dict.keys():
+                    logger.error("   {}={}".format(field, result_dict[field]))
+                    # if this is a trading request structure, display it element by element as well
+                    if field == "request":
+                        traderequest_dict = result_dict[field]._asdict()
+                        for tradereq_filed in traderequest_dict:
+                            logger.error("       traderequest: {}={}".format(tradereq_filed, traderequest_dict[tradereq_filed]))
+            else:
+                logger.info("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price,
+                                                                                                deviation))
+                logger.info(result)
+        else:
+            logger.error(f"Can not send order for {symbol}")
 
     def close_order(self, symbol):
         # create a close request
@@ -248,21 +252,24 @@ class AutoOrder:
                 # send a trading request
                 result = mt5.order_send(request)
                 # check the execution result
-                # logger.info("close position #{}: symbol {} profit {}".format(position_id, symbol, profit))
-                # if result and result.retcode != mt5.TRADE_RETCODE_DONE:
-                #     logger.error("order_send failed, retcode={}".format(result.retcode))
-                #     logger.error("   result", result)
-                # else:
-                #     # request the result as a dictionary and display it element by element
-                #     result_dict = result._asdict()
-                #     for field in result_dict.keys():
-                #         logger.info("   {}={}".format(field, result_dict[field]))
-                #         # if this is a trading request structure, display it element by element as well
-                #         if field == "request":
-                #             traderequest_dict = result_dict[field]._asdict()
-                #             for tradereq_filed in traderequest_dict:
-                #                 logger.info("       traderequest: {}={}".format(tradereq_filed,
-                #                                                           traderequest_dict[tradereq_filed]))
+                if result:
+                    if result.retcode != mt5.TRADE_RETCODE_DONE:
+                        logger.error("order_send failed, retcode={}".format(result.retcode))
+                        logger.error("   result", result)
+                    else:
+                        logger.info("close position #{}: symbol {} profit {}".format(position_id, symbol, profit))
+                        # request the result as a dictionary and display it element by element
+                        result_dict = result._asdict()
+                        for field in result_dict.keys():
+                            logger.info("   {}={}".format(field, result_dict[field]))
+                            # if this is a trading request structure, display it element by element as well
+                            if field == "request":
+                                traderequest_dict = result_dict[field]._asdict()
+                                for tradereq_filed in traderequest_dict:
+                                    logger.info("       traderequest: {}={}".format(tradereq_filed,
+                                                                                    traderequest_dict[tradereq_filed]))
+                else:
+                    logger.error(f"Can not close order for {symbol}")
 
     @staticmethod
     def modify_stoploss(symbol, sl, atr):
