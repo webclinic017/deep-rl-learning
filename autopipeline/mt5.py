@@ -114,7 +114,7 @@ class AutoOrder:
         self.check_symbol(symbol)
         point = mt5.symbol_info(symbol).point
         price = mt5.symbol_info_tick(symbol).ask
-        deviation = 20
+        deviation = 40
         request = {
             "action": mt5.TRADE_ACTION_DEAL,
             "symbol": symbol,
@@ -159,7 +159,7 @@ class AutoOrder:
         self.check_symbol(symbol)
         point = mt5.symbol_info(symbol).point
         price = mt5.symbol_info_tick(symbol).bid
-        deviation = 20
+        deviation = 40
         request = {
             "action": mt5.TRADE_ACTION_DEAL,
             "symbol": symbol,
