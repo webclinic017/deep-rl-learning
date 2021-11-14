@@ -39,11 +39,12 @@ def scheduler_job():
         current_price, m5_trend, dfdate = mt5_client.get_frames(timeframe=mt5.TIMEFRAME_M5, symbol=symbol_name)
         _, m15_trend, _ = mt5_client.get_frames(timeframe=mt5.TIMEFRAME_M15, symbol=symbol_name)
         _, m30_trend, _ = mt5_client.get_frames(timeframe=mt5.TIMEFRAME_M30, symbol=symbol_name)
+        _, h1_trend, _ = mt5_client.get_frames(timeframe=mt5.TIMEFRAME_H1, symbol=symbol_name)
 
         current_trend = '0'
-        if m5_trend == m15_trend == m30_trend == "Sell":
+        if m5_trend == m15_trend == m30_trend == h1_trend == "Sell":
             current_trend = "Sell"
-        if m5_trend == m15_trend == m30_trend == "Buy":
+        if m5_trend == m15_trend == m30_trend == h1_trend == "Buy":
             current_trend = "Buy"
 
         logger.info(f"{dfdate} close_p: {current_price}  m5_trend: {m5_trend} m30_trend: {m30_trend}")
