@@ -60,7 +60,6 @@ class AutoOrder:
         df = df.drop(['time'], axis=1)
         df = df.reindex(columns=['Date', 'open', 'high', 'low', 'close'])
         df['EMA_50'] = df.close.ewm(span=50, adjust=False).mean()
-        # df['EMA_20'] = df.close.ewm(span=20, adjust=False).mean()
         df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
         conditions = [
             (df['close'] > df['EMA_50']) & (df['HIST'] > 0),
@@ -326,7 +325,7 @@ class AutoOrder:
                 logger.info("position #{} SL Updated at: {} profit {}".format(position_id, price_open, profit))
 
     @staticmethod
-    def check_order_exist(order_symbol: str, order_type: str) -> bool:
+    def check_order_exist(order_symbol: str) -> '':
         """
         order_symbol: str required
             example: Bitcoin
@@ -342,13 +341,13 @@ class AutoOrder:
         # display all active orders
         for position in positions:
             symbol = position.symbol
-            position_type = None
+            position_type = '0'
             if position.type == 0:
                 position_type = "Buy"
             if position.type == 1:
                 position_type = "Sell"
 
-            if order_type == position_type:
-                logger.info(f"{order_symbol} {order_type} exist")
-                return True
-        return False
+            # if order_type == position_type:
+            #     logger.info(f"{order_symbol} {order_type} exist")
+            return position_type
+        return '0'

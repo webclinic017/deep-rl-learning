@@ -48,18 +48,22 @@ def scheduler_job():
             current_trend = "Buy"
 
         logger.info(f"{dfdate} close_p: {current_price}  m5_trend: {m5_trend} m15_trend: {m15_trend} m30_trend: {m30_trend} h1_trend: {h1_trend}")
-        order_exist = mt5_client.check_order_exist(symbol_name, current_trend)
+        order_size = mt5_client.check_order_exist(symbol_name)
         # do not place an order if the symbol order is placed to Metatrader
-        if current_trend == "Buy" and not order_exist:
+        if current_trend == "Buy" and order_size != current_trend:
             mt5_client.close_order(symbol_name)  # close all open positions
             # tp = close_p + (factor * atr)  # ROE=2
             mt5_client.buy_order(symbol_name, lot=lot, sl=None, tp=None)  # default tp at 1000 pips
-        elif current_trend == 'Sell' and not order_exist:
+        elif current_trend == 'Sell' and order_size != current_trend:
             mt5_client.close_order(symbol_name)  # close all open positions
             # tp = close_p - (factor * atr)  # ROE=2
             mt5_client.sell_order(symbol_name, lot=lot, sl=None, tp=None)  # default tp at 1000 pips
-        elif current_trend == "0":
-            mt5_client.close_order(symbol_name)  # close all open positions
+        elif order_size == 'Sell' and (current_trend == 'Buy' or m15_trend == 'Buy' or
+                                       m30_trend == "Buy" or h1_trend == 'Buy'):
+            mt5_client.close_order(symbol_name)  # close all Sell positions
+        elif order_size == 'Buy' and (current_trend == 'Sell' or m15_trend == 'Sell' or
+                                      m30_trend == "Sell" or h1_trend == 'Sell'):
+            mt5_client.close_order(symbol_name)  # close all Buy positions
 
 
 if __name__ == '__main__':
