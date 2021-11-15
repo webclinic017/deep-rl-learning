@@ -26,7 +26,7 @@ def format_text(trend):
         return colored(trend, 'green')
     if trend == 'Sell':
         return colored(trend, 'red')
-    return colored(trend, 'blue')
+    return colored('Neutral', 'blue')
 
 
 def scheduler_job():
