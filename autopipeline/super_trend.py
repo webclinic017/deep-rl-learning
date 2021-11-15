@@ -7,6 +7,7 @@ import sentry_sdk
 from datetime import datetime
 from mt5 import AutoOrder
 from utils import logger
+from termcolor import colored
 mt5_client = AutoOrder()
 
 
@@ -22,10 +23,10 @@ sentry_sdk.init(
 
 def format_text(trend):
     if trend == 'Buy':
-        return '\x1b[48;5;2mBuy\x1b[0m'
+        return colored(trend, 'green')
     if trend == 'Sell':
-        return '\x1B[31mSell\x1b[0m'
-    return "\x1b[48;5;4mNeutral\x1b[0m"
+        return colored(trend, 'red')
+    return colored(trend, 'blue')
 
 
 def scheduler_job():
