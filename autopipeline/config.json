@@ -1,48 +1,48 @@
 {
   "XAUUSD" : {
-    "lot": 1,
+    "lot": 0.5,
     "division": 100
   },
   "EURUSD" : {
-    "lot": 2,
+    "lot": 1,
     "division": 100000
   },
   "GBPUSD" : {
-    "lot": 2,
+    "lot": 1,
     "division": 100000
   },
   "GBPJPY" : {
-    "lot": 2,
+    "lot": 1,
     "division": 1000
   },
   "USDCHF" : {
-    "lot": 2,
+    "lot": 1,
     "division": 100000
   },
   "AUDUSD" : {
-    "lot": 2,
+    "lot": 1,
     "division": 100000
   },
   "AUDJPY" : {
-    "lot": 2,
+    "lot": 1,
     "division": 100000
   },
   "USDJPY" : {
-    "lot": 2,
+    "lot": 1,
     "division": 100000
   },
   "USDCAD" : {
-    "lot": 2,
+    "lot": 1,
     "division": 100000
   },
   "EURGBP" : {
-    "lot": 2,
+    "lot": 1,
     "division": 100000
   },
   "BTCUSD": {
-    "lot": 1.0
+    "lot": 0.5
   },
   "USDCNH": {
-    "lot": 2
+    "lot": 1
   }
 }
