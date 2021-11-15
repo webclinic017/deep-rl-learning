@@ -20,6 +20,14 @@ sentry_sdk.init(
 )
 
 
+def format_text(trend):
+    if trend == 'Buy':
+        return '\x1b[48;5;2mBuy\x1b[0m'
+    if trend == 'Sell':
+        return '\x1B[31mSell\x1b[0m'
+    return "\x1b[48;5;4mNeutral\x1b[0m"
+
+
 def scheduler_job():
     """Shows basic usage of the Gmail API.
     Lists the user's Gmail labels.
@@ -47,7 +55,7 @@ def scheduler_job():
         if m5_trend == m15_trend == m30_trend == h1_trend == "Buy":
             current_trend = "Buy"
 
-        logger.info(f"{dfdate} {symbol_name} close_p: {current_price}  m5_trend: {m5_trend} m15_trend: {m15_trend} m30_trend: {m30_trend} h1_trend: {h1_trend}")
+        logger.info(f"{dfdate} {symbol_name} close_p: {current_price}  m5_trend: {format_text(m5_trend)} m15_trend: {format_text(m15_trend)} m30_trend: {format_text(m30_trend)} h1_trend: {format_text(h1_trend)}")
         order_size = mt5_client.check_order_exist(symbol_name)
         # do not place an order if the symbol order is placed to Metatrader
         if current_trend == "Buy" and order_size != current_trend:
