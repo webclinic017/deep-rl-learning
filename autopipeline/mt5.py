@@ -220,13 +220,13 @@ class AutoOrder:
                     request = {
                         "action": mt5.TRADE_ACTION_DEAL,
                         "symbol": symbol,
-                        "volume": float(order.volume),
+                        "volume": order.volume,
                         "type": mt5.ORDER_TYPE_BUY,
                         "position": position_id,
                         "price": price,
                         "deviation": deviation,
                         "magic": 234000,
-                        "comment": f"close buy order: {profit} USD balance {balance}",
+                        "comment": f"close buy order",
                         "type_time": mt5.ORDER_TIME_GTC,
                         "type_filling": mt5.ORDER_FILLING_IOC,
                     }
@@ -235,13 +235,13 @@ class AutoOrder:
                     request = {
                         "action": mt5.TRADE_ACTION_DEAL,
                         "symbol": symbol,
-                        "volume": float(order.volume),
+                        "volume": order.volume,
                         "type": mt5.ORDER_TYPE_SELL,
                         "position": position_id,
                         "price": price,
                         "deviation": deviation,
                         "magic": 234000,
-                        "comment": f"close sell order: {profit} USD balance {balance}",
+                        "comment": f"close sell order",
                         "type_time": mt5.ORDER_TIME_GTC,
                         "type_filling": mt5.ORDER_FILLING_IOC,
                     }
