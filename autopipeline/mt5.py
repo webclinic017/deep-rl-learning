@@ -203,6 +203,8 @@ class AutoOrder:
         logger.info("close order")
         # display data on active orders on GBPUSD
         orders = mt5.positions_get(symbol=symbol)
+        account_info = mt5.account_info()._asdict()
+        balance = account_info.get("balance")
         if orders is None:
             logger.info(f"No orders on {symbol}, error code={mt5.last_error()}")
         else:
@@ -224,7 +226,7 @@ class AutoOrder:
                         "price": price,
                         "deviation": deviation,
                         "magic": 234000,
-                        "comment": f"close order {profit}",
+                        "comment": f"close buy order: {profit} USD balance {balance}",
                         "type_time": mt5.ORDER_TIME_GTC,
                         "type_filling": mt5.ORDER_FILLING_IOC,
                     }
@@ -239,7 +241,7 @@ class AutoOrder:
                         "price": price,
                         "deviation": deviation,
                         "magic": 234000,
-                        "comment": "python script close",
+                        "comment": f"close sell order: {profit} USD balance {balance}",
                         "type_time": mt5.ORDER_TIME_GTC,
                         "type_filling": mt5.ORDER_FILLING_IOC,
                     }
