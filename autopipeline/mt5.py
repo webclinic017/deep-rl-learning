@@ -235,7 +235,7 @@ class AutoOrder:
                     request = {
                         "action": mt5.TRADE_ACTION_DEAL,
                         "symbol": symbol,
-                        "volume": order.volume,
+                        "volume": float(order.volume),
                         "type": mt5.ORDER_TYPE_SELL,
                         "position": position_id,
                         "price": price,
