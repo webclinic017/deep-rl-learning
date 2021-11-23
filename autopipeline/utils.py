@@ -1,5 +1,6 @@
 import logging
 import numpy as np
+import pandas as pd
 
 
 # create logger with 'spam_application'
