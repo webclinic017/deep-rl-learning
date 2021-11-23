@@ -5,7 +5,7 @@ import MetaTrader5 as mt5
 import pytz
 from talib import EMA, stream, MACD, ADX, BBANDS, ATR, NATR
 from datetime import datetime
-from utils import ST, logger
+from utils import logger, Supertrend
 
 
 class AutoOrder:
@@ -60,10 +60,14 @@ class AutoOrder:
         df = df.drop(['time'], axis=1)
         df = df.reindex(columns=['Date', 'open', 'high', 'low', 'close'])
         df['EMA_50'] = df.close.ewm(span=50, adjust=False).mean()
+        atr_multiplier = 3.0
+        atr_period = 10
+        supertrend = Supertrend(df, atr_period, atr_multiplier)
+        df = df.join(supertrend)
         df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
         conditions = [
-            (df['close'] > df['EMA_50']) & (df['HIST'] > 0),
-            (df['close'] < df['EMA_50']) & (df['HIST'] < 0)
+            (df['Supertrend10'] == True) & (df['HIST'] > 0),
+            (df['Supertrend10'] == False) & (df['HIST'] < 0)
         ]
         values = ['Buy', 'Sell']
         df['Trend'] = np.select(conditions, values)
@@ -139,13 +143,14 @@ class AutoOrder:
                 logger.error("2. order_send failed, retcode={}".format(result.retcode))
                 # request the result as a dictionary and display it element by element
                 result_dict = result._asdict()
-                for field in result_dict.keys():
-                    logger.error("   {}={}".format(field, result_dict[field]))
-                    # if this is a trading request structure, display it element by element as well
-                    if field == "request":
-                        traderequest_dict = result_dict[field]._asdict()
-                        for tradereq_filed in traderequest_dict:
-                            logger.error("       traderequest: {}={}".format(tradereq_filed, traderequest_dict[tradereq_filed]))
+                logger.error(f"ERROR {result_dict}")
+                # for field in result_dict.keys():
+                #     logger.error("   {}={}".format(field, result_dict[field]))
+                #     # if this is a trading request structure, display it element by element as well
+                #     if field == "request":
+                #         traderequest_dict = result_dict[field]._asdict()
+                #         for tradereq_filed in traderequest_dict:
+                #             logger.error("       traderequest: {}={}".format(tradereq_filed, traderequest_dict[tradereq_filed]))
             else:
                 logger.info("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price,
                                                                                                 deviation))
@@ -184,13 +189,13 @@ class AutoOrder:
                 logger.error("2. order_send failed, retcode={}".format(result.retcode))
                 # request the result as a dictionary and display it element by element
                 result_dict = result._asdict()
-                for field in result_dict.keys():
-                    logger.error("   {}={}".format(field, result_dict[field]))
+                logger.error(f"ERROR {result_dict}")
+                # for field in result_dict.keys():
                     # if this is a trading request structure, display it element by element as well
-                    if field == "request":
-                        traderequest_dict = result_dict[field]._asdict()
-                        for tradereq_filed in traderequest_dict:
-                            logger.error("       traderequest: {}={}".format(tradereq_filed, traderequest_dict[tradereq_filed]))
+                    # if field == "request":
+                    #     traderequest_dict = result_dict[field]._asdict()
+                    #     for tradereq_filed in traderequest_dict:
+                    #         logger.error("       traderequest: {}={}".format(tradereq_filed, traderequest_dict[tradereq_filed]))
             else:
                 logger.info("order_send(): by {} {} lots at {} with deviation={} points".format(symbol, self.lot, price,
                                                                                                 deviation))
@@ -255,7 +260,7 @@ class AutoOrder:
                 if result:
                     if result.retcode != mt5.TRADE_RETCODE_DONE:
                         logger.error("order_send failed, retcode={}".format(result.retcode))
-                        logger.error("   result", result)
+                        logger.error(f"   result {result}")
                     else:
                         logger.info("close position #{}: symbol {} profit {}".format(position_id, symbol, profit))
                         # request the result as a dictionary and display it element by element
