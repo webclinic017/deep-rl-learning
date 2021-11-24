@@ -46,16 +46,19 @@ def scheduler_job():
         lot = value.get('lot')
 
         current_price, m5_trend, dfdate = mt5_client.get_frames(timeframe=mt5.TIMEFRAME_M5, symbol=symbol_name)
-        _, m15_trend, _ = mt5_client.get_frames(timeframe=mt5.TIMEFRAME_M15, symbol=symbol_name)
-        _, m30_trend, _ = mt5_client.get_frames(timeframe=mt5.TIMEFRAME_M30, symbol=symbol_name)
-        _, h1_trend, _ = mt5_client.get_frames(timeframe=mt5.TIMEFRAME_H1, symbol=symbol_name)
+        price_m15, m15_trend, m15_date = mt5_client.get_frames(timeframe=mt5.TIMEFRAME_M15, symbol=symbol_name)
+        price_m30, m30_trend, m30_date = mt5_client.get_frames(timeframe=mt5.TIMEFRAME_M30, symbol=symbol_name)
+        price_h1, h1_trend, h1_date = mt5_client.get_frames(timeframe=mt5.TIMEFRAME_H1, symbol=symbol_name)
 
         current_trend = '0'
         if m5_trend == m15_trend == m30_trend == h1_trend == "Sell":
             current_trend = "Sell"
         if m5_trend == m15_trend == m30_trend == h1_trend == "Buy":
             current_trend = "Buy"
-
+        # logger.info(f"M5 {dfdate}, {current_price}")
+        # logger.info(f"M15 {m15_date}, {price_m15}")
+        # logger.info(f"M30 {m30_date}, {price_m30}")
+        # logger.info(f"H1 {h1_date}, {price_h1}")
         logger.info(f"{dfdate} {symbol_name} close_p: {current_price}  m5_trend: {format_text(m5_trend)} m15_trend: {format_text(m15_trend)} m30_trend: {format_text(m30_trend)} h1_trend: {format_text(h1_trend)}")
         order_size = mt5_client.check_order_exist(symbol_name)
         # do not place an order if the symbol order is placed to Metatrader

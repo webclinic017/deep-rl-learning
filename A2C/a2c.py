@@ -47,8 +47,8 @@ class A2C:
         inp = Input((self.env_dim))
         x = Dense(128, activation='relu')(inp)
         x = Dense(128, activation='relu')(x)
-        x = Dense(128, activation='relu')(x)
-        x = Dense(128, activation='relu')(x)
+        x = Dense(64, activation='relu')(x)
+        x = Dense(32, activation='relu')(x)
         return Model(inp, x)
 
     def policy_action(self, inp1):
