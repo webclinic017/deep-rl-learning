@@ -55,6 +55,9 @@ def scheduler_job():
             current_trend = "Sell"
         if m5_trend == m15_trend == m30_trend == h1_trend == "Buy":
             current_trend = "Buy"
+        if m5_trend == m15_trend == m30_trend == h1_trend == "0":
+            current_trend = "Neutral"
+
         # logger.info(f"M5 {dfdate}, {current_price}")
         # logger.info(f"M15 {m15_date}, {price_m15}")
         # logger.info(f"M30 {m30_date}, {price_m30}")
@@ -71,10 +74,10 @@ def scheduler_job():
             # tp = close_p - (factor * atr)  # ROE=2
             mt5_client.sell_order(symbol_name, lot=lot, sl=None, tp=None)  # default tp at 1000 pips
         elif order_size == 'Sell' and (current_trend == 'Buy' or m15_trend == 'Buy' or
-                                       m30_trend == "Buy" or h1_trend == 'Buy'):
+                                       m30_trend == "Buy" or h1_trend == 'Buy' or current_trend == "Neutral"):
             mt5_client.close_order(symbol_name)  # close all Sell positions
         elif order_size == 'Buy' and (current_trend == 'Sell' or m15_trend == 'Sell' or
-                                      m30_trend == "Sell" or h1_trend == 'Sell'):
+                                      m30_trend == "Sell" or h1_trend == 'Sell' or current_trend == "Neutral"):
             mt5_client.close_order(symbol_name)  # close all Buy positions
 
 
