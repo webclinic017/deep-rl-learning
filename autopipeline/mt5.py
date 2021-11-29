@@ -52,20 +52,23 @@ class AutoOrder:
         return heikin_ashi_df
 
     @staticmethod
-    def get_frames(timeframe, symbol):
+    def get_frames(time_from, time_to, timeframe, symbol):
         # start_frame = 1 if timeframe != mt5.TIMEFRAME_M5 else 0
-        rates_frame = mt5.copy_rates_from_pos(symbol, timeframe, 0, 300)
+        timezone = pytz.timezone("Etc/UTC")
+        utc_from = datetime.fromtimestamp(time_from)
+        utc_to = datetime.fromtimestamp(time_to)
+        rates_frame = mt5.copy_rates_range(symbol, timeframe, utc_from, utc_to)
         # create DataFrame out of the obtained data
         df = pd.DataFrame(rates_frame, columns=['time', 'open', 'high', 'low', 'close'])
         df['Date'] = pd.to_datetime(df['time'], unit='s')
         df = df.drop(['time'], axis=1)
         df = df.reindex(columns=['Date', 'open', 'high', 'low', 'close'])
-        df['EMA_50'] = df.close.ewm(span=50, adjust=False).mean()
+        # df['EMA_50'] = df.close.ewm(span=50, adjust=False).mean()
         atr_multiplier = 3.0
         atr_period = 10
         supertrend = Supertrend(df, atr_period, atr_multiplier)
         df = df.join(supertrend)
-        df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
+        _, _, df['HIST'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
         conditions = [
             (df['Supertrend10'] == True) & (df['HIST'] > 0) & (df['HIST'] > df['HIST'].shift()),
             (df['Supertrend10'] == False) & (df['HIST'] < 0) & (df['HIST'] < df['HIST'].shift())
