@@ -45,21 +45,21 @@ def scheduler_job():
         # symbol_name = "BTCUSD"
         lot = value.get('lot')
         current_time = datetime.now().timestamp()
-        current_price, _, m5_trend, dfdate = mt5_client.get_frames(time_from=current_time - 86400 * 4,
+        current_price, m5_trend, dfdate = mt5_client.get_frames(time_from=current_time - 86400 * 4,
                                                                    time_to=current_time,
                                                                    timeframe=mt5.TIMEFRAME_M5, symbol=symbol_name)
-        price_m15, _, m15_trend, m15date = mt5_client.get_frames(time_from=current_time - 86400 * 4,
+        price_m15, m15_trend, m15date = mt5_client.get_frames(time_from=current_time - 86400 * 4,
                                                                  time_to=current_time,
                                                                  timeframe=mt5.TIMEFRAME_M15, symbol=symbol_name)
-        price_m30, _, m30_trend, m30date = mt5_client.get_frames(time_from=current_time - 86400 * 7,
+        price_m30, m30_trend, m30date = mt5_client.get_frames(time_from=current_time - 86400 * 7,
                                                                  time_to=current_time,
                                                                  timeframe=mt5.TIMEFRAME_M30, symbol=symbol_name)
-        price_h1, _, h1_trend, h1date = mt5_client.get_frames(time_from=current_time - 86400 * 14, time_to=current_time,
+        price_h1, h1_trend, h1date = mt5_client.get_frames(time_from=current_time - 86400 * 14, time_to=current_time,
                                                               timeframe=mt5.TIMEFRAME_H1, symbol=symbol_name)
-        price_h4, _, h4_trend, h4date = mt5_client.get_frames(time_from=current_time - 86400 * 35,
+        price_h4, h4_trend, h4date = mt5_client.get_frames(time_from=current_time - 86400 * 35,
                                                               time_to=current_time,
                                                               timeframe=mt5.TIMEFRAME_H4, symbol=symbol_name)
-        price_d1, _, d1_trend, d1date = mt5_client.get_frames(time_from=current_time - 86400 * 100,
+        price_d1, d1_trend, d1date = mt5_client.get_frames(time_from=current_time - 86400 * 100,
                                                               time_to=current_time,
                                                               timeframe=mt5.TIMEFRAME_D1, symbol=symbol_name)
 
