@@ -64,7 +64,7 @@ def scheduler_job():
         # logger.info(f"M15 {m15_date}, {price_m15}")
         # logger.info(f"M30 {m30_date}, {price_m30}")
         # logger.info(f"H1 {h1_date}, {price_h1}")
-        logger.info(f"{dfdate} {symbol_name} close_p: {current_price}  m5_trend: {format_text(m5_trend)} m15_trend: {format_text(m15_trend)} m30_trend: {format_text(m30_trend)} h1_trend: {format_text(h1_trend)} h4_trend: {format_text(h4_trend)} d1_trend: {format_text(d1_trend)}")
+        logger.info(f"{symbol_name} {dfdate} m5_trend: {format_text(m5_trend)} {m15_date} m15_trend: {format_text(m15_trend)} {m30_date} m30_trend: {format_text(m30_trend)} {h1_date} h1_trend: {format_text(h1_trend)} {h4_date} h4_trend: {format_text(h4_trend)} {d1_date} d1_trend: {format_text(d1_trend)} close_p: {current_price}")
         order_size = mt5_client.check_order_exist(symbol_name)
         # do not place an order if the symbol order is placed to Metatrader
         if current_trend == "Buy" and order_size != current_trend:
