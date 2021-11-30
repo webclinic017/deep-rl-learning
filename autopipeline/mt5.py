@@ -57,7 +57,7 @@ class AutoOrder:
         timezone = pytz.timezone("Etc/UTC")
         utc_from = datetime.fromtimestamp(time_from)
         utc_to = datetime.fromtimestamp(time_to)
-        rates_frame = mt5.copy_rates_range(symbol, timeframe, utc_from, utc_to)
+        rates_frame = mt5.copy_rates_from_pos(symbol, timeframe, 0, 300)
         # create DataFrame out of the obtained data
         df = pd.DataFrame(rates_frame, columns=['time', 'open', 'high', 'low', 'close'])
         df['Date'] = pd.to_datetime(df['time'], unit='s')
