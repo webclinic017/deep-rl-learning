@@ -67,11 +67,11 @@ def scheduler_job():
             current_trend = "Buy"
         elif m5_trend == m15_trend == m30_trend == "0":
             current_trend = "Neutral"
-
-        logger.info(f"M5 {m5date} {format_text(m5_trend)} {current_price}")
-        logger.info(f"M15 {m15date} {format_text(m15_trend)} {price_m15}")
-        logger.info(f"M30 {m30date} {format_text(m30_trend)} {price_m30}")
-        logger.info(f"H1 {h1date} {format_text(h1_trend)} {price_h1}")
+        logger.info("=" * 50)
+        logger.info(f"{symbol_name} M5 {m5date} {format_text(m5_trend)} {current_price}")
+        logger.info(f"{symbol_name} M15 {m15date} {format_text(m15_trend)} {price_m15}")
+        logger.info(f"{symbol_name} M30 {m30date} {format_text(m30_trend)} {price_m30}")
+        logger.info(f"{symbol_name} H1 {h1date} {format_text(h1_trend)} {price_h1}")
         # logger.info(
         #     f"{symbol_name} {m5date} m5_trend: {format_text(m5_trend)} :{price_m15} {m15date} m15_trend: {format_text(m15_trend)} {m30date} m30_trend: {format_text(m30_trend)} {h1date} h1_trend: {format_text(h1_trend)} close_p: {current_price}")
         order_size = mt5_client.check_order_exist(symbol_name)
@@ -90,7 +90,7 @@ def scheduler_job():
         elif order_size == 'Buy' and (current_trend == 'Sell' or m15_trend == 'Sell' or
                                       m30_trend == "Sell" or h1_trend == 'Sell' or current_trend == "Neutral"):
             mt5_client.close_order(symbol_name)  # close all Buy positions
-
+        logger.info("=" * 50)
 
 if __name__ == '__main__':
     # Run job every hour at the 42rd minute
