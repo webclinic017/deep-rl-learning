@@ -54,10 +54,7 @@ class AutoOrder:
     @staticmethod
     def get_frames(time_from, time_to, timeframe, symbol):
         # start_frame = 1 if timeframe != mt5.TIMEFRAME_M5 else 0
-        timezone = pytz.timezone("Etc/UTC")
-        utc_from = datetime.fromtimestamp(time_from)
-        utc_to = datetime.fromtimestamp(time_to)
-        rates_frame = mt5.copy_rates_from_pos(symbol, timeframe, 0, 300)
+        rates_frame = mt5.copy_rates_range(symbol, timeframe, time_from, time_to)
         # create DataFrame out of the obtained data
         df = pd.DataFrame(rates_frame, columns=['time', 'open', 'high', 'low', 'close'])
         df['Date'] = pd.to_datetime(df['time'], unit='s')
@@ -66,8 +63,8 @@ class AutoOrder:
         # df['EMA_50'] = df.close.ewm(span=50, adjust=False).mean()
         atr_multiplier = 3.0
         atr_period = 10
-        supertrend = Supertrend(df, atr_period, atr_multiplier)
-        df = df.join(supertrend)
+        super_trend = Supertrend(df, atr_period, atr_multiplier)
+        df = df.join(super_trend)
         _, _, df['HIST'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
         conditions = [
             (df['Supertrend10'] == True) & (df['HIST'] > 0) & (df['HIST'] > df['HIST'].shift()),
@@ -75,7 +72,7 @@ class AutoOrder:
         ]
         values = ['Buy', 'Sell']
         df['Trend'] = np.select(conditions, values)
-        return df.close.iat[-2], df.Trend.iat[-2], str(df.Date.iat[-2])
+        return df.close.iat[-1], df.Trend.iat[-1], str(df.Date.iat[-1])
 
     def save_frame(self, request):
         """

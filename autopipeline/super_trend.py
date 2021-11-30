@@ -2,9 +2,10 @@ from __future__ import print_function
 import json
 import time
 import MetaTrader5 as mt5
+import pytz
 import schedule
 import sentry_sdk
-from datetime import datetime
+from datetime import datetime, timedelta
 from mt5 import AutoOrder
 from utils import logger
 from termcolor import colored
@@ -44,24 +45,20 @@ def scheduler_job():
     for symbol_name, value in zip(config.keys(), config.values()):
         # symbol_name = "BTCUSD"
         lot = value.get('lot')
-        current_time = datetime.now().timestamp()
-        current_price, m5_trend, dfdate = mt5_client.get_frames(time_from=current_time - 86400 * 4,
-                                                                   time_to=current_time,
-                                                                   timeframe=mt5.TIMEFRAME_M5, symbol=symbol_name)
-        price_m15, m15_trend, m15date = mt5_client.get_frames(time_from=current_time - 86400 * 4,
-                                                                 time_to=current_time,
-                                                                 timeframe=mt5.TIMEFRAME_M15, symbol=symbol_name)
-        price_m30, m30_trend, m30date = mt5_client.get_frames(time_from=current_time - 86400 * 7,
-                                                                 time_to=current_time,
-                                                                 timeframe=mt5.TIMEFRAME_M30, symbol=symbol_name)
-        price_h1, h1_trend, h1date = mt5_client.get_frames(time_from=current_time - 86400 * 14, time_to=current_time,
-                                                              timeframe=mt5.TIMEFRAME_H1, symbol=symbol_name)
-        price_h4, h4_trend, h4date = mt5_client.get_frames(time_from=current_time - 86400 * 35,
+        timezone = pytz.timezone("Etc/GMT+2")
+        current_time = datetime.now(tz=timezone)
+        current_price, m5_trend, m5date = mt5_client.get_frames(time_from=current_time - timedelta(days=4),
+                                                                time_to=current_time,
+                                                                timeframe=mt5.TIMEFRAME_M5, symbol=symbol_name)
+        price_m15, m15_trend, m15date = mt5_client.get_frames(time_from=current_time - timedelta(days=4),
                                                               time_to=current_time,
-                                                              timeframe=mt5.TIMEFRAME_H4, symbol=symbol_name)
-        price_d1, d1_trend, d1date = mt5_client.get_frames(time_from=current_time - 86400 * 100,
+                                                              timeframe=mt5.TIMEFRAME_M15, symbol=symbol_name)
+        price_m30, m30_trend, m30date = mt5_client.get_frames(time_from=current_time - timedelta(days=7),
                                                               time_to=current_time,
-                                                              timeframe=mt5.TIMEFRAME_D1, symbol=symbol_name)
+                                                              timeframe=mt5.TIMEFRAME_M30, symbol=symbol_name)
+        price_h1, h1_trend, h1date = mt5_client.get_frames(time_from=current_time - timedelta(days=14),
+                                                           time_to=current_time,
+                                                           timeframe=mt5.TIMEFRAME_H1, symbol=symbol_name)
 
         current_trend = '0'
         if m5_trend == m15_trend == m30_trend == h1_trend == "Sell":
@@ -76,7 +73,7 @@ def scheduler_job():
         # logger.info(f"M30 {m30_date}, {price_m30}")
         # logger.info(f"H1 {h1_date}, {price_h1}")
         logger.info(
-            f"{symbol_name} {dfdate} m5_trend: {format_text(m5_trend)} {m15date} m15_trend: {format_text(m15_trend)} {m30date} m30_trend: {format_text(m30_trend)} {h1date} h1_trend: {format_text(h1_trend)} {h4date} h4_trend: {format_text(h4_trend)} {d1date} d1_trend: {format_text(d1_trend)} close_p: {current_price}")
+            f"{symbol_name} {m5date} m5_trend: {format_text(m5_trend)} {m15date} m15_trend: {format_text(m15_trend)} {m30date} m30_trend: {format_text(m30_trend)} {h1date} h1_trend: {format_text(h1_trend)} close_p: {current_price}")
         order_size = mt5_client.check_order_exist(symbol_name)
         # do not place an order if the symbol order is placed to Metatrader
         if current_trend == "Buy" and order_size != current_trend:
