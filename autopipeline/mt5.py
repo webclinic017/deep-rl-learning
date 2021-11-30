@@ -75,7 +75,7 @@ class AutoOrder:
         ]
         values = ['Buy', 'Sell']
         df['Trend'] = np.select(conditions, values)
-        return df.close.iat[-1], df.Trend.iat[-1], str(df.Date.iat[-1])
+        return df.close.iat[-2], df.Trend.iat[-2], str(df.Date.iat[-2])
 
     def save_frame(self, request):
         """
