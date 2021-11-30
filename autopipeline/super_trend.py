@@ -46,7 +46,7 @@ def scheduler_job():
         # symbol_name = "BTCUSD"
         lot = value.get('lot')
         timezone = pytz.timezone("Etc/GMT+2")
-        current_time = datetime.now(tz=timezone)
+        current_time = datetime.now(tz=timezone)+timedelta(hours=2)
         current_price, m5_trend, m5date = mt5_client.get_frames(time_from=current_time - timedelta(days=4),
                                                                 time_to=current_time,
                                                                 timeframe=mt5.TIMEFRAME_M5, symbol=symbol_name)
