@@ -54,7 +54,7 @@ class AutoOrder:
     @staticmethod
     def get_frames(time_from, time_to, timeframe, symbol):
         # start_frame = 1 if timeframe != mt5.TIMEFRAME_M5 else 0
-        rates_frame = mt5.copy_rates_from_pos(symbol, timeframe, 0, 300)
+        rates_frame = mt5.copy_rates_from_pos(symbol, timeframe, 1, 300)
         # create DataFrame out of the obtained data
         df = pd.DataFrame(rates_frame, columns=['time', 'open', 'high', 'low', 'close'])
         df['Date'] = pd.to_datetime(df['time'], unit='s')
