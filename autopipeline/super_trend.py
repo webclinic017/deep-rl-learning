@@ -65,7 +65,7 @@ def scheduler_job():
             current_trend = "Sell"
         elif m5_trend == m15_trend == m30_trend == h1_trend == "Buy":
             current_trend = "Buy"
-        elif m5_trend == m15_trend == m30_trend == "0":
+        elif m15_trend == m30_trend == "0":
             current_trend = "Neutral"
         logger.info("=" * 50)
         logger.info(f"{symbol_name} M5 {m5date} {format_text(m5_trend)} {current_price}")
@@ -91,6 +91,7 @@ def scheduler_job():
                                       m30_trend == "Sell" or h1_trend == 'Sell' or current_trend == "Neutral"):
             mt5_client.close_order(symbol_name)  # close all Buy positions
         logger.info("=" * 50)
+
 
 if __name__ == '__main__':
     # Run job every hour at the 42rd minute

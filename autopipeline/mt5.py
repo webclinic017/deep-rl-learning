@@ -67,8 +67,8 @@ class AutoOrder:
         df = df.join(super_trend)
         _, _, df['HIST'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
         conditions = [
-            (df['Supertrend10'] == True) & (df['HIST'] > 0) & (df['HIST'] > df['HIST'].shift()),
-            (df['Supertrend10'] == False) & (df['HIST'] < 0) & (df['HIST'] < df['HIST'].shift())
+            (df['Supertrend10'] == True) & (df['HIST'] > 0) & (df['HIST'] > df['HIST'].shift(2)),
+            (df['Supertrend10'] == False) & (df['HIST'] < 0) & (df['HIST'] < df['HIST'].shift(2))
         ]
         values = ['Buy', 'Sell']
         df['Trend'] = np.select(conditions, values)
