@@ -64,9 +64,9 @@ def scheduler_job():
                                                               timeframe=mt5.TIMEFRAME_D1, symbol=symbol_name)
 
         current_trend = '0'
-        if m5_trend == m15_trend == m30_trend == h1_trend == h4_trend == d1_trend == "Sell":
+        if m5_trend == m15_trend == m30_trend == h1_trend == "Sell":
             current_trend = "Sell"
-        elif m5_trend == m15_trend == m30_trend == h1_trend == h4_trend == d1_trend == "Buy":
+        elif m5_trend == m15_trend == m30_trend == h1_trend == "Buy":
             current_trend = "Buy"
         elif m5_trend == m15_trend == m30_trend == "0":
             current_trend = "Neutral"
