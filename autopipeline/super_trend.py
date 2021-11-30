@@ -68,12 +68,12 @@ def scheduler_job():
         elif m5_trend == m15_trend == m30_trend == "0":
             current_trend = "Neutral"
 
-        # logger.info(f"M5 {dfdate}, {current_price}")
-        # logger.info(f"M15 {m15_date}, {price_m15}")
-        # logger.info(f"M30 {m30_date}, {price_m30}")
-        # logger.info(f"H1 {h1_date}, {price_h1}")
-        logger.info(
-            f"{symbol_name} {m5date} m5_trend: {format_text(m5_trend)} {m15date} m15_trend: {format_text(m15_trend)} {m30date} m30_trend: {format_text(m30_trend)} {h1date} h1_trend: {format_text(h1_trend)} close_p: {current_price}")
+        logger.info(f"M5 {m5date} {format_text(m5_trend)} {current_price}")
+        logger.info(f"M15 {m15date} {format_text(m15_trend)} {price_m15}")
+        logger.info(f"M30 {m30date} {format_text(m30_trend)} {price_m30}")
+        logger.info(f"H1 {h1date} {format_text(h1_trend)} {price_h1}")
+        # logger.info(
+        #     f"{symbol_name} {m5date} m5_trend: {format_text(m5_trend)} :{price_m15} {m15date} m15_trend: {format_text(m15_trend)} {m30date} m30_trend: {format_text(m30_trend)} {h1date} h1_trend: {format_text(h1_trend)} close_p: {current_price}")
         order_size = mt5_client.check_order_exist(symbol_name)
         # do not place an order if the symbol order is placed to Metatrader
         if current_trend == "Buy" and order_size != current_trend:
@@ -95,7 +95,7 @@ def scheduler_job():
 if __name__ == '__main__':
     # Run job every hour at the 42rd minute
     # scheduler_job()
-    schedule.every().minutes.do(scheduler_job)
+    schedule.every().minutes.at(":05").do(scheduler_job)
     while True:
         schedule.run_pending()
         time.sleep(1)
