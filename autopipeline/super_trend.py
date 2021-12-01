@@ -47,7 +47,9 @@ def scheduler_job():
         lot = value.get('lot')
         timezone = pytz.timezone("Etc/GMT+2")
         current_date = datetime.now(tz=timezone)
-        current_time = datetime(current_date.year, current_date.month, current_date.day, current_date.hour, 0, 0, 0)
+        current_time = datetime(current_date.year, current_date.month,
+                                current_date.day, current_date.hour,
+                                current_date.minute, 0, 0) + timedelta(hours=20)
         current_price, m5_trend, m5date = mt5_client.get_frames(time_from=current_time - timedelta(days=4),
                                                                 time_to=current_time,
                                                                 timeframe=mt5.TIMEFRAME_M5, symbol=symbol_name)
