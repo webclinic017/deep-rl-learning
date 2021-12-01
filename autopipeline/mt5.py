@@ -61,6 +61,8 @@ class AutoOrder:
         df['Date'] = pd.to_datetime(df['time'], unit='s')
         df = df.drop(['time'], axis=1)
         df = df.reindex(columns=['Date', 'open', 'high', 'low', 'close'])
+        logger.info(
+            f"{df.iloc[-1].Date}{timeframe} Open {df.iloc[-1].open} High {df.iloc[-1].high} Low {df.iloc[-1].low} Close {df.iloc[-1].close}")
         # df['EMA_50'] = df.close.ewm(span=50, adjust=False).mean()
         atr_multiplier = 3.0
         atr_period = 10
