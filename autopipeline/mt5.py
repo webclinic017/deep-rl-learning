@@ -3,9 +3,10 @@ import numpy as np
 import pandas as pd
 import MetaTrader5 as mt5
 import pytz
-from talib import EMA, stream, MACD, ADX, BBANDS, ATR, NATR
+from talib import EMA, stream, MACD, ADX, BBANDS, ATR, NATR, MACDEXT
 from datetime import datetime
 from utils import logger, Supertrend
+import talib
 
 
 class AutoOrder:
@@ -52,29 +53,38 @@ class AutoOrder:
         return heikin_ashi_df
 
     @staticmethod
-    def get_frames(time_from, time_to, timeframe, symbol):
-        # start_frame = 1 if timeframe != mt5.TIMEFRAME_M5 else 0
-        rates_frame = mt5.copy_rates_range(symbol, timeframe, time_from, time_to)
-        # rates_frame = mt5.copy_rates_from_pos(symbol, timeframe, 0, 300)
+    def get_frames(utc_from, utc_to, timeframe, symbol):
+        rates_frame = mt5.copy_rates_range(symbol, timeframe, utc_from, utc_to)
+        #     print(rates_frame)
         # create DataFrame out of the obtained data
         df = pd.DataFrame(rates_frame, columns=['time', 'open', 'high', 'low', 'close'])
         df['Date'] = pd.to_datetime(df['time'], unit='s')
         df = df.drop(['time'], axis=1)
         df = df.reindex(columns=['Date', 'open', 'high', 'low', 'close'])
-        logger.info(
-            f"{df.iloc[-1].Date}{timeframe} Open {df.iloc[-1].open} High {df.iloc[-1].high} Low {df.iloc[-1].low} Close {df.iloc[-1].close}")
-        # df['EMA_50'] = df.close.ewm(span=50, adjust=False).mean()
+
+        # convert to float to avoid sai so.
+        df.close = df.close.astype(float)
+        df.high = df.high.astype(float)
+        df.low = df.low.astype(float)
+        df.close = df.close.astype(float)
+
+        # calculate indicator
         atr_multiplier = 3.0
         atr_period = 10
-        super_trend = Supertrend(df, atr_period, atr_multiplier)
-        df = df.join(super_trend)
-        _, _, df['HIST'] = MACD(df.close, fastperiod=12, slowperiod=26, signalperiod=9)
+        supertrend = Supertrend(df, atr_period, atr_multiplier)
+        df = df.join(supertrend)
+        df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close)
+
+        # selection trend
         conditions = [
-            (df['Supertrend10'] == True) & (df['HIST'] > 0) & (df['HIST'] > df['HIST'].shift(2)),
-            (df['Supertrend10'] == False) & (df['HIST'] < 0) & (df['HIST'] < df['HIST'].shift(2))
+            (df['Supertrend10'] == True) & (df['HIST'] > df['HIST'].shift(2)),
+            (df['Supertrend10'] == False) & (df['HIST'] < df['HIST'].shift(2))
         ]
         values = ['Buy', 'Sell']
         df['Trend'] = np.select(conditions, values)
+        logger.info(f"{timeframe} Supertrend10 :{df.Supertrend10.iat[-1]} HIST: {df.HIST.iat[-1]} PREV HIST: {df.HIST.iat[-2]}")
+        logger.info(
+            f"{timeframe} {df.iloc[-1].Date} Open {df.iloc[-1].open} High {df.iloc[-1].high} Low {df.iloc[-1].low} Close {df.iloc[-1].close}")
         return df.close.iat[-1], df.Trend.iat[-1], str(df.Date.iat[-1])
 
     def save_frame(self, request):
