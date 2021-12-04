@@ -77,8 +77,8 @@ class AutoOrder:
         df['ADX'] = ADX(df.high, df.low, df.close)
         # selection trend
         conditions = [
-            (df['Supertrend10'] == True) & (df['HIST'] > df['HIST'].shift()) & (df['ADX'] > 25) & (df['ADX'] > df['ADX'].shift()),
-            (df['Supertrend10'] == False) & (df['HIST'] < df['HIST'].shift()) & (df['ADX'] > 25) & (df['ADX'] > df['ADX'].shift())
+            (df['Supertrend10'] == True) & (df['HIST'] > df['HIST'].shift()) & (df['ADX'] > df['ADX'].shift()),
+            (df['Supertrend10'] == False) & (df['HIST'] < df['HIST'].shift()) & (df['ADX'] > df['ADX'].shift())
         ]
         values = ['Buy', 'Sell']
         df['Trend'] = np.select(conditions, values)
