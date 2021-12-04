@@ -74,7 +74,7 @@ class AutoOrder:
         supertrend = Supertrend(df, atr_period, atr_multiplier)
         df = df.join(supertrend)
         df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close)
-        df['ADX'] = ADX(df.high, df.low, df.clow)
+        df['ADX'] = ADX(df.high, df.low, df.close)
         # selection trend
         conditions = [
             (df['Supertrend10'] == True) & (df['HIST'] > df['HIST'].shift()) & (df['ADX'] > 25) & (df['ADX'] > df['ADX'].shift()),
