@@ -74,15 +74,18 @@ class AutoOrder:
         supertrend = Supertrend(df, atr_period, atr_multiplier)
         df = df.join(supertrend)
         df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close)
-
+        df['ADX'] = ADX(df.high, df.low, df.clow)
         # selection trend
         conditions = [
-            (df['Supertrend10'] == True) & (df['HIST'] > df['HIST'].shift(2)),
-            (df['Supertrend10'] == False) & (df['HIST'] < df['HIST'].shift(2))
+            (df['Supertrend10'] == True) & (df['HIST'] > df['HIST'].shift()) & (df['ADX'] > 25) & (df['ADX'] > df['ADX'].shift()),
+            (df['Supertrend10'] == False) & (df['HIST'] < df['HIST'].shift()) & (df['ADX'] > 25) & (df['ADX'] > df['ADX'].shift())
         ]
         values = ['Buy', 'Sell']
         df['Trend'] = np.select(conditions, values)
-        logger.info(f"{timeframe} Supertrend10 :{df.Supertrend10.iat[-1]} HIST: {df.HIST.iat[-1]} PREV HIST: {df.HIST.iat[-2]}")
+        logger.info(
+            f"{timeframe} {df.iloc[-1].Date} Supertrend10 :{df.Supertrend10.iat[-1]} HIST: {df.HIST.iat[-1]} PREV HIST: {df.HIST.iat[-2]}")
+        logger.info(
+            f"{timeframe} {df.iloc[-1].Date} ADX: {df.ADX.iat[-1]} PREV ADX: {df.ADX.iat[-2]}")
         logger.info(
             f"{timeframe} {df.iloc[-1].Date} Open {df.iloc[-1].open} High {df.iloc[-1].high} Low {df.iloc[-1].low} Close {df.iloc[-1].close}")
         return df.close.iat[-1], df.Trend.iat[-1], str(df.Date.iat[-1])
