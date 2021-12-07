@@ -54,7 +54,7 @@ class AutoOrder:
 
     @staticmethod
     def get_frames(utc_from, utc_to, timeframe, symbol):
-        rates_frame = mt5.copy_rates_range(symbol, timeframe, utc_from, utc_to)
+        rates_frame = mt5.copy_rates_from_pos(symbol, timeframe, 0, 300)
         #     print(rates_frame)
         # create DataFrame out of the obtained data
         df = pd.DataFrame(rates_frame, columns=['time', 'open', 'high', 'low', 'close'])

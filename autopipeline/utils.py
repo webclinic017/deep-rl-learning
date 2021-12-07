@@ -1,9 +1,13 @@
 import logging
+# import ssl
+# import pymongo
 import numpy as np
 import pandas as pd
 
 
 # create logger with 'spam_application'
+
+
 logger = logging.getLogger('app_application')
 logger.setLevel(logging.INFO)
 # create file handler which logs even debug messages
@@ -19,6 +23,11 @@ ch.setFormatter(formatter)
 # add the handlers to the logger
 logger.addHandler(fh)
 logger.addHandler(ch)
+
+# client = pymongo.MongoClient("mongodb+srv://facebook:auft.baff1vawn*WEC@cluster0.dtlfk.mongodb.net/myFirstDatabase?retryWrites=true&w=majority",
+#                              ssl=True,ssl_cert_reqs=ssl.CERT_NONE)
+# db = client.autotrade
+# trend = db['trend']
 
 
 def Supertrend(df, atr_period, multiplier):
