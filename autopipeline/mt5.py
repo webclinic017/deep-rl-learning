@@ -63,7 +63,7 @@ class AutoOrder:
         df = df.reindex(columns=['Date', 'open', 'high', 'low', 'close'])
 
         # convert to float to avoid sai so.
-        df.close = df.close.astype(float)
+        df.open = df.open.astype(float)
         df.high = df.high.astype(float)
         df.low = df.low.astype(float)
         df.close = df.close.astype(float)
@@ -77,8 +77,8 @@ class AutoOrder:
         df['ADX'] = ADX(df.high, df.low, df.close)
         # selection trend
         conditions = [
-            (df['Supertrend10'] == True) & (df['HIST'] > df['HIST'].shift(2)),
-            (df['Supertrend10'] == False) & (df['HIST'] < df['HIST'].shift(2))
+            (df['Supertrend10'] == True) & (df['HIST'] > df['HIST'].shift(3)),
+            (df['Supertrend10'] == False) & (df['HIST'] < df['HIST'].shift(3))
         ]
         values = ['Buy', 'Sell']
         df['Trend'] = np.select(conditions, values)
