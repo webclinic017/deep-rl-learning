@@ -1,11 +1,14 @@
 import math
+import time
+
 import numpy as np
 import pandas as pd
 import MetaTrader5 as mt5
 import pytz
+import uuid
 from talib import EMA, stream, MACD, ADX, BBANDS, ATR, NATR, MACDEXT
 from datetime import datetime
-from utils import logger, Supertrend
+from utils import logger, Supertrend, trend_table
 import talib
 
 
@@ -53,7 +56,7 @@ class AutoOrder:
         return heikin_ashi_df
 
     @staticmethod
-    def get_frames(utc_from, utc_to, timeframe, symbol):
+    def get_frames(timeframe, symbol):
         rates_frame = mt5.copy_rates_from_pos(symbol, timeframe, 0, 300)
         #     print(rates_frame)
         # create DataFrame out of the obtained data
@@ -88,7 +91,21 @@ class AutoOrder:
             f"{timeframe} {df.iloc[-1].Date} ADX: {df.ADX.iat[-1]} PREV ADX: {df.ADX.iat[-2]}")
         logger.info(
             f"{timeframe} {df.iloc[-1].Date} Open {df.iloc[-1].open} High {df.iloc[-1].high} Low {df.iloc[-1].low} Close {df.iloc[-1].close}")
-        return df.close.iat[-1], df.Trend.iat[-1], str(df.Date.iat[-1])
+        current_trend = df.Trend.iat[-1]
+        trend_table.insert_one(
+            {
+                "_id": str(uuid.uuid4()),
+                "timeframe": timeframe,
+                "symbol": symbol,
+                "current_trend": current_trend,
+                "created_date": int(time.time()),
+                "open": df.iloc[-1].open,
+                "high": df.iloc[-1].high,
+                "low": df.iloc[-1].low,
+                "close": df.iloc[-1].close
+            }
+        )
+        return df.close.iat[-1], current_trend, str(df.Date.iat[-1])
 
     def save_frame(self, request):
         """
@@ -375,3 +392,47 @@ class AutoOrder:
             #     logger.info(f"{order_symbol} {order_type} exist")
             return position_type
         return '0'
+
+    @staticmethod
+    def ichimoku_cloud(timeframe, symbol):
+        rates_frame = mt5.copy_rates_from_pos(symbol, timeframe, 1, 300)
+        #     print(rates_frame)
+        # create DataFrame out of the obtained data
+        df = pd.DataFrame(rates_frame, columns=['time', 'open', 'high', 'low', 'close'])
+        df['Date'] = pd.to_datetime(df['time'], unit='s')
+        df = df.drop(['time'], axis=1)
+        df = df.reindex(columns=['Date', 'open', 'high', 'low', 'close'])
+
+        # convert to float to avoid sai so.
+        df.open = df.open.astype(float)
+        df.high = df.high.astype(float)
+        df.low = df.low.astype(float)
+        df.close = df.close.astype(float)
+        df['MACD'], df['SIGNAL'], df['HIST'] = talib.MACD(df.close)
+        # Tenkan-sen (Conversion Line): (9-period high + 9-period low)/2))
+        nine_period_high = df['high'].rolling(window=9).max()
+        nine_period_low = df['low'].rolling(window=9).min()
+        df['tenkan_sen'] = (nine_period_high + nine_period_low) / 2
+        # Kijun-sen (Base Line): (26-period high + 26-period low)/2))
+        period26_high = df['high'].rolling(window=26).max()
+        period26_low = df['low'].rolling(window=26).min()
+        df['kijun_sen'] = (period26_high + period26_low) / 2
+        # Senkou Span A (Leading Span A): (Conversion Line + Base Line)/2))
+        df['senkou_span_a'] = ((df['tenkan_sen'] + df['kijun_sen']) / 2).shift(26)
+        # Senkou Span B (Leading Span B): (52-period high + 52-period low)/2))
+        period52_high = df['high'].rolling(window=52).max()
+        period52_low = df['low'].rolling(window=52).min()
+        df['senkou_span_b'] = ((period52_high + period52_low) / 2).shift(26)
+        # The most current closing price plotted 26 time periods behind (optional)
+        df['chikou_span'] = df['close'].shift(-26)
+        # create a quick plot of the results to see what we have created
+        # df.drop(['Date'], axis=1).plot(figsize=(15,8))
+        conditions = [
+            (df['tenkan_sen'] > df['kijun_sen']) & (df['close'] > df['senkou_span_a']) & (
+                        df['close'] > df['senkou_span_b']) & (df['HIST'] > df['HIST'].shift()),
+            (df['tenkan_sen'] < df['kijun_sen']) & (df['close'] < df['senkou_span_a']) & (
+                        df['close'] < df['senkou_span_b']) & (df['HIST'] < df['HIST'].shift())
+        ]
+        values = ['Buy', 'Sell']
+        df['Trend'] = np.select(conditions, values)
+        return str(df.Date.iat[-1]), df.Trend.iat[-1], df.close.iat[-1]

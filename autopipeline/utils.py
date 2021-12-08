@@ -1,6 +1,6 @@
 import logging
-# import ssl
-# import pymongo
+import ssl
+import pymongo
 import numpy as np
 import pandas as pd
 
@@ -24,10 +24,10 @@ ch.setFormatter(formatter)
 logger.addHandler(fh)
 logger.addHandler(ch)
 
-# client = pymongo.MongoClient("mongodb+srv://facebook:auft.baff1vawn*WEC@cluster0.dtlfk.mongodb.net/myFirstDatabase?retryWrites=true&w=majority",
-#                              ssl=True,ssl_cert_reqs=ssl.CERT_NONE)
-# db = client.autotrade
-# trend = db['trend']
+client = pymongo.MongoClient("mongodb+srv://facebook:auft.baff1vawn*WEC@cluster0.dtlfk.mongodb.net/myFirstDatabase?retryWrites=true&w=majority",
+                             ssl=True,ssl_cert_reqs=ssl.CERT_NONE)
+db = client.autotrade
+trend_table = db['trend']
 
 
 def Supertrend(df, atr_period, multiplier):

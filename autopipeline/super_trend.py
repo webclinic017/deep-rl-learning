@@ -34,46 +34,34 @@ def scheduler_job():
     """Shows basic usage of the Gmail API.
     Lists the user's Gmail labels.
     """
-    if datetime.now().minute % 5 != 0:
-        return
 
-    logger.info(f"Start job at: {datetime.now()}")
+    timezone = pytz.timezone("Etc/UTC")
     logger.info("=" * 50)
+    logger.info(f"Start job at: {datetime.now(tz=timezone)}")
     with open("config.json") as config_file:
         config = json.load(config_file)
 
-    timezone = pytz.timezone("Etc/UTC")
-    current_time = datetime.now(tz=timezone) + timedelta(hours=1, minutes=59)
+    current_time = datetime.now(tz=timezone) + timedelta(hours=2)
     for symbol, value in zip(config.keys(), config.values()):
         # symbol_name = "BTCUSD"
         lot = value.get('lot')
-        current_price, m5_trend, dfdate = mt5_client.get_frames(utc_from=current_time - timedelta(days=7),
-                                                                utc_to=current_time,
-                                                                timeframe=mt5.TIMEFRAME_M5, symbol=symbol)
-        m15price, m15_trend, m15date = mt5_client.get_frames(utc_from=current_time - timedelta(days=14),
-                                                             utc_to=current_time,
-                                                             timeframe=mt5.TIMEFRAME_M15, symbol=symbol)
-        m30price, m30_trend, m30date = mt5_client.get_frames(utc_from=current_time - timedelta(days=35),
-                                                             utc_to=current_time,
-                                                             timeframe=mt5.TIMEFRAME_M30, symbol=symbol)
-        h1price, h1_trend, h1date = mt5_client.get_frames(utc_from=current_time - timedelta(days=100),
-                                                          utc_to=current_time,
-                                                          timeframe=mt5.TIMEFRAME_H1, symbol=symbol)
+        h1date, h1trend, h1price = mt5_client.ichimoku_cloud(timeframe=mt5.TIMEFRAME_H1, symbol=symbol)
+        h4date, h4trend, h4price = mt5_client.ichimoku_cloud(timeframe=mt5.TIMEFRAME_H4, symbol=symbol)
+        d1date, d1trend, d1price = mt5_client.ichimoku_cloud(timeframe=mt5.TIMEFRAME_D1, symbol=symbol)
 
         current_trend = '0'
-        if m5_trend == m15_trend == m30_trend == h1_trend == "Sell":
+        if h1trend == h4trend == d1trend == "Sell":
             current_trend = "Sell"
-        elif m5_trend == m15_trend == m30_trend == h1_trend == "Buy":
+        elif h1trend == h4trend == d1trend == "Buy":
             current_trend = "Buy"
-        elif m15_trend == m30_trend == h1_trend == "0":
+        elif h1trend == h4trend == '0':
             current_trend = "Neutral"
 
         logger.info("=" * 50)
         logger.info(current_time)
-        logger.info(f"{symbol} M5 {dfdate} {format_text(m5_trend)} {current_price}")
-        logger.info(f"{symbol} H15 {m15date} {format_text(m15_trend)} {m15price}")
-        logger.info(f"{symbol} H30 {m30date} {format_text(m30_trend)} {m30price}")
-        logger.info(f"{symbol} H1 {h1date} {format_text(h1_trend)} {h1price}")
+        logger.info(f"{symbol} H1 {h1date} {format_text(h1trend)} {h1price}")
+        logger.info(f"{symbol} H4 {h4date} {format_text(h4trend)} {h4price}")
+        logger.info(f"{symbol} D1 {d1date} {format_text(d1trend)} {d1price}")
 
         order_size = mt5_client.check_order_exist(symbol)
         # do not place an order if the symbol order is placed to Metatrader
@@ -85,11 +73,9 @@ def scheduler_job():
             mt5_client.close_order(symbol)  # close all open positions
             # tp = close_p - (factor * atr)  # ROE=2
             mt5_client.sell_order(symbol, lot=lot, sl=None, tp=None)  # default tp at 1000 pips
-        elif order_size == 'Sell' and (current_trend == 'Buy' or current_trend == "Neutral"
-                                       or m15_trend == "Buy" or m30_trend == "Buy" or h1_trend == "Buy"):
+        elif order_size == 'Sell' and (current_trend == "Neutral" or current_trend == 'Buy' or h1trend == 'Buy'):
             mt5_client.close_order(symbol)  # close all Sell positions
-        elif order_size == 'Buy' and (current_trend == 'Sell' or current_trend == "Neutral"
-                                      or m15_trend == "Sell" or m30_trend == "Sell" or h1_trend == "Sell"):
+        elif order_size == 'Buy' and (current_trend == "Neutral" or current_trend == 'Sell' or h1trend == 'Buy'):
             mt5_client.close_order(symbol)  # close all Buy positions
         logger.info("=" * 50)
 
@@ -97,7 +83,7 @@ def scheduler_job():
 if __name__ == '__main__':
     # Run job every hour at the 42rd minute
     # scheduler_job()
-    schedule.every().minutes.at(":00").do(scheduler_job)
+    schedule.every().hours.at(":01").do(scheduler_job)
     while True:
         schedule.run_pending()
         time.sleep(1)
