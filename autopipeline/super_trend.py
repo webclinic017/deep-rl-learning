@@ -47,6 +47,8 @@ def scheduler_job():
     for symbol, value in zip(config.keys(), config.values()):
         # symbol_name = "BTCUSD"
         lot = value.get('lot')
+        logger.info("=" * 50)
+
         h1date, h1trend, h1price = mt5_client.ichimoku_cloud(timeframe=mt5.TIMEFRAME_H1, symbol=symbol)
         h4date, h4trend, h4price = mt5_client.ichimoku_cloud(timeframe=mt5.TIMEFRAME_H4, symbol=symbol)
         d1date, d1trend, d1price = mt5_client.ichimoku_cloud(timeframe=mt5.TIMEFRAME_D1, symbol=symbol)
@@ -59,8 +61,7 @@ def scheduler_job():
         elif h1trend == h4trend == '0':
             current_trend = "Neutral"
 
-        logger.info("=" * 50)
-        logger.info(current_time)
+        logger.info(f"{symbol} Current Trend {format_text(current_trend)}")
         logger.info(f"{symbol} H1 {h1date} {format_text(h1trend)} {h1price}")
         logger.info(f"{symbol} H4 {h4date} {format_text(h4trend)} {h4price}")
         logger.info(f"{symbol} D1 {d1date} {format_text(d1trend)} {d1price}")
@@ -87,7 +88,7 @@ def scheduler_job():
 if __name__ == '__main__':
     # Run job every hour at the 42rd minute
     # scheduler_job()
-    schedule.every().hours.do(scheduler_job)
+    schedule.every().hours.at(":00").do(scheduler_job)
     while True:
         schedule.run_pending()
         time.sleep(1)
