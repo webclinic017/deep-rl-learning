@@ -429,11 +429,9 @@ class AutoOrder:
         # df.drop(['Date'], axis=1).plot(figsize=(15,8))
         conditions = [
             (df['tenkan_sen'] > df['kijun_sen']) & (df['close'] > df['senkou_span_a']) & (
-                        df['close'] > df['senkou_span_b']) & (df['HIST'] > df['HIST'].shift()) & (
-                        df['HIST'].shift() > df['HIST'].shift(2)),
+                        df['close'] > df['senkou_span_b']) & (df['HIST'] > df['HIST'].shift()),
             (df['tenkan_sen'] < df['kijun_sen']) & (df['close'] < df['senkou_span_a']) & (
-                        df['close'] < df['senkou_span_b']) & (df['HIST'] < df['HIST'].shift()) & (
-                        df['HIST'].shift() < df['HIST'].shift(2))
+                        df['close'] < df['senkou_span_b']) & (df['HIST'] < df['HIST'].shift())
         ]
         values = ['Buy', 'Sell']
         df['Trend'] = np.select(conditions, values)

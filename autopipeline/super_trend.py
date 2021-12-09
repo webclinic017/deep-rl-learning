@@ -51,12 +51,11 @@ def scheduler_job():
 
         h1date, h1trend, h1price = mt5_client.ichimoku_cloud(timeframe=mt5.TIMEFRAME_H1, symbol=symbol)
         h4date, h4trend, h4price = mt5_client.ichimoku_cloud(timeframe=mt5.TIMEFRAME_H4, symbol=symbol)
-        d1date, d1trend, d1price = mt5_client.ichimoku_cloud(timeframe=mt5.TIMEFRAME_D1, symbol=symbol)
 
         current_trend = '0'
-        if h1trend == h4trend == d1trend == "Sell":
+        if h1trend == h4trend == "Sell":
             current_trend = "Sell"
-        elif h1trend == h4trend == d1trend == "Buy":
+        elif h1trend == h4trend == "Buy":
             current_trend = "Buy"
         elif h1trend == h4trend == '0':
             current_trend = "Neutral"
@@ -64,7 +63,6 @@ def scheduler_job():
         logger.info(f"{symbol} Current Trend {format_text(current_trend)}")
         logger.info(f"{symbol} H1 {h1date} {format_text(h1trend)} {h1price}")
         logger.info(f"{symbol} H4 {h4date} {format_text(h4trend)} {h4price}")
-        logger.info(f"{symbol} D1 {d1date} {format_text(d1trend)} {d1price}")
 
         order_size = mt5_client.check_order_exist(symbol)
         # do not place an order if the symbol order is placed to Metatrader
@@ -77,10 +75,10 @@ def scheduler_job():
             # tp = close_p - (factor * atr)  # ROE=2
             mt5_client.sell_order(symbol, lot=lot, sl=None, tp=None)  # default tp at 1000 pips
         elif order_size == 'Sell' and (current_trend == "Neutral" or current_trend == 'Buy' or
-                                       h1trend == 'Buy' or h4trend == 'Buy' or d1trend == 'Buy'):
+                                       h1trend == 'Buy' or h4trend == 'Buy'):
             mt5_client.close_order(symbol)  # close all Sell positions
         elif order_size == 'Buy' and (current_trend == "Neutral" or current_trend == 'Sell'
-                                      or h1trend == 'Sell' or h4trend == 'Sell' or d1trend == 'Sell'):
+                                      or h1trend == 'Sell' or h4trend == 'Sell'):
             mt5_client.close_order(symbol)  # close all Buy positions
         logger.info("=" * 50)
 
