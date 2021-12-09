@@ -34,6 +34,8 @@ def scheduler_job():
     """Shows basic usage of the Gmail API.
     Lists the user's Gmail labels.
     """
+    if datetime.now().hour % 4 != 0:
+        return
 
     timezone = pytz.timezone("Etc/UTC")
     logger.info("=" * 50)
@@ -85,7 +87,7 @@ def scheduler_job():
 if __name__ == '__main__':
     # Run job every hour at the 42rd minute
     # scheduler_job()
-    schedule.every().days.do(scheduler_job)
+    schedule.every().hours.do(scheduler_job)
     while True:
         schedule.run_pending()
         time.sleep(1)
