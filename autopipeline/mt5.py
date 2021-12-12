@@ -1,15 +1,14 @@
 import math
 import time
-
 import numpy as np
 import pandas as pd
 import MetaTrader5 as mt5
 import pytz
 import uuid
-from talib import EMA, stream, MACD, ADX, BBANDS, ATR, NATR, MACDEXT
+
+from talib import EMA, stream, MACD, ADX
 from datetime import datetime
 from utils import logger, Supertrend, trend_table
-import talib
 
 
 class AutoOrder:
@@ -408,7 +407,7 @@ class AutoOrder:
         df.high = df.high.astype(float)
         df.low = df.low.astype(float)
         df.close = df.close.astype(float)
-        df['MACD'], df['SIGNAL'], df['HIST'] = talib.MACD(df.close)
+        df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close)
         # Tenkan-sen (Conversion Line): (9-period high + 9-period low)/2))
         nine_period_high = df['high'].rolling(window=9).max()
         nine_period_low = df['low'].rolling(window=9).min()
