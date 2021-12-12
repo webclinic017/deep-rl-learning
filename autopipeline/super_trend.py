@@ -49,8 +49,8 @@ def scheduler_job():
         lot = value.get('lot')
         logger.info("=" * 50)
 
-        h1date, h1trend, h1price = mt5_client.ichimoku_cloud(timeframe=mt5.TIMEFRAME_H1, symbol=symbol)
-        h4date, h4trend, h4price = mt5_client.ichimoku_cloud(timeframe=mt5.TIMEFRAME_H4, symbol=symbol)
+        h1date, h1trend, h1price = mt5_client.ichimoku_cloud(timeframe=mt5.TIMEFRAME_M15, symbol=symbol)
+        h4date, h4trend, h4price = mt5_client.ichimoku_cloud(timeframe=mt5.TIMEFRAME_M30, symbol=symbol)
 
         current_trend = '0'
         if h1trend == h4trend == "Sell":
@@ -87,6 +87,7 @@ if __name__ == '__main__':
     # Run job every hour at the 42rd minute
     # scheduler_job()
     schedule.every().hours.at(":00").do(scheduler_job)
+    schedule.every().hours.at(":30").do(scheduler_job)
     while True:
         schedule.run_pending()
         time.sleep(1)
