@@ -32,7 +32,7 @@ def format_text(trend):
     if trend == 'Close_Sell':
         return colored(trend, 'yellow')
     if trend == 'Neutral':
-        return colored(trend, 'on_blue')
+        return colored(trend, 'cyan')
     return colored('0', 'blue')
 
 
