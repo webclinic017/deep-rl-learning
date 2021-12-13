@@ -429,10 +429,12 @@ class AutoOrder:
         conditions = [
             (df['tenkan_sen'] > df['kijun_sen']) & (df['close'] > df['senkou_span_a']) & (
                         df['close'] > df['senkou_span_b']) & (df['HIST'] > df['HIST'].shift()),
+            (df['tenkan_sen'] > df['close']) & (df['HIST'] < df['HIST'].shift()),
             (df['tenkan_sen'] < df['kijun_sen']) & (df['close'] < df['senkou_span_a']) & (
-                        df['close'] < df['senkou_span_b']) & (df['HIST'] < df['HIST'].shift())
+                        df['close'] < df['senkou_span_b']) & (df['HIST'] < df['HIST'].shift()),
+            (df['tenkan_sen'] < df['close']) & (df['HIST'] > df['HIST'].shift())
         ]
-        values = ['Buy', 'Sell']
+        values = ['Buy', 'Close_Buy', 'Sell', 'Close_Sell']
         df['Trend'] = np.select(conditions, values)
         logger.info(f"{df['Date'].iat[-1]} {symbol} tenkan_sen: {df['tenkan_sen'].iat[-1]}  kijun_sen: {df['kijun_sen'].iat[-1]} senkou_span_a: {df['senkou_span_a'].iat[-1]} senkou_span_b: {df['senkou_span_b'].iat[-1]} histogram: {df['HIST'].iat[-1]}")
         return str(df.Date.iat[-1]), df.Trend.iat[-1], df.close.iat[-1]
