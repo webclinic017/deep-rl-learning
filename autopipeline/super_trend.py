@@ -65,8 +65,8 @@ def scheduler_job():
             current_trend = "Neutral"
 
         logger.info(f"{symbol} Current Trend {format_text(current_trend)}")
-        logger.info(f"{symbol} H1 {h1date} {format_text(h1trend)} {h1price}")
-        logger.info(f"{symbol} H4 {h4date} {format_text(h4trend)} {h4price}")
+        logger.info(f"{symbol} M15 {h1date} {format_text(h1trend)} {h1price}")
+        logger.info(f"{symbol} M30 {h4date} {format_text(h4trend)} {h4price}")
 
         order_size = mt5_client.check_order_exist(symbol)
         # do not place an order if the symbol order is placed to Metatrader
