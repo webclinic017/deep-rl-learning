@@ -395,8 +395,6 @@ class AutoOrder:
     @staticmethod
     def ichimoku_cloud(timeframe, symbol):
         rates_frame = mt5.copy_rates_from_pos(symbol, timeframe, 0, 500)
-        #     print(rates_frame)
-        # create DataFrame out of the obtained data
         df = pd.DataFrame(rates_frame, columns=['time', 'open', 'high', 'low', 'close'])
         df['Date'] = pd.to_datetime(df['time'], unit='s')
         df = df.drop(['time'], axis=1)
@@ -407,7 +405,12 @@ class AutoOrder:
         df.high = df.high.astype(float)
         df.low = df.low.astype(float)
         df.close = df.close.astype(float)
-        df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close)
+        #     df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close)
+        exp1 = df.close.ewm(span=12, adjust=False).mean()
+        exp2 = df.close.ewm(span=26, adjust=False).mean()
+        df['MACD'] = exp1 - exp2
+        df['SIGNAL'] = df['MACD'].ewm(span=9, adjust=False).mean()
+        df['HIST'] = df['MACD'] - df['SIGNAL']
         # Tenkan-sen (Conversion Line): (9-period high + 9-period low)/2))
         nine_period_high = df['high'].rolling(window=9).max()
         nine_period_low = df['low'].rolling(window=9).min()
@@ -424,8 +427,6 @@ class AutoOrder:
         df['senkou_span_b'] = ((period52_high + period52_low) / 2).shift(26)
         # The most current closing price plotted 26 time periods behind (optional)
         df['chikou_span'] = df['close'].shift(-26)
-        # create a quick plot of the results to see what we have created
-        # df.drop(['Date'], axis=1).plot(figsize=(15,8))
         conditions = [
             (df['tenkan_sen'] > df['kijun_sen']) & (df['close'] > df['senkou_span_a']) & (
                         df['close'] > df['senkou_span_b']) & (df['HIST'] > df['HIST'].shift()),
