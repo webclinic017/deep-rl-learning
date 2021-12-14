@@ -92,10 +92,10 @@ def scheduler_job():
 if __name__ == '__main__':
     # Run job every hour at the 42rd minute
     # scheduler_job()
-    schedule.every().hours.at(":59").do(scheduler_job)
-    schedule.every().hours.at(":14").do(scheduler_job)
-    schedule.every().hours.at(":29").do(scheduler_job)
-    schedule.every().hours.at(":44").do(scheduler_job)
+    schedule.every().hours.at(":00").do(scheduler_job)
+    schedule.every().hours.at(":15").do(scheduler_job)
+    schedule.every().hours.at(":30").do(scheduler_job)
+    schedule.every().hours.at(":45").do(scheduler_job)
     while True:
         schedule.run_pending()
         time.sleep(1)

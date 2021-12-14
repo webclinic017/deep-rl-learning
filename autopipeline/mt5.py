@@ -394,7 +394,7 @@ class AutoOrder:
 
     @staticmethod
     def ichimoku_cloud(timeframe, symbol):
-        rates_frame = mt5.copy_rates_from_pos(symbol, timeframe, 0, 300)
+        rates_frame = mt5.copy_rates_from_pos(symbol, timeframe, 1, 500)
         #     print(rates_frame)
         # create DataFrame out of the obtained data
         df = pd.DataFrame(rates_frame, columns=['time', 'open', 'high', 'low', 'close'])
