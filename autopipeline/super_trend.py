@@ -70,23 +70,23 @@ def scheduler_job():
         logger.info(f"{symbol} M15 {h1date} {format_text(h1trend)} {h1price}")
         logger.info(f"{symbol} M30 {h4date} {format_text(h4trend)} {h4price}")
 
-        # order_size = mt5_client.check_order_exist(symbol)
-        # # do not place an order if the symbol order is placed to Metatrader
-        # if current_trend == "Buy" and order_size != current_trend:
-        #     mt5_client.close_order(symbol)  # close all open positions
-        #     # tp = close_p + (factor * atr)  # ROE=2
-        #     mt5_client.buy_order(symbol, lot=lot, sl=None, tp=None)  # default tp at 1000 pips
-        # elif current_trend == 'Sell' and order_size != current_trend:
-        #     mt5_client.close_order(symbol)  # close all open positions
-        #     # tp = close_p - (factor * atr)  # ROE=2
-        #     mt5_client.sell_order(symbol, lot=lot, sl=None, tp=None)  # default tp at 1000 pips
-        # elif order_size == 'Sell' and (current_trend == "Neutral" or current_trend == 'Buy' or
-        #                                h1trend == 'Buy' or h4trend == 'Buy' or h4trend == 'Close_Sell'):
-        #     mt5_client.close_order(symbol)  # close all Sell positions
-        # elif order_size == 'Buy' and (current_trend == "Neutral" or current_trend == 'Sell'
-        #                               or h1trend == 'Sell' or h4trend == 'Sell' or h4trend == 'Close_Buy'):
-        #     mt5_client.close_order(symbol)  # close all Buy positions
-        # logger.info("=" * 50)
+        order_size = mt5_client.check_order_exist(symbol)
+        # do not place an order if the symbol order is placed to Metatrader
+        if current_trend == "Buy" and order_size != current_trend:
+            mt5_client.close_order(symbol)  # close all open positions
+            # tp = close_p + (factor * atr)  # ROE=2
+            mt5_client.buy_order(symbol, lot=lot, sl=None, tp=None)  # default tp at 1000 pips
+        elif current_trend == 'Sell' and order_size != current_trend:
+            mt5_client.close_order(symbol)  # close all open positions
+            # tp = close_p - (factor * atr)  # ROE=2
+            mt5_client.sell_order(symbol, lot=lot, sl=None, tp=None)  # default tp at 1000 pips
+        elif order_size == 'Sell' and (current_trend == "Neutral" or current_trend == 'Buy' or
+                                       h1trend == 'Buy' or h4trend == 'Buy' or h4trend == 'Close_Sell'):
+            mt5_client.close_order(symbol)  # close all Sell positions
+        elif order_size == 'Buy' and (current_trend == "Neutral" or current_trend == 'Sell'
+                                      or h1trend == 'Sell' or h4trend == 'Sell' or h4trend == 'Close_Buy'):
+            mt5_client.close_order(symbol)  # close all Buy positions
+        logger.info("=" * 50)
 
 
 if __name__ == '__main__':
