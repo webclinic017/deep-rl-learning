@@ -310,7 +310,7 @@ class AutoOrder:
                     logger.error(f"Can not close order for {symbol}")
 
     @staticmethod
-    def modify_stoploss(symbol, sl, atr):
+    def modify_stoploss(symbol, sl):
         positions = mt5.positions_get(symbol=symbol)
         # print("Total positions",":",len(positions))
         # display all active orders
@@ -331,16 +331,16 @@ class AutoOrder:
                 ptype = "Buy"
                 diff = price_current - price_open
                 # pip_profit = diff / profit
-                if diff > atr and price_open > sl:
-                    sl = price_open
+                # if diff > atr and price_open > sl:
+                #     sl = price_open
                 if prev_sl > sl:
                     return True
             elif position.type == 1:
                 ptype = "Sell"
                 diff = price_open - price_current
                 # pip_profit = diff / profit
-                if diff > atr and price_open < sl:
-                    sl = price_open
+                # if diff > atr and price_open < sl:
+                #     sl = price_open
                 if prev_sl < sl:
                     return True
 
@@ -439,4 +439,4 @@ class AutoOrder:
         ]
         values = ['Buy', 'Sell']
         df['Trend'] = np.select(conditions, values)
-        return str(df.Date.iat[-1]), df.Trend.iat[-1], df.close.iat[-1]
+        return str(df.Date.iat[-1]), df.Trend.iat[-1], df.close.iat[-1], df.kijun_sen.iat[-1]
