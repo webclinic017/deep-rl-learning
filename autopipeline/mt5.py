@@ -427,15 +427,16 @@ class AutoOrder:
         df['senkou_span_b'] = ((period52_high + period52_low) / 2).shift(26)
         # The most current closing price plotted 26 time periods behind (optional)
         df['chikou_span'] = df['close'].shift(-26)
+        # create a quick plot of the results to see what we have created
+        # df.drop(['Date'], axis=1).plot(figsize=(15,8))
         conditions = [
-            (df['tenkan_sen'] > df['kijun_sen']) & (df['close'] > df['senkou_span_a']) & (
-                        df['close'] > df['senkou_span_b']) & (df['HIST'] > df['HIST'].shift()),
-            (df['tenkan_sen'] > df['close']) & (df['HIST'] < df['HIST'].shift()),
-            (df['tenkan_sen'] < df['kijun_sen']) & (df['close'] < df['senkou_span_a']) & (
-                        df['close'] < df['senkou_span_b']) & (df['HIST'] < df['HIST'].shift()),
-            (df['tenkan_sen'] < df['close']) & (df['HIST'] > df['HIST'].shift())
+            (df['tenkan_sen'] > df['senkou_span_a']) & (df['tenkan_sen'] > df['senkou_span_b']) & (
+                        df['kijun_sen'] > df['senkou_span_a']) & (df['kijun_sen'] > df['senkou_span_b']) & (
+                        df['kijun_sen'] < df['close']),
+            (df['tenkan_sen'] < df['senkou_span_a']) & (df['tenkan_sen'] < df['senkou_span_b']) & (
+                        df['kijun_sen'] < df['senkou_span_a']) & (df['kijun_sen'] < df['senkou_span_b']) & (
+                        df['kijun_sen'] > df['close']),
         ]
-        values = ['Buy', 'Close_Buy', 'Sell', 'Close_Sell']
+        values = ['Buy', 'Sell']
         df['Trend'] = np.select(conditions, values)
-        logger.info(f"{df['Date'].iat[-1]} {symbol} tenkan_sen: {df['tenkan_sen'].iat[-1]}  kijun_sen: {df['kijun_sen'].iat[-1]} senkou_span_a: {df['senkou_span_a'].iat[-1]} senkou_span_b: {df['senkou_span_b'].iat[-1]} histogram: {df['HIST'].iat[-1]}")
         return str(df.Date.iat[-1]), df.Trend.iat[-1], df.close.iat[-1]

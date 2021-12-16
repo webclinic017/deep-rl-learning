@@ -42,7 +42,7 @@ def scheduler_job():
     """
     # if datetime.now().hour % 4 != 0:
     #     return
-    time.sleep(55)
+    time.sleep(50)
     timezone = pytz.timezone("Etc/UTC")
     logger.info("=" * 50)
     logger.info(f"Start job at: {datetime.now(tz=timezone)}")
@@ -55,15 +55,15 @@ def scheduler_job():
         lot = value.get('lot')
         logger.info("=" * 50)
 
-        h1date, h1trend, h1price = mt5_client.ichimoku_cloud(timeframe=mt5.TIMEFRAME_M5, symbol=symbol)
-        h4date, h4trend, h4price = mt5_client.ichimoku_cloud(timeframe=mt5.TIMEFRAME_M15, symbol=symbol)
+        h1date, h1trend, h1price = mt5_client.ichimoku_cloud(timeframe=mt5.TIMEFRAME_M15, symbol=symbol)
+        h4date, h4trend, h4price = mt5_client.ichimoku_cloud(timeframe=mt5.TIMEFRAME_M30, symbol=symbol)
 
         current_trend = '0'
         if h1trend == h4trend == "Sell":
             current_trend = "Sell"
         elif h1trend == h4trend == "Buy":
             current_trend = "Buy"
-        elif h1trend == h4trend == '0':
+        elif h1trend and h4trend == '0':
             current_trend = "Neutral"
 
         logger.info(f"{symbol} Current Trend {format_text(current_trend)}")
@@ -81,10 +81,12 @@ def scheduler_job():
             # tp = close_p - (factor * atr)  # ROE=2
             mt5_client.sell_order(symbol, lot=lot, sl=None, tp=None)  # default tp at 1000 pips
         elif order_size == 'Sell' and (current_trend == "Neutral" or current_trend == 'Buy' or
-                                       h1trend == 'Buy' or h4trend == 'Buy' or h4trend == 'Close_Sell'):
+                                       h1trend == 'Buy' or h4trend == 'Buy' or h1trend == 'Close_Sell' or
+                                       h4trend == 'Close_Sell'):
             mt5_client.close_order(symbol)  # close all Sell positions
-        elif order_size == 'Buy' and (current_trend == "Neutral" or current_trend == 'Sell'
-                                      or h1trend == 'Sell' or h4trend == 'Sell' or h4trend == 'Close_Buy'):
+        elif order_size == 'Buy' and (current_trend == "Neutral" or current_trend == 'Sell' or
+                                      h1trend == 'Sell' or h4trend == 'Sell' or h1trend == 'Close_Buy' or
+                                      h4trend == 'Close_Buy'):
             mt5_client.close_order(symbol)  # close all Buy positions
         logger.info("=" * 50)
 

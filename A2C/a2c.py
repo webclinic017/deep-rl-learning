@@ -23,7 +23,7 @@ class A2C:
     """ Actor-Critic Main Algorithm
     """
 
-    def __init__(self, act_dim, env_dim, k, gamma=0.99, lr=0.0001):
+    def __init__(self, act_dim, env_dim, k, gamma=0.99, lr=1e-3):
         """ Initialization
         """
         # Environment and A2C parameters
@@ -32,7 +32,7 @@ class A2C:
         self.gamma = gamma
         self.lr = lr
         self.epsilon = 1
-        self.epsilon_min = 0.1
+        self.epsilon_min = 0.2
         # Create actor and critic networks
         self.shared = self.buildNetwork()
         self.actor = Actor(self.env_dim, act_dim, self.shared, lr)
@@ -47,8 +47,8 @@ class A2C:
         inp = Input((self.env_dim))
         x = Dense(128, activation='relu')(inp)
         x = Dense(128, activation='relu')(x)
-        x = Dense(64, activation='relu')(x)
-        x = Dense(32, activation='relu')(x)
+        x = Dense(128, activation='relu')(x)
+        x = Dense(128, activation='relu')(x)
         return Model(inp, x)
 
     def policy_action(self, inp1):
@@ -115,9 +115,9 @@ class A2C:
                 # if args.render: env.render()
                 # Actor picks an action (following the policy)
                 valid_actions = env.get_valid_actions()
-                action = self.policy_action(old_state)
-                if action not in valid_actions:
-                    action = 0  # do not do any think
+                action = self.random_actions(old_state)
+                # if action not in valid_actions:
+                #     action = 0  # do not do any think
 
                 # Retrieve new state, reward, and whether the state is terminal
                 new_state, r, done, info = env.step(action)
