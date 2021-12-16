@@ -165,6 +165,8 @@ class AutoOrder:
 
         if tp is not None:
             request['tp'] = tp
+        if sl is not None:
+            request['sl'] = sl
 
         # send a trading request
         result = mt5.order_send(request)
@@ -211,6 +213,8 @@ class AutoOrder:
 
         if tp is not None:
             request['tp'] = tp
+        if sl is not None:
+            request['sl'] = sl
 
         # send a trading request
         result = mt5.order_send(request)
