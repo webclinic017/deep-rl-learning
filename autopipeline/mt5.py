@@ -337,7 +337,7 @@ class AutoOrder:
                 # pip_profit = diff / profit
                 # if diff > atr and price_open > sl:
                 #     sl = price_open
-                if prev_sl > sl:
+                if prev_sl and prev_sl > sl:
                     return True
             elif position.type == 1:
                 ptype = "Sell"
@@ -345,7 +345,7 @@ class AutoOrder:
                 # pip_profit = diff / profit
                 # if diff > atr and price_open < sl:
                 #     sl = price_open
-                if prev_sl < sl:
+                if prev_sl and prev_sl < sl:
                     return True
 
             request = {
