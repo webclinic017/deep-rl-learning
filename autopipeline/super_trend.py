@@ -75,11 +75,11 @@ def scheduler_job():
         if current_trend == "Buy" and order_size != current_trend:
             mt5_client.close_order(symbol)  # close all open positions
             # tp = close_p + (factor * atr)  # ROE=2
-            mt5_client.buy_order(symbol, lot=lot, sl=stop_loss, tp=None)  # default tp at 1000 pips
+            mt5_client.buy_order(symbol, lot=lot, sl=None, tp=None)  # default tp at 1000 pips
         elif current_trend == 'Sell' and order_size != current_trend:
             mt5_client.close_order(symbol)  # close all open positions
             # tp = close_p - (factor * atr)  # ROE=2
-            mt5_client.sell_order(symbol, lot=lot, sl=stop_loss, tp=None)  # default tp at 1000 pips
+            mt5_client.sell_order(symbol, lot=lot, sl=None, tp=None)  # default tp at 1000 pips
         elif order_size == 'Sell' and (current_trend == "Neutral" or current_trend == 'Buy' or
                                        h1trend == 'Buy' or h4trend == 'Buy' or h1trend == 'Close_Sell' or
                                        h4trend == 'Close_Sell'):
@@ -89,8 +89,8 @@ def scheduler_job():
                                       h4trend == 'Close_Buy'):
             mt5_client.close_order(symbol)  # close all Buy positions
 
-        if order_size:
-            mt5_client.modify_stoploss(symbol, stop_loss)
+        #if order_size:
+        #    mt5_client.modify_stoploss(symbol, stop_loss)
 
         logger.info("=" * 50)
 

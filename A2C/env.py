@@ -57,6 +57,7 @@ class TradingEnv:
         df.high = df.high.astype(float)
         df.low = df.low.astype(float)
         df.close = df.close.astype(float)
+        df.train_close = df.close.astype(float)/2000
 
         exp1 = df.close.ewm(span=12, adjust=False).mean()
         exp2 = df.close.ewm(span=26, adjust=False).mean()
@@ -86,7 +87,7 @@ class TradingEnv:
         ]
         values = ['Buy', 'Sell']
         df['Trend'] = np.select(conditions, values)
-        return str(df.Date.iat[-1]), df.Trend.iat[-1], df.close.iat[-1], df.HIST.iloc[-28:-1].values.flatten().tolist()
+        return str(df.Date.iat[-1]), df.Trend.iat[-1], df.close.iat[-1], df.train_close.iloc[-14:-1].values.flatten().tolist()
 
     @staticmethod
     def get_trend(trend1, trend2):
@@ -108,7 +109,7 @@ class TradingEnv:
         current_price = h1price
         current_trend = self.get_trend(h1trend, h4trend)
         valid_actions = self.get_valid_actions()
-        r = 0 if action in valid_actions else -1
+        r = 0
         diff = 0
         if self.order_size == "Sell":
             diff = self.order_p - current_price
@@ -157,7 +158,7 @@ class TradingEnv:
                 self.all_max_diff.append(self.max_diff)
                 self.max_profit += diff
                 self.num_profit += 1
-            r = 100 if normal_diff < diff < max_diff else 0
+            r = 0 if normal_diff < diff < max_diff else -1
 
             # reset flags
             self.order_p = None
@@ -205,7 +206,7 @@ class TradingEnv:
                 self.all_max_diff.append(self.max_diff)
                 self.max_profit += diff
                 self.num_profit += 1
-            r = 100 if normal_diff < diff < max_diff else 0
+            r = 0 if normal_diff < diff < max_diff else -1
 
             # accept_next = "Sell"
             # reset flags
@@ -240,8 +241,8 @@ class TradingEnv:
         new_state = []
         new_state.extend(h1train)
         new_state.extend(h4train)
-        new_state.extend([self.max_diff/100, diff/100])
-        new_state.append(1 if self.order_p else 0)
+        # new_state.extend([self.max_diff/100, diff/100])
+        # new_state.append(1 if self.order_p else 0)
         new_state = np.array(new_state)
         done = True if self.current_time.timestamp() >= self.end_time.timestamp() else False
         info = {
@@ -286,15 +287,15 @@ class TradingEnv:
         new_state = []
         new_state.extend(h1train)
         new_state.extend(h4train)
-        new_state.extend([0, 0])
-        new_state.append(0)
+        # new_state.extend([0, 0])
+        # new_state.append(0)
         new_state = np.array(new_state)
         self.training_step += 1
         return new_state
 
     @staticmethod
     def get_state_size():
-        return 57
+        return 26
 
     @staticmethod
     def get_action_space():

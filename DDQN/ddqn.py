@@ -3,7 +3,7 @@ import random
 import numpy as np
 
 from tqdm import tqdm
-from agent import Agent
+from .agent import Agent
 from random import random, randrange
 
 from utils.memory_buffer import MemoryBuffer
@@ -18,7 +18,7 @@ class DDQN:
         """ Initialization
         """
         # Environment and DDQN parameters
-        self.with_per = args.with_per
+        self.with_per = False
         self.action_dim = action_dim
         self.state_dim = state_dim
         #
@@ -37,9 +37,9 @@ class DDQN:
         # else:
         #     self.tau = 1.0
         # Create actor and critic networks
-        self.agent = Agent(self.state_dim, action_dim, self.lr, self.tau, args.dueling)
+        self.agent = Agent(self.state_dim, action_dim, self.lr, self.tau, False)
         # Memory Buffer for Experience Replay
-        self.buffer = MemoryBuffer(self.buffer_size, args.with_per)
+        self.buffer = MemoryBuffer(self.buffer_size, False)
 
     def policy_action(self, s1, s2):
         """ Apply an espilon-greedy policy to pick next action

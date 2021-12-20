@@ -14,6 +14,7 @@ from keras.backend.tensorflow_backend import set_session
 
 from A2C.env import TradingEnv
 from A3C.a3c import A3C
+from DDQN.ddqn import DDQN
 from utils.networks import get_session
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -71,7 +72,7 @@ def main(args=None):
     state_dim = (env.get_state_size(),)
     action_dim = 3
     act_range = 2
-    algo = A2C(action_dim, state_dim, args.consecutive_frames)
+    algo = DDQN(action_dim, state_dim, args.consecutive_frames)
 
     # Train
     stats = algo.train(env, args, summary_writer)
