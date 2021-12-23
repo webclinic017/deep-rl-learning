@@ -55,20 +55,20 @@ def scheduler_job():
         lot = value.get('lot')
         logger.info("=" * 50)
 
-        h1date, h1trend, h1price, _ = mt5_client.ichimoku_cloud(timeframe=mt5.TIMEFRAME_M15, symbol=symbol)
-        h4date, h4trend, h4price, stop_loss = mt5_client.ichimoku_cloud(timeframe=mt5.TIMEFRAME_M30, symbol=symbol)
+        h1date, h1trend, _, h1price, high_price, low_price, _, _ = mt5_client.ichimoku_cloud(timeframe=mt5.TIMEFRAME_M15, symbol=symbol)
+        h4date, h4trend, close_signal, h4price, _, _, kijun_sen, pattern = mt5_client.ichimoku_cloud(timeframe=mt5.TIMEFRAME_M30, symbol=symbol)
 
         current_trend = '0'
         if h1trend == h4trend == "Sell":
             current_trend = "Sell"
         elif h1trend == h4trend == "Buy":
             current_trend = "Buy"
-        elif h1trend and h4trend == '0':
-            current_trend = "Neutral"
+        # elif h1trend and h4trend == '0':
+        #     current_trend = "Neutral"
 
         logger.info(f"{symbol} Current Trend {format_text(current_trend)}")
         logger.info(f"{symbol} M15 {h1date} {format_text(h1trend)} {h1price}")
-        logger.info(f"{symbol} M30 {h4date} {format_text(h4trend)} {h4price}")
+        logger.info(f"{symbol} M30 {h4date} {format_text(h4trend)} {h4price} {kijun_sen}")
 
         order_size = mt5_client.check_order_exist(symbol)
         # do not place an order if the symbol order is placed to Metatrader
@@ -80,13 +80,11 @@ def scheduler_job():
             mt5_client.close_order(symbol)  # close all open positions
             # tp = close_p - (factor * atr)  # ROE=2
             mt5_client.sell_order(symbol, lot=lot, sl=None, tp=None)  # default tp at 1000 pips
-        elif order_size == 'Sell' and (current_trend == "Neutral" or current_trend == 'Buy' or
-                                       h1trend == 'Buy' or h4trend == 'Buy' or h1trend == 'Close_Sell' or
-                                       h4trend == 'Close_Sell'):
+        elif order_size == 'Sell' and (current_trend == "Neutral" or current_trend == 'Buy' or h1trend == 'Buy' or
+                                       h4trend == 'Buy' or close_signal == "Close_Sell" or pattern == 100):
             mt5_client.close_order(symbol)  # close all Sell positions
-        elif order_size == 'Buy' and (current_trend == "Neutral" or current_trend == 'Sell' or
-                                      h1trend == 'Sell' or h4trend == 'Sell' or h1trend == 'Close_Buy' or
-                                      h4trend == 'Close_Buy'):
+        elif order_size == 'Buy' and (current_trend == "Neutral" or current_trend == 'Sell' or h1trend == 'Sell' or
+                                      h4trend == 'Sell' or close_signal == "Close_Buy" or pattern == -100):
             mt5_client.close_order(symbol)  # close all Buy positions
 
         #if order_size:

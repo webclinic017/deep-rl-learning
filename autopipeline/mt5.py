@@ -6,7 +6,7 @@ import MetaTrader5 as mt5
 import pytz
 import uuid
 
-from talib import EMA, stream, MACD, ADX
+from talib import EMA, stream, MACD, ADX, CDLENGULFING
 from datetime import datetime
 from utils import logger, Supertrend, trend_table
 
@@ -409,6 +409,12 @@ class AutoOrder:
         df.high = df.high.astype(float)
         df.low = df.low.astype(float)
         df.close = df.close.astype(float)
+        real_close = df.close.iat[-1]
+        real_high = df.high.iat[-1]
+        real_low = df.low.iat[-1]
+        #     df = heikin_ashi(df)
+        # CCI
+        # df['CCI'] = talib.CCI(df.high, df.low, df.close)
         #     df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close)
         exp1 = df.close.ewm(span=12, adjust=False).mean()
         exp2 = df.close.ewm(span=26, adjust=False).mean()
@@ -433,14 +439,29 @@ class AutoOrder:
         df['chikou_span'] = df['close'].shift(-26)
         # create a quick plot of the results to see what we have created
         # df.drop(['Date'], axis=1).plot(figsize=(15,8))
+
+        df['Engulfing'] = CDLENGULFING(df.open, df.high, df.low, df.close)
         conditions = [
             (df['tenkan_sen'] > df['senkou_span_a']) & (df['tenkan_sen'] > df['senkou_span_b']) & (
                         df['kijun_sen'] > df['senkou_span_a']) & (df['kijun_sen'] > df['senkou_span_b']) & (
-                        df['kijun_sen'] < df['close']),
+                        df['kijun_sen'] < df['close']) & (df['HIST'] > df['HIST'].shift()),
             (df['tenkan_sen'] < df['senkou_span_a']) & (df['tenkan_sen'] < df['senkou_span_b']) & (
                         df['kijun_sen'] < df['senkou_span_a']) & (df['kijun_sen'] < df['senkou_span_b']) & (
-                        df['kijun_sen'] > df['close']),
+                        df['kijun_sen'] > df['close']) & (df['HIST'] < df['HIST'].shift())
         ]
         values = ['Buy', 'Sell']
-        df['Trend'] = np.select(conditions, values)
-        return str(df.Date.iat[-1]), df.Trend.iat[-1], df.close.iat[-1], df.kijun_sen.iat[-1]
+        df['Buy_Signal'] = np.select(conditions, values)
+
+        conditions = [
+            (df['kijun_sen'] > df['close']),
+            (df['kijun_sen'] < df['close'])
+        ]
+        values = ['Close_Buy', 'Close_Sell']
+        df['Close_Signal'] = np.select(conditions, values)
+
+        timeframe = "M15" if timeframe == mt5.TIMEFRAME_M15 else "M30"
+        # if df['Engulfing'].iat[-1] != 0:
+        #    print(str(df.Date.iat[-1]), timeframe, df['Engulfing'].iat[-1])
+        # return str(df.Date.iat[-1]), df.Trend.iat[-1], df.close.iat[-1], df['kijun_sen'].iat[-1]
+        # print(f"{timeframe} {df['Date'].iat[-1]} {symbol} tenkan_sen: {df['tenkan_sen'].iat[-1]}  kijun_sen: {df['kijun_sen'].iat[-1]} senkou_span_a: {df['senkou_span_a'].iat[-1]} senkou_span_b: {df['senkou_span_b'].iat[-1]} HIST: {df['HIST'].iat[-1]}")
+        return str(df.Date.iat[-1]), df.Buy_Signal.iat[-1], df.Close_Signal.iat[-1], real_close, real_high, real_low, df.kijun_sen.iat[-1], df['Engulfing'].iat[-1]
