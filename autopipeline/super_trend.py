@@ -49,48 +49,65 @@ def scheduler_job():
     with open("config.json") as config_file:
         config = json.load(config_file)
 
-    current_time = datetime.now(tz=timezone) + timedelta(hours=2)
+    timeframe_1 = mt5.TIMEFRAME_M15
+    timeframe_2 = mt5.TIMEFRAME_M30
     for symbol, value in zip(config.keys(), config.values()):
         # symbol_name = "BTCUSD"
         lot = value.get('lot')
         logger.info("=" * 50)
 
-        h1date, h1trend, _, h1price, high_price, low_price, _, _ = mt5_client.ichimoku_cloud(timeframe=mt5.TIMEFRAME_M15, symbol=symbol)
-        h4date, h4trend, close_signal, h4price, _, _, kijun_sen, pattern = mt5_client.ichimoku_cloud(timeframe=mt5.TIMEFRAME_M30, symbol=symbol)
+        df1date, h1_trend, close_signal_1, current_price_1, high_price_1, low_price_1, kijun_sen_1, atr_1, dftrain_1, resistance_1, support_1 = mt5_client.ichimoku_cloud(
+            timeframe=timeframe_1, symbol=symbol, save_frame=False, order_label="")
+        df2date, h2_trend, close_signal_2, current_price_2, high_price_2, low_price_2, kijun_sen_2, atr_2, dftrain_2, resistance_2, support_2 = mt5_client.ichimoku_cloud(
+            timeframe=timeframe_2, symbol=symbol, save_frame=False, order_label="")
 
         current_trend = '0'
-        if h1trend == h4trend == "Sell":
+        if h1_trend == h2_trend == "Sell":
             current_trend = "Sell"
-        elif h1trend == h4trend == "Buy":
+        elif h1_trend == h2_trend == "Buy":
             current_trend = "Buy"
-        # elif h1trend and h4trend == '0':
-        #     current_trend = "Neutral"
 
         logger.info(f"{symbol} Current Trend {format_text(current_trend)}")
-        logger.info(f"{symbol} M15 {h1date} {format_text(h1trend)} {h1price}")
-        logger.info(f"{symbol} M30 {h4date} {format_text(h4trend)} {h4price} {kijun_sen}")
+        logger.info(f"{symbol} M15 {df1date} {format_text(h1_trend)} {current_price_1}")
+        logger.info(f"{symbol} M30 {df2date} {format_text(h2_trend)} {current_price_2}")
 
         order_size = mt5_client.check_order_exist(symbol)
         # do not place an order if the symbol order is placed to Metatrader
         if current_trend == "Buy" and order_size != current_trend:
             mt5_client.close_order(symbol)  # close all open positions
-            # tp = close_p + (factor * atr)  # ROE=2
-            mt5_client.buy_order(symbol, lot=lot, sl=None, tp=None)  # default tp at 1000 pips
+            mt5_client.buy_order(symbol, lot=lot, sl=None, tp=None)
         elif current_trend == 'Sell' and order_size != current_trend:
             mt5_client.close_order(symbol)  # close all open positions
-            # tp = close_p - (factor * atr)  # ROE=2
-            mt5_client.sell_order(symbol, lot=lot, sl=None, tp=None)  # default tp at 1000 pips
-        elif order_size == 'Sell' and (current_trend == "Neutral" or current_trend == 'Buy' or h1trend == 'Buy' or
-                                       h4trend == 'Buy' or close_signal == "Close_Sell" or pattern == 100):
+            mt5_client.sell_order(symbol, lot=lot, sl=None, tp=None)
+        elif order_size == 'Sell' and (current_trend == "Neutral" or current_trend == 'Buy' or h2_trend == 'Buy' or
+                                       h1_trend == 'Buy' or close_signal_2 == 'Close_Sell'):
             mt5_client.close_order(symbol)  # close all Sell positions
-        elif order_size == 'Buy' and (current_trend == "Neutral" or current_trend == 'Sell' or h1trend == 'Sell' or
-                                      h4trend == 'Sell' or close_signal == "Close_Buy" or pattern == -100):
+        elif order_size == 'Buy' and (current_trend == "Neutral" or current_trend == 'Sell' or h2_trend == 'Sell' or
+                                      h1_trend == 'Sell' or close_signal_2 == 'Close_Buy'):
             mt5_client.close_order(symbol)  # close all Buy positions
 
-        #if order_size:
-        #    mt5_client.modify_stoploss(symbol, stop_loss)
+        if order_size:
+            mt5_client.modify_stoploss(symbol, atr_1)
 
         logger.info("=" * 50)
+
+
+def modify_stoploss_thread():
+    with open("config.json") as config_file:
+        config = json.load(config_file)
+
+    timeframe_1 = mt5.TIMEFRAME_M15
+    timeframe_2 = mt5.TIMEFRAME_M30
+    for symbol, value in zip(config.keys(), config.values()):
+        df1date, h1_trend, close_signal_1, current_price_1, high_price_1, low_price_1, kijun_sen_1, atr_1, dftrain_1, resistance_1, support_1 = mt5_client.ichimoku_cloud(
+            timeframe=timeframe_1, symbol=symbol, save_frame=False, order_label="")
+        df2date, h2_trend, close_signal_2, current_price_2, high_price_2, low_price_2, kijun_sen_2, atr_2, dftrain_2, resistance_2, support_2 = mt5_client.ichimoku_cloud(
+            timeframe=timeframe_2, symbol=symbol, save_frame=False, order_label="")
+
+        order_size = mt5_client.check_order_exist(symbol)
+        # do not place an order if the symbol order is placed to Metatrader
+        if order_size:
+            mt5_client.modify_stoploss(symbol, atr_1)
 
 
 if __name__ == '__main__':
@@ -100,6 +117,7 @@ if __name__ == '__main__':
     schedule.every().hours.at(":14").do(scheduler_job)
     schedule.every().hours.at(":29").do(scheduler_job)
     schedule.every().hours.at(":44").do(scheduler_job)
+    schedule.every().minutes.do(modify_stoploss_thread)
     while True:
         schedule.run_pending()
         time.sleep(1)

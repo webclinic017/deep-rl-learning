@@ -1,4 +1,5 @@
 import math
+import os
 import time
 import numpy as np
 import pandas as pd
@@ -6,7 +7,11 @@ import MetaTrader5 as mt5
 import pytz
 import uuid
 
-from talib import EMA, stream, MACD, ADX, CDLENGULFING
+import chart_studio.plotly as py
+import plotly.graph_objs as go
+from plotly.offline import init_notebook_mode, plot, iplot
+
+from talib import EMA, stream, MACD, ADX, CDLENGULFING, ATR
 from datetime import datetime
 from utils import logger, Supertrend, trend_table
 
@@ -314,7 +319,7 @@ class AutoOrder:
                     logger.error(f"Can not close order for {symbol}")
 
     @staticmethod
-    def modify_stoploss(symbol, sl):
+    def modify_stoploss(symbol, atr):
         positions = mt5.positions_get(symbol=symbol)
         # print("Total positions",":",len(positions))
         # display all active orders
@@ -331,42 +336,42 @@ class AutoOrder:
             diff = 0
             pip_profit = 0
             ptype = None
+            sl = None
             if position.type == 0:
                 ptype = "Buy"
                 diff = price_current - price_open
+                sl = price_open + atr * 0.05
                 # pip_profit = diff / profit
-                # if diff > atr and price_open > sl:
-                #     sl = price_open
-                if prev_sl and prev_sl > sl:
-                    return True
+                if prev_sl > sl:
+                    continue
             elif position.type == 1:
                 ptype = "Sell"
                 diff = price_open - price_current
+                sl = price_open - atr * 0.05
                 # pip_profit = diff / profit
-                # if diff > atr and price_open < sl:
-                #     sl = price_open
-                if prev_sl and prev_sl < sl:
-                    return True
+                if prev_sl < sl:
+                    continue
 
-            request = {
-                "action": mt5.TRADE_ACTION_SLTP,
-                "position": position_id,
-                "sl": sl,
-                "comment": f"python trailing sl",
-                "deviation": 20,
-                "type_time": mt5.ORDER_TIME_GTC,
-                "type_filling": mt5.ORDER_FILLING_RETURN,
-                "volume": position.volume
-            }
-            # send a trading request
-            result = mt5.order_send(request)
-            # check the execution result
-            logger.info("SL BUY update sent on position #{}: {} {} lots".format(position_id, symbol, lot))
-            if result.retcode != mt5.TRADE_RETCODE_DONE:
-                logger.info("order_send failed, retcode={}".format(result.retcode))
-                logger.info(f"result: {result}")
-            else:
-                logger.info("position #{} SL Updated at: {} profit {}".format(position_id, price_open, profit))
+            if diff > atr and not prev_sl and sl is not None:
+                request = {
+                    "action": mt5.TRADE_ACTION_SLTP,
+                    "position": position_id,
+                    "sl": sl,
+                    "comment": f"python trailing sl",
+                    "deviation": 20,
+                    "type_time": mt5.ORDER_TIME_GTC,
+                    "type_filling": mt5.ORDER_FILLING_RETURN,
+                    "volume": position.volume
+                }
+                # send a trading request
+                result = mt5.order_send(request)
+                # check the execution result
+                logger.info("SL BUY update sent on position #{}: {} {} lots".format(position_id, symbol, lot))
+                if result.retcode != mt5.TRADE_RETCODE_DONE:
+                    logger.info("order_send failed, retcode={}".format(result.retcode))
+                    logger.info(f"result: {result}")
+                else:
+                    logger.info("position #{} SL Updated at: {} profit {}".format(position_id, price_open, profit))
 
     @staticmethod
     def check_order_exist(order_symbol: str) -> '':
@@ -397,10 +402,133 @@ class AutoOrder:
         return '0'
 
     @staticmethod
-    def ichimoku_cloud(timeframe, symbol):
-        rates_frame = mt5.copy_rates_from_pos(symbol, timeframe, 0, 500)
+    def plot_chart(df, pivots, timeframe):
+        os.makedirs('images', exist_ok=True)
+        # Set colours for up and down candles
+        INCREASING_COLOR = '#26a69a'
+        DECREASING_COLOR = '#ef5350'
+
+        # create list to hold dictionary with data for our first series to plot
+        # (which is the candlestick element itself)
+        data = [dict(
+            type='candlestick',
+            open=df.open,
+            high=df.high,
+            low=df.low,
+            close=df.close,
+            x=df.Date,
+            yaxis='y2',
+            name='F',
+            increasing=dict(line=dict(color=INCREASING_COLOR)),
+            decreasing=dict(line=dict(color=DECREASING_COLOR)),
+        )]
+
+        # Create empty dictionary for later use to hold settings and layout options
+        layout = dict()
+
+        # create our main chart "Figure" object which consists of data to plot and layout settings
+        fig = dict(data=data, layout=layout)
+
+        # Assign various seeting and choices - background colour, range selector etc
+        fig['layout']['plot_bgcolor'] = 'rgb(250, 250, 250)'
+        fig['layout']['xaxis'] = dict(rangeselector=dict(visible=False))
+        fig['layout']['yaxis'] = dict(domain=[0, 0.2], showticklabels=False)
+        fig['layout']['yaxis2'] = dict(domain=[0.2, 0.8])
+        fig['layout']['legend'] = dict(orientation='h', y=0.9, x=0.3, yanchor='bottom')
+        fig['layout']['margin'] = dict(t=40, b=40, r=40, l=40)
+
+        # Populate the "rangeselector" object with necessary settings
+        rangeselector = dict(
+            visible=True,
+            x=0, y=0.9,
+            bgcolor='rgba(150, 200, 250, 0.4)',
+            font=dict(size=13),
+            buttons=list([
+                dict(count=1,
+                     label='reset',
+                     step='all'),
+                dict(count=1,
+                     label='1yr',
+                     step='year',
+                     stepmode='backward'),
+                dict(count=3,
+                     label='3 mo',
+                     step='month',
+                     stepmode='backward'),
+                dict(count=1,
+                     label='1 mo',
+                     step='month',
+                     stepmode='backward'),
+                dict(step='all')
+            ]))
+
+        fig['layout']['xaxis']['rangeselector'] = rangeselector
+
+        # Append the Ichimoku elements to the plot
+        fig['data'].append(dict(x=df.Date, y=df['tenkan_sen'], type='scatter', mode='lines',
+                                line=dict(width=1),
+                                marker=dict(color='#33BDFF'),
+                                yaxis='y2', name='tenkan_sen'))
+
+        fig['data'].append(dict(x=df.Date, y=df['kijun_sen'], type='scatter', mode='lines',
+                                line=dict(width=1),
+                                marker=dict(color='#F1F316'),
+                                yaxis='y2', name='kijun_sen'))
+
+        fig['data'].append(dict(x=df.Date, y=df['senkou_span_a'], type='scatter', mode='lines',
+                                line=dict(width=1),
+                                marker=dict(color='#228B22'),
+                                yaxis='y2', name='senkou_span_a'))
+
+        fig['data'].append(dict(x=df.Date, y=df['senkou_span_b'], type='scatter', mode='lines',
+                                line=dict(width=1), fill='tonexty',
+                                marker=dict(color='#FF3342'),
+                                yaxis='y2', name='senkou_span_b'))
+
+        fig['data'].append(dict(x=df.Date, y=df['chikou_span'], type='scatter', mode='lines',
+                                line=dict(width=1),
+                                marker=dict(color='#D105F5'),
+                                yaxis='y2', name='chikou_span'))
+        have_resistance = False
+        have_support = False
+        for pivot in reversed(pivots):
+            pivot_idx, pivot_price, pivot_type = pivot
+            if pivot_type == "resistance":
+                have_resistance = True
+            if pivot_type == "support":
+                have_support = True
+
+            y_sample = [pivot_price if pivot_idx < index else None for index in range(len(df.index))]
+            x_sample = [date if pivot_idx < index else None for index, date in enumerate(df['Date'])]
+
+            fig['data'].append(dict(x=x_sample, y=y_sample, type='scatter', mode='lines',
+                                    line=dict(width=3),
+                                    marker=dict(color='#eb346e' if pivot_type == "resistance" else "#52eb34"),
+                                    yaxis='y2', name='pivots'))
+            if have_support and have_resistance:
+                break
+
+        # Set colour list for candlesticks
+        colors = []
+
+        for i in range(len(df.close)):
+            if i != 0:
+                if df.close[i] > df.close[i - 1]:
+                    colors.append(INCREASING_COLOR)
+                else:
+                    colors.append(DECREASING_COLOR)
+            else:
+                colors.append(DECREASING_COLOR)
+
+        # iplot(fig)
+        figg = go.Figure(fig)
+        figg.write_image(f"images/{timeframe}.png")
+
+    def ichimoku_cloud(self, timeframe, symbol, save_frame, order_label):
+        rates_frame = mt5.copy_rates_from_pos(symbol, timeframe, 0, 150)
         df = pd.DataFrame(rates_frame, columns=['time', 'open', 'high', 'low', 'close'])
         df['Date'] = pd.to_datetime(df['time'], unit='s')
+        df['Date'] = df.Date.dt.strftime('%Y.%m.%d %H:%M:%S')
         df = df.drop(['time'], axis=1)
         df = df.reindex(columns=['Date', 'open', 'high', 'low', 'close'])
 
@@ -414,7 +542,7 @@ class AutoOrder:
         real_low = df.low.iat[-1]
         #     df = heikin_ashi(df)
         # CCI
-        # df['CCI'] = talib.CCI(df.high, df.low, df.close)
+        df['ATR'] = ATR(df.high, df.low, df.close)
         #     df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close)
         exp1 = df.close.ewm(span=12, adjust=False).mean()
         exp2 = df.close.ewm(span=26, adjust=False).mean()
@@ -443,11 +571,11 @@ class AutoOrder:
         df['Engulfing'] = CDLENGULFING(df.open, df.high, df.low, df.close)
         conditions = [
             (df['tenkan_sen'] > df['senkou_span_a']) & (df['tenkan_sen'] > df['senkou_span_b']) & (
-                        df['kijun_sen'] > df['senkou_span_a']) & (df['kijun_sen'] > df['senkou_span_b']) & (
-                        df['kijun_sen'] < df['close']) & (df['HIST'] > df['HIST'].shift()),
+                    df['kijun_sen'] > df['senkou_span_a']) & (df['kijun_sen'] > df['senkou_span_b']) & (
+                    df['kijun_sen'] < df['close']) & (df['HIST'] > df['HIST'].shift()),
             (df['tenkan_sen'] < df['senkou_span_a']) & (df['tenkan_sen'] < df['senkou_span_b']) & (
-                        df['kijun_sen'] < df['senkou_span_a']) & (df['kijun_sen'] < df['senkou_span_b']) & (
-                        df['kijun_sen'] > df['close']) & (df['HIST'] < df['HIST'].shift())
+                    df['kijun_sen'] < df['senkou_span_a']) & (df['kijun_sen'] < df['senkou_span_b']) & (
+                    df['kijun_sen'] > df['close']) & (df['HIST'] < df['HIST'].shift())
         ]
         values = ['Buy', 'Sell']
         df['Buy_Signal'] = np.select(conditions, values)
@@ -459,9 +587,66 @@ class AutoOrder:
         values = ['Close_Buy', 'Close_Sell']
         df['Close_Signal'] = np.select(conditions, values)
 
-        timeframe = "M15" if timeframe == mt5.TIMEFRAME_M15 else "M30"
-        # if df['Engulfing'].iat[-1] != 0:
-        #    print(str(df.Date.iat[-1]), timeframe, df['Engulfing'].iat[-1])
-        # return str(df.Date.iat[-1]), df.Trend.iat[-1], df.close.iat[-1], df['kijun_sen'].iat[-1]
-        # print(f"{timeframe} {df['Date'].iat[-1]} {symbol} tenkan_sen: {df['tenkan_sen'].iat[-1]}  kijun_sen: {df['kijun_sen'].iat[-1]} senkou_span_a: {df['senkou_span_a'].iat[-1]} senkou_span_b: {df['senkou_span_b'].iat[-1]} HIST: {df['HIST'].iat[-1]}")
-        return str(df.Date.iat[-1]), df.Buy_Signal.iat[-1], df.Close_Signal.iat[-1], real_close, real_high, real_low, df.kijun_sen.iat[-1], df['Engulfing'].iat[-1]
+        mapping_timeframe = {
+            mt5.TIMEFRAME_H1: "H1",
+            mt5.TIMEFRAME_M15: "M15",
+            mt5.TIMEFRAME_M5: "M5",
+            mt5.TIMEFRAME_M30: "M30",
+            mt5.TIMEFRAME_D1: "D1",
+            mt5.TIMEFRAME_H4: "H4",
+            mt5.TIMEFRAME_H12: "H12",
+        }
+        map_timeframe = mapping_timeframe.get(timeframe)
+
+        pivots = self.get_pivot(df)
+        resistance, support = None, None
+        if len(pivots) >= 2:
+            pivot_1 = pivots[-1][1]
+            pivot_2 = pivots[-2][1]
+            if pivot_1 > pivot_2:
+                resistance, support = pivot_1, pivot_2
+            else:
+                resistance, support = pivot_2, pivot_1
+
+        if save_frame:
+            date_save = str(df.Date.iat[-1]).replace(":", "")
+            self.plot_chart(df, pivots, f"{date_save} - {map_timeframe} - {order_label}")
+        #     scaler = MinMaxScaler()
+        #     scaler.fit(df.MACD.values.reshape(-1, 1))
+        #     transform_data = scaler.transform(df.MACD.values.reshape(-1, 1))
+        #     x_1 = transform_data[-5]
+        #     x_2 = transform_data[-1]
+
+        return str(df.Date.iat[-1]), df.Buy_Signal.iat[-1], df.Close_Signal.iat[-1], real_close, real_high, real_low, \
+               df.kijun_sen.iat[-1], df['ATR'].iat[-1], df.ATR[-30:].values.tolist(), resistance, support
+
+    @staticmethod
+    def is_far_from_level(value, levels, df):
+        # to make sure the new level area does not exist already
+        ave = np.mean(df['high'] - df['low'])
+        return np.sum([abs(value - level) < ave for _, level, _ in levels]) == 0
+
+    def get_pivot(self, df):
+        pivots = []
+        max_list = []
+        min_list = []
+        for i in range(5, len(df) - 5):
+            # taking a window of 9 candles
+            high_range = df['high'][i - 5:i + 4]
+            current_max = high_range.max()
+            # if we find a new maximum value, empty the max_list
+            if current_max not in max_list:
+                max_list = []
+            max_list.append(current_max)
+            # if the maximum value remains the same after shifting 5 times
+            if len(max_list) == 5 and self.is_far_from_level(current_max, pivots, df):
+                pivots.append((high_range.idxmax(), current_max, "resistance"))
+
+            low_range = df['low'][i - 5:i + 5]
+            current_min = low_range.min()
+            if current_min not in min_list:
+                min_list = []
+            min_list.append(current_min)
+            if len(min_list) == 5 and self.is_far_from_level(current_min, pivots, df):
+                pivots.append((low_range.idxmin(), current_min, "support"))
+        return pivots
