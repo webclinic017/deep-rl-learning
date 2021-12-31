@@ -1,15 +1,12 @@
-import math
 import os
 import time
 import numpy as np
 import pandas as pd
 import MetaTrader5 as mt5
-import pytz
 import uuid
 
-import chart_studio.plotly as py
 import plotly.graph_objs as go
-from plotly.offline import init_notebook_mode, plot, iplot
+from pyod.models.hbos import HBOS
 
 from talib import EMA, stream, MACD, ADX, CDLENGULFING, ATR
 from datetime import datetime
@@ -532,11 +529,6 @@ class AutoOrder:
         df = df.drop(['time'], axis=1)
         df = df.reindex(columns=['Date', 'open', 'high', 'low', 'close'])
 
-        # convert to float to avoid sai so.
-        df.open = df.open.astype(float)
-        df.high = df.high.astype(float)
-        df.low = df.low.astype(float)
-        df.close = df.close.astype(float)
         real_close = df.close.iat[-1]
         real_high = df.high.iat[-1]
         real_low = df.low.iat[-1]
@@ -611,20 +603,28 @@ class AutoOrder:
         if save_frame:
             date_save = str(df.Date.iat[-1]).replace(":", "")
             self.plot_chart(df, pivots, f"{date_save} - {map_timeframe} - {order_label}")
-        #     scaler = MinMaxScaler()
-        #     scaler.fit(df.MACD.values.reshape(-1, 1))
-        #     transform_data = scaler.transform(df.MACD.values.reshape(-1, 1))
-        #     x_1 = transform_data[-5]
-        #     x_2 = transform_data[-1]
 
+        input_df = df['ATR'].dropna().values.reshape(-1, 1)
+        hbos = HBOS(alpha=0.1, contamination=0.1, n_bins=20, tol=0.5)
+        hbos.fit(input_df)
+        predict = hbos.predict(input_df)
         return str(df.Date.iat[-1]), df.Buy_Signal.iat[-1], df.Close_Signal.iat[-1], real_close, real_high, real_low, \
-               df.kijun_sen.iat[-1], df['ATR'].iat[-1], df.ATR[-30:].values.tolist(), resistance, support
+               df.kijun_sen.iat[-1], df['ATR'].iat[-1], df.ATR[-30:].values.tolist(), resistance, support, predict[-1]
 
     @staticmethod
     def is_far_from_level(value, levels, df):
         # to make sure the new level area does not exist already
         ave = np.mean(df['high'] - df['low'])
         return np.sum([abs(value - level) < ave for _, level, _ in levels]) == 0
+
+    def get_atr(self, timeframe, symbol):
+        rates_frame = mt5.copy_rates_from_pos(symbol, timeframe, 0, 150)
+        df = pd.DataFrame(rates_frame, columns=['time', 'open', 'high', 'low', 'close'])
+        df['Date'] = pd.to_datetime(df['time'], unit='s')
+        df['Date'] = df.Date.dt.strftime('%Y.%m.%d %H:%M:%S')
+        df = df.drop(['time'], axis=1)
+        df = df.reindex(columns=['Date', 'open', 'high', 'low', 'close'])
+        return stream.ATR(df.high, df.low, df.close)
 
     def get_pivot(self, df):
         pivots = []

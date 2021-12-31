@@ -56,9 +56,9 @@ def scheduler_job():
         lot = value.get('lot')
         logger.info("=" * 50)
 
-        df1date, h1_trend, close_signal_1, current_price_1, high_price_1, low_price_1, kijun_sen_1, atr_1, dftrain_1, resistance_1, support_1 = mt5_client.ichimoku_cloud(
+        df1date, h1_trend, close_signal_1, current_price_1, high_price_1, low_price_1, kijun_sen_1, atr_1, dftrain_1, resistance_1, support_1, outlier_1 = mt5_client.ichimoku_cloud(
             timeframe=timeframe_1, symbol=symbol, save_frame=False, order_label="")
-        df2date, h2_trend, close_signal_2, current_price_2, high_price_2, low_price_2, kijun_sen_2, atr_2, dftrain_2, resistance_2, support_2 = mt5_client.ichimoku_cloud(
+        df2date, h2_trend, close_signal_2, current_price_2, high_price_2, low_price_2, kijun_sen_2, atr_2, dftrain_2, resistance_2, support_2, outlier_2 = mt5_client.ichimoku_cloud(
             timeframe=timeframe_2, symbol=symbol, save_frame=False, order_label="")
 
         current_trend = '0'
@@ -73,10 +73,12 @@ def scheduler_job():
 
         order_size = mt5_client.check_order_exist(symbol)
         # do not place an order if the symbol order is placed to Metatrader
-        if current_trend == "Buy" and order_size != current_trend:
+        if current_trend == "Buy" and order_size != current_trend and resistance_1 and \
+                current_price_1 > resistance_1 and outlier_1 != 1 and outlier_2 != 1:
             mt5_client.close_order(symbol)  # close all open positions
             mt5_client.buy_order(symbol, lot=lot, sl=None, tp=None)
-        elif current_trend == 'Sell' and order_size != current_trend:
+        elif current_trend == 'Sell' and order_size != current_trend and support_1 and \
+                current_price_1 > support_1 and outlier_1 != 1 and outlier_2 != 1:
             mt5_client.close_order(symbol)  # close all open positions
             mt5_client.sell_order(symbol, lot=lot, sl=None, tp=None)
         elif order_size == 'Sell' and (current_trend == "Neutral" or current_trend == 'Buy' or h2_trend == 'Buy' or
@@ -101,8 +103,6 @@ def modify_stoploss_thread():
     for symbol, value in zip(config.keys(), config.values()):
         df1date, h1_trend, close_signal_1, current_price_1, high_price_1, low_price_1, kijun_sen_1, atr_1, dftrain_1, resistance_1, support_1 = mt5_client.ichimoku_cloud(
             timeframe=timeframe_1, symbol=symbol, save_frame=False, order_label="")
-        df2date, h2_trend, close_signal_2, current_price_2, high_price_2, low_price_2, kijun_sen_2, atr_2, dftrain_2, resistance_2, support_2 = mt5_client.ichimoku_cloud(
-            timeframe=timeframe_2, symbol=symbol, save_frame=False, order_label="")
 
         order_size = mt5_client.check_order_exist(symbol)
         # do not place an order if the symbol order is placed to Metatrader
