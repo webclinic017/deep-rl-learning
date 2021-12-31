@@ -101,8 +101,7 @@ def modify_stoploss_thread():
     timeframe_1 = mt5.TIMEFRAME_M15
     timeframe_2 = mt5.TIMEFRAME_M30
     for symbol, value in zip(config.keys(), config.values()):
-        df1date, h1_trend, close_signal_1, current_price_1, high_price_1, low_price_1, kijun_sen_1, atr_1, dftrain_1, resistance_1, support_1 = mt5_client.ichimoku_cloud(
-            timeframe=timeframe_1, symbol=symbol, save_frame=False, order_label="")
+        atr_1 = mt5_client.get_atr(timeframe_1, symbol)
 
         order_size = mt5_client.check_order_exist(symbol)
         # do not place an order if the symbol order is placed to Metatrader
