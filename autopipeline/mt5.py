@@ -337,24 +337,20 @@ class AutoOrder:
             if position.type == 0:
                 ptype = "Buy"
                 diff = price_current - price_open
-                sl = price_open + atr * 0.05
+                sl = price_open + (atr * 0.05)
                 # pip_profit = diff / profit
-                if prev_sl > sl:
-                    continue
             elif position.type == 1:
                 ptype = "Sell"
                 diff = price_open - price_current
-                sl = price_open - atr * 0.05
+                sl = price_open - (atr * 0.05)
                 # pip_profit = diff / profit
-                if prev_sl < sl:
-                    continue
 
-            if diff > atr and not prev_sl and sl is not None:
+            if diff > atr and not prev_sl:
                 request = {
                     "action": mt5.TRADE_ACTION_SLTP,
                     "position": position_id,
                     "sl": sl,
-                    "comment": f"python trailing sl",
+                    "comment": f"modify trailing sl",
                     "deviation": 20,
                     "type_time": mt5.ORDER_TIME_GTC,
                     "type_filling": mt5.ORDER_FILLING_RETURN,
