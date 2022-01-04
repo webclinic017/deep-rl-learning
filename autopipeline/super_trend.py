@@ -49,8 +49,8 @@ def scheduler_job():
     with open("config.json") as config_file:
         config = json.load(config_file)
 
-    timeframe_1 = mt5.TIMEFRAME_M15
-    timeframe_2 = mt5.TIMEFRAME_M30
+    timeframe_1 = mt5.TIMEFRAME_H4
+    timeframe_2 = mt5.TIMEFRAME_D1
     for symbol, value in zip(config.keys(), config.values()):
         # symbol_name = "BTCUSD"
         lot = value.get('lot')
@@ -61,11 +61,13 @@ def scheduler_job():
         df2date, h2_trend, close_signal_2, current_price_2, high_price_2, low_price_2, kijun_sen_2, atr_2, dftrain_2, resistance_2, support_2, outlier_2 = mt5_client.ichimoku_cloud(
             timeframe=timeframe_2, symbol=symbol, save_frame=False, order_label="")
 
-        current_trend = '0'
+        current_trend = "0"
         if h1_trend == h2_trend == "Sell":
             current_trend = "Sell"
         elif h1_trend == h2_trend == "Buy":
             current_trend = "Buy"
+        elif h1_trend == h2_trend == "0":
+            current_trend = "Neutral"
 
         logger.info(f"{symbol} Current Trend {format_text(current_trend)}")
         logger.info(f"{symbol} M15 {df1date} {format_text(h1_trend)} {current_price_1}")
@@ -74,18 +76,18 @@ def scheduler_job():
         order_size = mt5_client.check_order_exist(symbol)
         # do not place an order if the symbol order is placed to Metatrader
         if current_trend == "Buy" and order_size != current_trend and resistance_1 and \
-                current_price_1 > resistance_1 and outlier_1 != 1 and outlier_2 != 1:
+                current_price_1 > resistance_1 and outlier_1 != 1:
             mt5_client.close_order(symbol)  # close all open positions
             mt5_client.buy_order(symbol, lot=lot, sl=None, tp=None)
         elif current_trend == 'Sell' and order_size != current_trend and support_1 and \
-                current_price_1 > support_1 and outlier_1 != 1 and outlier_2 != 1:
+                current_price_1 > support_1 and outlier_1 != 1:
             mt5_client.close_order(symbol)  # close all open positions
             mt5_client.sell_order(symbol, lot=lot, sl=None, tp=None)
-        elif order_size == 'Sell' and (current_trend == "Neutral" or current_trend == 'Buy' or h2_trend == 'Buy' or
-                                       h1_trend == 'Buy' or close_signal_2 == 'Close_Sell'):
+        elif order_size == 'Sell' and (current_trend == "Neutral" or current_trend == 'Buy' or
+                                       h2_trend == 'Buy' or h1_trend == 'Buy' or close_signal_1 == 'Close_Sell'):
             mt5_client.close_order(symbol)  # close all Sell positions
-        elif order_size == 'Buy' and (current_trend == "Neutral" or current_trend == 'Sell' or h2_trend == 'Sell' or
-                                      h1_trend == 'Sell' or close_signal_2 == 'Close_Buy'):
+        elif order_size == 'Buy' and (current_trend == "Neutral" or current_trend == 'Sell' or
+                                      h2_trend == 'Sell' or h1_trend == 'Sell' or close_signal_1 == 'Close_Buy'):
             mt5_client.close_order(symbol)  # close all Buy positions
 
         if order_size:
@@ -98,8 +100,8 @@ def modify_stoploss_thread():
     with open("config.json") as config_file:
         config = json.load(config_file)
 
-    timeframe_1 = mt5.TIMEFRAME_M15
-    timeframe_2 = mt5.TIMEFRAME_M30
+    timeframe_1 = mt5.TIMEFRAME_H4
+    timeframe_2 = mt5.TIMEFRAME_D1
     for symbol, value in zip(config.keys(), config.values()):
         atr_1 = mt5_client.get_atr(timeframe_1, symbol)
 
@@ -112,10 +114,12 @@ def modify_stoploss_thread():
 if __name__ == '__main__':
     # Run job every hour at the 42rd minute
     # scheduler_job()
-    schedule.every().hours.at(":59").do(scheduler_job)
-    schedule.every().hours.at(":14").do(scheduler_job)
-    schedule.every().hours.at(":29").do(scheduler_job)
-    schedule.every().hours.at(":44").do(scheduler_job)
+    schedule.every().day.at("23:59").do(scheduler_job)
+    schedule.every().day.at("03:59").do(scheduler_job)
+    schedule.every().day.at("07:59").do(scheduler_job)
+    schedule.every().day.at("11:59").do(scheduler_job)
+    schedule.every().day.at("15:59").do(scheduler_job)
+    schedule.every().day.at("19:59").do(scheduler_job)
     schedule.every().minutes.do(modify_stoploss_thread)
     while True:
         schedule.run_pending()
