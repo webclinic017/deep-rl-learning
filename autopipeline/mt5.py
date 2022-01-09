@@ -525,7 +525,8 @@ class AutoOrder:
         figg.write_image(f"images/{timeframe}.png")
 
     def ichimoku_cloud(self, timeframe, symbol, save_frame, order_label):
-        rates_frame = mt5.copy_rates_from_pos(symbol, timeframe, 0, 100)
+        rates_frame = mt5.copy_rates_from_pos(symbol, timeframe, 0, 150)
+        # create DataFrame out of the obtained data
         df = pd.DataFrame(rates_frame, columns=['time', 'open', 'high', 'low', 'close'])
         df['Date'] = pd.to_datetime(df['time'], unit='s')
         df['Date'] = df.Date.dt.strftime('%Y.%m.%d %H:%M:%S')
@@ -540,7 +541,7 @@ class AutoOrder:
         real_close = df.close.iat[-1]
         real_high = df.high.iat[-1]
         real_low = df.low.iat[-1]
-
+        #     df = heikin_ashi(df)
         # CCI
         df['ATR'] = ATR(df.high, df.low, df.close)
         #     df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close)
@@ -570,15 +571,11 @@ class AutoOrder:
 
         df['Engulfing'] = CDLENGULFING(df.open, df.high, df.low, df.close)
         conditions = [
-            (df['tenkan_sen'] > df['senkou_span_a']) & (df['tenkan_sen'] > df['senkou_span_b']) & (
-                    df['kijun_sen'] > df['senkou_span_a']) & (df['kijun_sen'] > df['senkou_span_b']) & (
-                    df['kijun_sen'] < df['close']) & (df['SIGNAL'] > df['SIGNAL'].shift(2)) & (
-                        df['HIST'] > df['HIST'].shift(2)),
+            (df['tenkan_sen'] > df['senkou_span_a']) & (df['tenkan_sen'] > df['senkou_span_b']) &
+            (df['kijun_sen'] < df['close']) & (df['HIST'] > df['HIST'].shift()),
 
-            (df['tenkan_sen'] < df['senkou_span_a']) & (df['tenkan_sen'] < df['senkou_span_b']) & (
-                    df['kijun_sen'] < df['senkou_span_a']) & (df['kijun_sen'] < df['senkou_span_b']) & (
-                    df['kijun_sen'] > df['close']) & (df['SIGNAL'] < df['SIGNAL'].shift(2)) & (
-                        df['HIST'] < df['HIST'].shift(2)),
+            (df['tenkan_sen'] < df['senkou_span_a']) & (df['tenkan_sen'] < df['senkou_span_b']) &
+            (df['kijun_sen'] > df['close']) & (df['HIST'] < df['HIST'].shift()),
         ]
         values = ['Buy', 'Sell']
         df['Buy_Signal'] = np.select(conditions, values)
@@ -619,12 +616,16 @@ class AutoOrder:
         #     date_save = str(df.Date.iat[-1]).replace(":", "")
         #     plot_chart(df, pivots, f"{date_save} - {map_timeframe} - {order_label}")
 
+        #     input_df = df['ATR'].dropna().values.reshape(-1, 1)
+        #     scaler = MinMaxScaler()
+        #     scaler.fit(input_df)
+        #     input_df = scaler.transform(input_df).flatten()
         input_df = df['ATR'].dropna().values.reshape(-1, 1)
         hbos = HBOS(alpha=0.1, contamination=0.1, n_bins=20, tol=0.5)
         hbos.fit(input_df)
         predict = hbos.predict(input_df)
         return str(df.Date.iat[-1]), df.Buy_Signal.iat[-1], df.Close_Signal.iat[-1], real_close, real_high, real_low, \
-               df.kijun_sen.iat[-1], df['ATR'].iat[-1], df.ATR[-30:].values.tolist(), resistance, support, predict[-1]
+               df.kijun_sen.iat[-1], df['ATR'].iat[-1], df.ATR[-30:].values.tolist(), resistance, support, input_df[-1]
 
     @staticmethod
     def is_far_from_level(value, levels, df):

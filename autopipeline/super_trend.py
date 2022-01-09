@@ -50,7 +50,7 @@ def scheduler_job():
         config = json.load(config_file)
 
     timeframe_1 = mt5.TIMEFRAME_H1
-    timeframe_2 = mt5.TIMEFRAME_D4
+    timeframe_2 = mt5.TIMEFRAME_H4
     for symbol, value in zip(config.keys(), config.values()):
         # symbol_name = "BTCUSD"
         lot = value.get('lot')
@@ -94,30 +94,29 @@ def scheduler_job():
 
         if order_size:
             mt5_client.modify_stoploss(symbol, atr_1, kijun_sen_1)
-
         logger.info("=" * 50)
 
 
-def modify_stoploss_thread():
-    with open("config.json") as config_file:
-        config = json.load(config_file)
-
-    timeframe_1 = mt5.TIMEFRAME_H4
-    timeframe_2 = mt5.TIMEFRAME_D1
-    for symbol, value in zip(config.keys(), config.values()):
-        atr_1 = mt5_client.get_atr(timeframe_1, symbol)
-
-        order_size = mt5_client.check_order_exist(symbol)
-        # do not place an order if the symbol order is placed to Metatrader
-        if order_size:
-            mt5_client.modify_stoploss(symbol, atr_1)
+# def modify_stoploss_thread():
+#     with open("config.json") as config_file:
+#         config = json.load(config_file)
+#
+#     timeframe_1 = mt5.TIMEFRAME_H4
+#     timeframe_2 = mt5.TIMEFRAME_D1
+#     for symbol, value in zip(config.keys(), config.values()):
+#         atr_1 = mt5_client.get_atr(timeframe_1, symbol)
+#
+#         order_size = mt5_client.check_order_exist(symbol)
+#         # do not place an order if the symbol order is placed to Metatrader
+#         if order_size:
+#             mt5_client.modify_stoploss(symbol, atr_1)
 
 
 if __name__ == '__main__':
     # Run job every hour at the 42rd minute
     # scheduler_job()
     schedule.every().hours.at(":59").do(scheduler_job)
-    schedule.every().hours.do(modify_stoploss_thread)
+    # schedule.every().hours.do(modify_stoploss_thread)
     while True:
         schedule.run_pending()
         time.sleep(1)
