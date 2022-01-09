@@ -49,8 +49,8 @@ def scheduler_job():
     with open("config.json") as config_file:
         config = json.load(config_file)
 
-    timeframe_1 = mt5.TIMEFRAME_H4
-    timeframe_2 = mt5.TIMEFRAME_D1
+    timeframe_1 = mt5.TIMEFRAME_H1
+    timeframe_2 = mt5.TIMEFRAME_D4
     for symbol, value in zip(config.keys(), config.values()):
         # symbol_name = "BTCUSD"
         lot = value.get('lot')
@@ -66,8 +66,10 @@ def scheduler_job():
             current_trend = "Sell"
         elif h1_trend == h2_trend == "Buy":
             current_trend = "Buy"
-        elif h1_trend == h2_trend == "0":
-            current_trend = "Neutral"
+        elif h1_trend == "0" and h2_trend == "0" and close_signal_1 == 'Close_Sell':
+            current_trend = "Close_Sell"
+        elif h1_trend == "0" and h2_trend == "0" and close_signal_1 == 'Close_Buy':
+            current_trend = "Close_Buy"
 
         logger.info(f"{symbol} Current Trend {format_text(current_trend)}")
         logger.info(f"{symbol} M15 {df1date} {format_text(h1_trend)} {current_price_1}")
@@ -76,22 +78,22 @@ def scheduler_job():
         order_size = mt5_client.check_order_exist(symbol)
         # do not place an order if the symbol order is placed to Metatrader
         if current_trend == "Buy" and order_size != current_trend and resistance_1 and \
-                current_price_1 > resistance_1 and outlier_1 != 1:
+                current_price_1 > resistance_1:
             mt5_client.close_order(symbol)  # close all open positions
             mt5_client.buy_order(symbol, lot=lot, sl=None, tp=None)
         elif current_trend == 'Sell' and order_size != current_trend and support_1 and \
-                current_price_1 > support_1 and outlier_1 != 1:
+                current_price_1 > support_1:
             mt5_client.close_order(symbol)  # close all open positions
             mt5_client.sell_order(symbol, lot=lot, sl=None, tp=None)
-        elif order_size == 'Sell' and (current_trend == "Neutral" or current_trend == 'Buy' or
-                                       h2_trend == 'Buy' or h1_trend == 'Buy' or close_signal_1 == 'Close_Sell'):
+        elif order_size == 'Sell' and (current_trend == "Neutral" or current_trend == 'Buy' or h2_trend == 'Buy'
+                                       or h1_trend == 'Buy' or current_trend == 'Close_Sell'):
             mt5_client.close_order(symbol)  # close all Sell positions
-        elif order_size == 'Buy' and (current_trend == "Neutral" or current_trend == 'Sell' or
-                                      h2_trend == 'Sell' or h1_trend == 'Sell' or close_signal_1 == 'Close_Buy'):
+        elif order_size == 'Buy' and (current_trend == "Neutral" or current_trend == 'Sell' or h2_trend == 'Sell'
+                                      or h1_trend == 'Sell' or current_trend == 'Close_Buy'):
             mt5_client.close_order(symbol)  # close all Buy positions
 
         if order_size:
-            mt5_client.modify_stoploss(symbol, atr_1)
+            mt5_client.modify_stoploss(symbol, atr_1, kijun_sen_1)
 
         logger.info("=" * 50)
 
@@ -114,13 +116,8 @@ def modify_stoploss_thread():
 if __name__ == '__main__':
     # Run job every hour at the 42rd minute
     # scheduler_job()
-    schedule.every().day.at("23:59").do(scheduler_job)
-    schedule.every().day.at("03:59").do(scheduler_job)
-    schedule.every().day.at("07:59").do(scheduler_job)
-    schedule.every().day.at("11:59").do(scheduler_job)
-    schedule.every().day.at("15:59").do(scheduler_job)
-    schedule.every().day.at("19:59").do(scheduler_job)
-    schedule.every().minutes.do(modify_stoploss_thread)
+    schedule.every().hours.at(":59").do(scheduler_job)
+    schedule.every().hours.do(modify_stoploss_thread)
     while True:
         schedule.run_pending()
         time.sleep(1)
