@@ -82,7 +82,7 @@ def scheduler_job():
             mt5_client.close_order(symbol)  # close all open positions
             mt5_client.buy_order(symbol, lot=lot, sl=None, tp=None)
         elif current_trend == 'Sell' and order_size != current_trend and support_1 and \
-                current_price_1 > support_1:
+                current_price_1 < support_1:
             mt5_client.close_order(symbol)  # close all open positions
             mt5_client.sell_order(symbol, lot=lot, sl=None, tp=None)
         elif order_size == 'Sell' and (current_trend == "Neutral" or current_trend == 'Buy' or h2_trend == 'Buy'
