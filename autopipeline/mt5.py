@@ -340,7 +340,7 @@ class AutoOrder:
                 diff = price_current - price_open
                 if prev_sl is None and diff > atr:
                     sl = price_open
-                if prev_sl and sl < kijun_sen:
+                if prev_sl and sl and sl < kijun_sen:
                     sl = kijun_sen
                 # pip_profit = diff / profit
             elif position.type == 1:
@@ -350,7 +350,7 @@ class AutoOrder:
                 sl = price_open - atr
                 if prev_sl is None and diff > atr:
                     sl = price_open
-                if prev_sl and sl > kijun_sen:
+                if prev_sl and sl and sl > kijun_sen:
                     sl = kijun_sen
             if sl:
                 request = {
