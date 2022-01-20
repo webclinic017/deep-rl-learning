@@ -338,6 +338,7 @@ class AutoOrder:
                 """Sell Order"""
                 ptype = "Buy"
                 diff = price_current - price_open
+                sl = price_open + atr
                 if prev_sl is None and diff > atr:
                     sl = price_open
                 if prev_sl and sl and sl < kijun_sen:
