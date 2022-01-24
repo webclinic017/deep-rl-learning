@@ -65,9 +65,9 @@ def scheduler_job():
             current_trend = "Sell"
         elif h1_trend == h2_trend == "Buy":
             current_trend = "Buy"
-        elif h1_trend == "0" and h2_trend == "0" and close_signal_1 == 'Close_Sell':
+        elif h1_trend == "0" and h2_trend == "0" and close_signal_2 == 'Close_Sell':
             current_trend = "Close_Sell"
-        elif h1_trend == "0" and h2_trend == "0" and close_signal_1 == 'Close_Buy':
+        elif h1_trend == "0" and h2_trend == "0" and close_signal_2 == 'Close_Buy':
             current_trend = "Close_Buy"
 
         logger.info(f"{symbol} Current Trend {format_text(current_trend)}")
