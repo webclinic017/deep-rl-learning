@@ -42,7 +42,6 @@ def scheduler_job():
     """
     # if datetime.now().hour % 4 != 0:
     #     return
-    time.sleep(50)
     timezone = pytz.timezone("Etc/UTC")
     logger.info("=" * 50)
     logger.info(f"Start job at: {datetime.now(tz=timezone)}")
