@@ -338,20 +338,18 @@ class AutoOrder:
                 """Sell Order"""
                 ptype = "Buy"
                 diff = price_current - price_open
-                sl = price_open + atr
                 if prev_sl is None and diff > atr:
                     sl = price_open
-                if prev_sl and sl and sl < kijun_sen:
+                if prev_sl and prev_sl < kijun_sen:
                     sl = kijun_sen
                 # pip_profit = diff / profit
             elif position.type == 1:
                 """Sell Order"""
                 ptype = "Sell"
                 diff = price_open - price_current
-                sl = price_open - atr
                 if prev_sl is None and diff > atr:
                     sl = price_open
-                if prev_sl and sl and sl > kijun_sen:
+                if prev_sl and prev_sl > kijun_sen:
                     sl = kijun_sen
             if sl:
                 request = {
