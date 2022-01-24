@@ -115,7 +115,7 @@ def scheduler_job():
 if __name__ == '__main__':
     # Run job every hour at the 42rd minute
     # scheduler_job()
-    schedule.every().hours.at(":01").do(scheduler_job)
+    schedule.every().hours.at(":59").do(scheduler_job)
     # schedule.every().hours.do(modify_stoploss_thread)
     while True:
         schedule.run_pending()
