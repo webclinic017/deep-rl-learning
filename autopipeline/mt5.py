@@ -366,7 +366,7 @@ class AutoOrder:
                 result = mt5.order_send(request)
                 # check the execution result
                 logger.info("SL BUY update sent on position #{}: {} {} lots".format(position_id, symbol, lot))
-                if result.retcode != mt5.TRADE_RETCODE_DONE:
+                if result and result.retcode != mt5.TRADE_RETCODE_DONE:
                     logger.info("order_send failed, retcode={}".format(result.retcode))
                     logger.info(f"result: {result}")
                 else:
