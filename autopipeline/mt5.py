@@ -335,7 +335,7 @@ class AutoOrder:
             ptype = None
             sl = None
             if position.type == 0:
-                """Sell Order"""
+                """Buy Order"""
                 ptype = "Buy"
                 diff = price_current - price_open
                 if prev_sl is None and diff > atr:

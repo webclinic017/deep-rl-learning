@@ -70,9 +70,9 @@ def main(args=None):
 
     env = TradingEnv(consecutive_frames=args.consecutive_frames)
     state_dim = (env.get_state_size(),)
-    action_dim = 3
+    action_dim = 2
     act_range = 2
-    algo = DDQN(action_dim, state_dim, args.consecutive_frames)
+    algo = A2C(action_dim, state_dim, args.consecutive_frames)
 
     # Train
     stats = algo.train(env, args, summary_writer)

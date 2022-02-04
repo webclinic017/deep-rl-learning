@@ -152,7 +152,6 @@ class DDQN:
                 s2 = new_s2
                 cumul_reward += r
                 time += 1
-
                 # tqdm_e.set_description("Budget: {} | Steps: {} | Actions: {}".format(round(info['budget'], 3), train_env.t, a))
                 # tqdm_e.refresh()
                 # print("buffer count: {} batch size {}".format(self.buffer.count, args.batch_size))

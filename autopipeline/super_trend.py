@@ -11,7 +11,8 @@ from utils import logger
 from termcolor import colored
 
 mt5_client = AutoOrder()
-
+timeframe_1 = mt5.TIMEFRAME_H1
+timeframe_2 = mt5.TIMEFRAME_H4
 # sentry_sdk.init(
 #     "https://cc11af54279542189f34a16070babe07@o1068161.ingest.sentry.io/6062320",
 #
@@ -48,8 +49,6 @@ def scheduler_job():
     with open("config.json") as config_file:
         config = json.load(config_file)
 
-    timeframe_1 = mt5.TIMEFRAME_H1
-    timeframe_2 = mt5.TIMEFRAME_H4
     for symbol, value in zip(config.keys(), config.values()):
         # symbol_name = "BTCUSD"
         lot = value.get('lot')
@@ -91,31 +90,30 @@ def scheduler_job():
                                       or h1_trend == 'Sell' or current_trend == 'Close_Buy'):
             mt5_client.close_order(symbol)  # close all Buy positions
 
-        if order_size:
-            mt5_client.modify_stoploss(symbol, atr_1, kijun_sen_1)
+        # if order_size:
+        #     mt5_client.modify_stoploss(symbol, atr_1, kijun_sen_1)
         logger.info("=" * 50)
 
 
-# def modify_stoploss_thread():
-#     with open("config.json") as config_file:
-#         config = json.load(config_file)
-#
-#     timeframe_1 = mt5.TIMEFRAME_H4
-#     timeframe_2 = mt5.TIMEFRAME_D1
-#     for symbol, value in zip(config.keys(), config.values()):
-#         atr_1 = mt5_client.get_atr(timeframe_1, symbol)
-#
-#         order_size = mt5_client.check_order_exist(symbol)
-#         # do not place an order if the symbol order is placed to Metatrader
-#         if order_size:
-#             mt5_client.modify_stoploss(symbol, atr_1)
+def modify_stoploss_thread():
+    with open("config.json") as config_file:
+        config = json.load(config_file)
+
+    for symbol, value in zip(config.keys(), config.values()):
+        df1date, h1_trend, close_signal_1, current_price_1, high_price_1, low_price_1, kijun_sen_1, atr_1, dftrain_1, resistance_1, support_1, outlier_1 = mt5_client.ichimoku_cloud(
+            timeframe=timeframe_1, symbol=symbol, save_frame=False, order_label="")
+
+        # order_size = mt5_client.check_order_exist(symbol)
+        # do not place an order if the symbol order is placed to Metatrader
+        # if order_size:
+        mt5_client.modify_stoploss(symbol, atr_1, kijun_sen_1)
 
 
 if __name__ == '__main__':
     # Run job every hour at the 42rd minute
     # scheduler_job()
     schedule.every().hours.at(":59").do(scheduler_job)
-    # schedule.every().hours.do(modify_stoploss_thread)
+    schedule.every().minutes.do(modify_stoploss_thread)
     while True:
         schedule.run_pending()
         time.sleep(1)
