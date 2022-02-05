@@ -64,14 +64,14 @@ def scheduler_job():
             current_trend = "Sell"
         elif h1_trend == h2_trend == "Buy":
             current_trend = "Buy"
-        elif h1_trend == "0" and h2_trend == "0" and close_signal_2 == 'Close_Sell':
+        elif h1_trend != "Sell" and h2_trend != "Sell" and close_signal_2 == 'Close_Sell':
             current_trend = "Close_Sell"
-        elif h1_trend == "0" and h2_trend == "0" and close_signal_2 == 'Close_Buy':
+        elif h1_trend != "Buy" and h2_trend != "Buy" and close_signal_2 == 'Close_Buy':
             current_trend = "Close_Buy"
 
         logger.info(f"{symbol} Current Trend {format_text(current_trend)}")
-        logger.info(f"{symbol} M15 {df1date} {format_text(h1_trend)} {current_price_1}")
-        logger.info(f"{symbol} M30 {df2date} {format_text(h2_trend)} {current_price_2}")
+        logger.info(f"{symbol} H1 {df1date} {format_text(h1_trend)} {current_price_1}")
+        logger.info(f"{symbol} H4 {df2date} {format_text(h2_trend)} {current_price_2}")
 
         order_size = mt5_client.check_order_exist(symbol)
         # do not place an order if the symbol order is placed to Metatrader
