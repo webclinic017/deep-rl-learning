@@ -111,9 +111,9 @@ def modify_stoploss_thread():
 
 if __name__ == '__main__':
     # Run job every hour at the 42rd minute
-    # scheduler_job()
-    schedule.every().hours.at(":59").do(scheduler_job)
-    schedule.every().minutes.do(modify_stoploss_thread)
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
+    modify_stoploss_thread()
+    # schedule.every().hours.at(":59").do(scheduler_job)
+    # schedule.every().minutes.do(modify_stoploss_thread)
+    # while True:
+    #     schedule.run_pending()
+    #     time.sleep(1)
