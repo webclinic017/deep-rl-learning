@@ -90,8 +90,7 @@ def scheduler_job():
                                       or h1_trend == 'Sell' or current_trend == 'Close_Buy'):
             mt5_client.close_order(symbol)  # close all Buy positions
 
-        if order_size:
-            mt5_client.modify_stoploss(symbol, atr_1, kijun_sen_1)
+        mt5_client.modify_stoploss(symbol, atr_1, kijun_sen_1)
         logger.info("=" * 50)
 
 

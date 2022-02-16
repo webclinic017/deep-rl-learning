@@ -347,7 +347,7 @@ class AutoOrder:
                 """Sell Order"""
                 ptype = "Sell"
                 diff = price_open - price_current
-                if prev_sl == 0 is None and diff > atr:
+                if prev_sl == 0 and diff > atr:
                     sl = price_open
                 if prev_sl != 0 and prev_sl > kijun_sen:
                     sl = kijun_sen
