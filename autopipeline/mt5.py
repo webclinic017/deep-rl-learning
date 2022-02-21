@@ -6,7 +6,8 @@ import MetaTrader5 as mt5
 import uuid
 
 import plotly.graph_objs as go
-from pyod.models.hbos import HBOS
+from scipy.stats import linregress
+from sklearn.preprocessing import MinMaxScaler
 
 from talib import EMA, stream, MACD, ADX, CDLENGULFING, ATR
 from datetime import datetime
@@ -524,7 +525,7 @@ class AutoOrder:
         figg.write_image(f"images/{timeframe}.png")
 
     def ichimoku_cloud(self, timeframe, symbol, save_frame, order_label):
-        rates_frame = mt5.copy_rates_from_pos(symbol, timeframe, 0, 150)
+        rates_frame = mt5.copy_rates_from_pos(symbol, timeframe, 0, 100)
         # create DataFrame out of the obtained data
         df = pd.DataFrame(rates_frame, columns=['time', 'open', 'high', 'low', 'close'])
         df['Date'] = pd.to_datetime(df['time'], unit='s')
@@ -569,6 +570,21 @@ class AutoOrder:
         # df.drop(['Date'], axis=1).plot(figsize=(15,8))
 
         df['Engulfing'] = CDLENGULFING(df.open, df.high, df.low, df.close)
+
+        # calculate slope
+        macdsignal = df.SIGNAL[-5:]
+        close_signal = df.close[-5:]
+        hist_signal = df.HIST[-5:]
+
+        signal_slope = self.calculate_slope(macdsignal)
+        price_slope = self.calculate_slope(close_signal)
+        hist_slope = self.calculate_slope(hist_signal)
+        slope = 0
+        if signal_slope > 0 and price_slope > 0 and hist_slope > 0:
+            slope = 1
+        elif signal_slope < 0 and price_slope < 0 and hist_slope < 0:
+            slope = -1
+
         conditions = [
             (df['tenkan_sen'] > df['senkou_span_a']) & (df['tenkan_sen'] > df['senkou_span_b']) &
             (df['kijun_sen'] < df['close']) & (df['HIST'] > df['HIST'].shift()),
@@ -607,24 +623,16 @@ class AutoOrder:
             else:
                 resistance, support = pivot_2, pivot_1
 
-        # if df['Engulfing'].iat[-1] != 0:
-        #    print(str(df.Date.iat[-1]), timeframe, df['Engulfing'].iat[-1])
-        # return str(df.Date.iat[-1]), df.Trend.iat[-1], df.close.iat[-1], df['kijun_sen'].iat[-1]
-        # print(f"{timeframe} {df['Date'].iat[-1]} {symbol} tenkan_sen: {df['tenkan_sen'].iat[-1]}  kijun_sen: {df['kijun_sen'].iat[-1]} senkou_span_a: {df['senkou_span_a'].iat[-1]} senkou_span_b: {df['senkou_span_b'].iat[-1]} HIST: {df['HIST'].iat[-1]}")
-        # if save_frame:
-        #     date_save = str(df.Date.iat[-1]).replace(":", "")
-        #     plot_chart(df, pivots, f"{date_save} - {map_timeframe} - {order_label}")
-
-        #     input_df = df['ATR'].dropna().values.reshape(-1, 1)
-        #     scaler = MinMaxScaler()
-        #     scaler.fit(input_df)
-        #     input_df = scaler.transform(input_df).flatten()
-        input_df = df['ATR'].dropna().values.reshape(-1, 1)
-        hbos = HBOS(alpha=0.1, contamination=0.1, n_bins=20, tol=0.5)
-        hbos.fit(input_df)
-        predict = hbos.predict(input_df)
         return str(df.Date.iat[-1]), df.Buy_Signal.iat[-1], df.Close_Signal.iat[-1], real_close, real_high, real_low, \
-               df.kijun_sen.iat[-1], df['ATR'].iat[-1], df.ATR[-30:].values.tolist(), resistance, support, input_df[-1]
+               df.kijun_sen.iat[-1], df['ATR'].iat[-1], df.ATR[-30:].values.tolist(), resistance, support, slope
+
+    @staticmethod
+    def calculate_slope(signal):
+        x = np.array([x for x in range(len(signal.index))])
+        scaler = MinMaxScaler(feature_range=(0, 100))
+        y = scaler.fit_transform(signal.values.reshape(-1, 1))
+        slope, intercept, r_value, p_value, std_err = linregress(x, y.flatten())
+        return slope
 
     @staticmethod
     def is_far_from_level(value, levels, df):

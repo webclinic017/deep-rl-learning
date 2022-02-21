@@ -11,8 +11,8 @@ from utils import logger
 from termcolor import colored
 
 mt5_client = AutoOrder()
-timeframe_1 = mt5.TIMEFRAME_H1
-timeframe_2 = mt5.TIMEFRAME_H4
+timeframe_1 = mt5.TIMEFRAME_H4
+timeframe_2 = mt5.TIMEFRAME_D1
 # sentry_sdk.init(
 #     "https://cc11af54279542189f34a16070babe07@o1068161.ingest.sentry.io/6062320",
 #
@@ -54,9 +54,9 @@ def scheduler_job():
         lot = value.get('lot')
         logger.info("=" * 50)
 
-        df1date, h1_trend, close_signal_1, current_price_1, high_price_1, low_price_1, kijun_sen_1, atr_1, dftrain_1, resistance_1, support_1, outlier_1 = mt5_client.ichimoku_cloud(
+        df1date, h1_trend, close_signal_1, current_price_1, high_price_1, low_price_1, kijun_sen_1, atr_1, dftrain_1, resistance_1, support_1, signal_slope_1 = mt5_client.ichimoku_cloud(
             timeframe=timeframe_1, symbol=symbol, save_frame=False, order_label="")
-        df2date, h2_trend, close_signal_2, current_price_2, high_price_2, low_price_2, kijun_sen_2, atr_2, dftrain_2, resistance_2, support_2, outlier_2 = mt5_client.ichimoku_cloud(
+        df2date, h2_trend, close_signal_2, current_price_2, high_price_2, low_price_2, kijun_sen_2, atr_2, dftrain_2, resistance_2, support_2, signal_slope_2 = mt5_client.ichimoku_cloud(
             timeframe=timeframe_2, symbol=symbol, save_frame=False, order_label="")
 
         current_trend = "0"
@@ -64,23 +64,23 @@ def scheduler_job():
             current_trend = "Sell"
         elif h1_trend == h2_trend == "Buy":
             current_trend = "Buy"
-        elif h1_trend != "Sell" and h2_trend != "Sell" and close_signal_2 == 'Close_Sell':
+        elif h1_trend != "Sell" and h2_trend != "Sell" and close_signal_1 == 'Close_Sell':
             current_trend = "Close_Sell"
-        elif h1_trend != "Buy" and h2_trend != "Buy" and close_signal_2 == 'Close_Buy':
+        elif h1_trend != "Buy" and h2_trend != "Buy" and close_signal_1 == 'Close_Buy':
             current_trend = "Close_Buy"
 
         logger.info(f"{symbol} Current Trend {format_text(current_trend)}")
-        logger.info(f"{symbol} H1 {df1date} {format_text(h1_trend)} {current_price_1}")
-        logger.info(f"{symbol} H4 {df2date} {format_text(h2_trend)} {current_price_2}")
+        logger.info(f"{symbol} H4 {df1date} {format_text(h1_trend)} {current_price_1}")
+        logger.info(f"{symbol} D1 {df2date} {format_text(h2_trend)} {current_price_2}")
 
         order_size = mt5_client.check_order_exist(symbol)
         # do not place an order if the symbol order is placed to Metatrader
         if current_trend == "Buy" and order_size != current_trend and resistance_1 and \
-                current_price_1 > resistance_1:
+                current_price_1 > resistance_1 and (signal_slope_1 == 1 or signal_slope_2 == 1):
             mt5_client.close_order(symbol)  # close all open positions
             mt5_client.buy_order(symbol, lot=lot, sl=None, tp=None)
         elif current_trend == 'Sell' and order_size != current_trend and support_1 and \
-                current_price_1 < support_1:
+                current_price_1 < support_1 and (signal_slope_1 == -1 or signal_slope_2 == -1):
             mt5_client.close_order(symbol)  # close all open positions
             mt5_client.sell_order(symbol, lot=lot, sl=None, tp=None)
         elif order_size == 'Sell' and (current_trend == "Neutral" or current_trend == 'Buy' or h2_trend == 'Buy'
@@ -111,7 +111,12 @@ def modify_stoploss_thread():
 if __name__ == '__main__':
     # Run job every hour at the 42rd minute
     # modify_stoploss_thread()
-    schedule.every().hours.at(":59").do(scheduler_job)
+    schedule.every().hours.at("23:59").do(scheduler_job)
+    schedule.every().hours.at("3:59").do(scheduler_job)
+    schedule.every().hours.at("7:59").do(scheduler_job)
+    schedule.every().hours.at("11:59").do(scheduler_job)
+    schedule.every().hours.at("15:59").do(scheduler_job)
+    schedule.every().hours.at("19:59").do(scheduler_job)
     # schedule.every().hours.do(modify_stoploss_thread)
     while True:
         schedule.run_pending()
