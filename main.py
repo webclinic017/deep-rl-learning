@@ -69,9 +69,8 @@ def main(args=None):
     summary_writer = tf.compat.v1.summary.FileWriter(args.type + "/tensorboard_" + args.env)
 
     env = TradingEnv(consecutive_frames=args.consecutive_frames)
-    state_dim = (env.get_state_size(),)
+    state_dim = (15,)
     action_dim = 2
-    act_range = 2
     algo = A2C(action_dim, state_dim, args.consecutive_frames)
 
     # Train

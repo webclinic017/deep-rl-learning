@@ -3,7 +3,6 @@ import random
 import numpy as np
 import logging
 import joblib
-scaler = joblib.load('A2C/scaler.save')
 from keras.utils.np_utils import to_categorical
 
 os.makedirs('log', exist_ok=True)
@@ -46,10 +45,10 @@ class A2C:
         """ Assemble shared layers
         """
         inp = Input((self.env_dim))
-        x = Dense(1024, activation='relu')(inp)
-        x = Dense(512, activation='relu')(x)
-        x = Dense(512, activation='relu')(x)
-        x = Dense(512, activation='relu')(x)
+        x = Dense(64, activation='relu')(inp)
+        x = Dense(32, activation='relu')(x)
+        x = Dense(32, activation='relu')(x)
+        x = Dense(32, activation='relu')(x)
         return Model(inp, x)
 
     def policy_action(self, inp1):
@@ -110,7 +109,6 @@ class A2C:
             # Reset episode
             time, cumul_reward, done = 0, 0, False
             old_state = env.reset()
-            old_state = scaler.transform(old_state.reshape(1, -1))[0]
             actions, states, rewards = [], [], []
 
             while not done:
@@ -132,7 +130,6 @@ class A2C:
                     rewards.append(r)
                     states.append(old_state)
                     # Update current state
-                    new_state = scaler.transform(new_state.reshape(1, -1))[0]
                     old_state = new_state
                     cumul_reward += r
 

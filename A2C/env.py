@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from scipy.stats import linregress
 from sklearn.preprocessing import MinMaxScaler, StandardScaler, Normalizer
 from sklearn import decomposition
 import matplotlib.pyplot as plt
@@ -21,8 +22,6 @@ class TradingEnv:
         self.normalize_order = 0
         self.done = False
         self.consecutive_frames = consecutive_frames
-        # self.df, self.close_prices = self.load_data()
-        # self.X_train = MinMaxScaler().fit_transform(np.expand_dims(self.df.HIST, axis=1)).flatten().tolist()
         self.order_p = None
         self.order_size = None
         self.order_index = None
@@ -43,40 +42,69 @@ class TradingEnv:
         self.all_min_diff = []
         self.training_step = 100
         timezone = pytz.timezone("Etc/UTC")
-        self.end_time = datetime(2022, 1, 28, 5, 0, 0, tzinfo=timezone)
-        self.current_time = self.end_time - timedelta(days=30)
-        self.symbol = 'BTCUSD'
+        self.end_time = datetime(2022, 3, 15, 5, 0, 0, tzinfo=timezone)
+        self.current_time = self.end_time - timedelta(days=60)
+        self.symbol = 'XAUUSD'
+        self.timeframe_1 = mt5.TIMEFRAME_H4
+        self.timeframe_2 = mt5.TIMEFRAME_D1
+        self.current_state = []
+
+    @staticmethod
+    def calculate_slope(signal):
+        x = np.array([x for x in range(len(signal.index))])
+        scaler = MinMaxScaler(feature_range=(0, 100))
+        y = scaler.fit_transform(signal.values.reshape(-1, 1))
+        slope, intercept, r_value, p_value, std_err = linregress(x, y.flatten())
+        return slope
 
     def get_frame(self, utc_to, timeframe, symbol):
-        # rates_frame = mt5.copy_rates_range(symbol, timeframe, utc_from, utc_to)
-        rates_frame = mt5.copy_rates_from(symbol, timeframe, utc_to, 150)
-        # rates_frame = rates_frame.copy()
-
+        rates_frame = mt5.copy_rates_from(symbol, timeframe, utc_to + timedelta(hours=2), 100)
+        rates_frame = rates_frame.copy()
         # create DataFrame out of the obtained data
-        # num_frame = utc_to.hour % 4
-        # if timeframe == mt5.TIMEFRAME_H4 and num_frame != 0:
-        #     num_frame += 1
-        #     rates_frame_fixed = mt5.copy_rates_from(symbol, mt5.TIMEFRAME_H1, utc_to, num_frame)
-        #     df_fixed = pd.DataFrame(rates_frame_fixed, columns=['time', 'open', 'high', 'low', 'close'])
-        #     df_fixed['Date'] = pd.to_datetime(df_fixed['time'], unit='s')
-        #     df_fixed['Date'] = df_fixed.Date.dt.strftime('%Y.%m.%d %H:%M:%S')
-        #     df_fixed = df_fixed.drop(['time'], axis=1)
-        #     df_fixed = df_fixed.reindex(columns=['Date', 'open', 'high', 'low', 'close'])
-        #
-        #     new_open, new_high, new_low, new_close = df_fixed.open.iat[0], np.amax(df_fixed.high), np.amin(
-        #         df_fixed.low), df_fixed.close.iat[-1]
-        #     rates_frame[-1][1] = new_open
-        #     rates_frame[-1][2] = new_high
-        #     rates_frame[-1][3] = new_low
-        #     rates_frame[-1][4] = new_close
+
+        if timeframe == mt5.TIMEFRAME_W1:
+            num_frame = utc_to.weekday() + 1
+            rates_frame_fixed = mt5.copy_rates_from(symbol, mt5.TIMEFRAME_D1, utc_to + timedelta(hours=2), num_frame)
+            df_fixed = pd.DataFrame(rates_frame_fixed, columns=['time', 'open', 'high', 'low', 'close'])
+            df_fixed['Date'] = pd.to_datetime(df_fixed['time'], unit='s')
+            df_fixed['Date'] = df_fixed.Date.dt.strftime('%Y.%m.%d %H:%M:%S')
+            df_fixed = df_fixed.drop(['time'], axis=1)
+            df_fixed = df_fixed.reindex(columns=['Date', 'open', 'high', 'low', 'close'])
+
+            new_open, new_high, new_low, new_close = df_fixed.open.iat[0], np.amax(df_fixed.high), np.amin(
+                df_fixed.low), df_fixed.close.iat[-1]
+            current_date = pd.to_datetime(rates_frame[-1][0], unit='s').strftime('%Y.%m.%d %H:%M:%S')
+
+            rates_frame[-1][0] = rates_frame_fixed[-1][0]
+            rates_frame[-1][1] = new_open
+            rates_frame[-1][2] = new_high
+            rates_frame[-1][3] = new_low
+            rates_frame[-1][4] = new_close
+
+        if timeframe == mt5.TIMEFRAME_D1:
+            num_frame = utc_to.hour % 24 + 1
+            rates_frame_fixed = mt5.copy_rates_from(symbol, mt5.TIMEFRAME_H1, utc_to + timedelta(hours=2), num_frame)
+            df_fixed = pd.DataFrame(rates_frame_fixed, columns=['time', 'open', 'high', 'low', 'close'])
+            df_fixed['Date'] = pd.to_datetime(df_fixed['time'], unit='s')
+            df_fixed['Date'] = df_fixed.Date.dt.strftime('%Y.%m.%d %H:%M:%S')
+            df_fixed = df_fixed.drop(['time'], axis=1)
+            df_fixed = df_fixed.reindex(columns=['Date', 'open', 'high', 'low', 'close'])
+
+            new_open, new_high, new_low, new_close = df_fixed.open.iat[0], np.amax(df_fixed.high), np.amin(
+                df_fixed.low), df_fixed.close.iat[-1]
+            current_date = pd.to_datetime(rates_frame[-1][0], unit='s').strftime('%Y.%m.%d %H:%M:%S')
+
+            rates_frame[-1][0] = rates_frame_fixed[-1][0]
+            rates_frame[-1][1] = new_open
+            rates_frame[-1][2] = new_high
+            rates_frame[-1][3] = new_low
+            rates_frame[-1][4] = new_close
 
         df = pd.DataFrame(rates_frame, columns=['time', 'open', 'high', 'low', 'close'])
         df['Date'] = pd.to_datetime(df['time'], unit='s')
         df['Date'] = df.Date.dt.strftime('%Y.%m.%d %H:%M:%S')
         df = df.drop(['time'], axis=1)
         df = df.reindex(columns=['Date', 'open', 'high', 'low', 'close'])
-        #     if timeframe == mt5.TIMEFRAME_H4:
-        #         print(df.tail())
         # convert to float to avoid sai so.
         df.open = df.open.astype(float)
         df.high = df.high.astype(float)
@@ -85,17 +113,10 @@ class TradingEnv:
         real_close = df.close.iat[-1]
         real_high = df.high.iat[-1]
         real_low = df.low.iat[-1]
-        #     df = heikin_ashi(df)
-        # CCI
+
         df['ATR'] = talib.ATR(df.high, df.low, df.close)
         df['RSI'] = talib.RSI(df.close)
-        #     df['MACD'], df['SIGNAL'], df['HIST'] = MACD(df.close)
-        exp1 = df.close.ewm(span=12, adjust=False).mean()
-        exp2 = df.close.ewm(span=26, adjust=False).mean()
-        df['MACD'] = exp1 - exp2
-        df['SIGNAL'] = df['MACD'].ewm(span=9, adjust=False).mean()
-        df['HIST'] = df['MACD'] - df['SIGNAL']
-        df['HIST_NORM'] = df.HIST.ewm(span=20, adjust=False).mean()
+        df['MACD'], df['SIGNAL'], df['HIST'] = talib.MACD(df.close)
         # Tenkan-sen (Conversion Line): (9-period high + 9-period low)/2))
         nine_period_high = df['high'].rolling(window=9).max()
         nine_period_low = df['low'].rolling(window=9).min()
@@ -113,17 +134,52 @@ class TradingEnv:
         # The most current closing price plotted 26 time periods behind (optional)
         df['chikou_span'] = df['close'].shift(-26)
         # create a quick plot of the results to see what we have created
-        # df.drop(['Date'], axis=1).plot(figsize=(15,8))
+        # calculate slope
+        tenkan_array = df.tenkan_sen[-5:]
+        close_array = df.close[-5:]
+        kinjun_array = df.kijun_sen[-5:]
+        macd_array = df.MACD[-5:]
+        signal_array = df.SIGNAL[-5:]
+        hist_array = df.HIST[-5:]
 
-        # df['Engulfing'] = CDLENGULFING(df.open, df.high, df.low, df.close)
+        tenkan_slope = self.calculate_slope(tenkan_array)
+        close_slope = self.calculate_slope(close_array)
+        kinjun_slope = self.calculate_slope(kinjun_array)
+        macd_slope = self.calculate_slope(macd_array)
+        signal_slope = self.calculate_slope(signal_array)
+        hist_slope = self.calculate_slope(hist_array)
+
+        input_df_1 = df['tenkan_sen'][-14:]
+        input_df_2 = df['kijun_sen'][-14:]
+        input_df_3 = df['senkou_span_a'][-14:]
+        input_df_4 = df['senkou_span_b'][-14:]
+        input_df_5 = df['HIST'][-14:]
+        input_df_6 = df['MACD'][-14:]
+        input_df_7 = df['SIGNAL'][-14:]
+        input_df_8 = df['close'][-14:]
+        input_df_9 = df['RSI'][-14:]
+        input_df_10 = df['ATR'][-14:]
+
+        normal_array = [self.calculate_slope(x) for x in
+                        [input_df_1, input_df_2, input_df_3, input_df_4, input_df_5, input_df_6, input_df_7, input_df_8,
+                         input_df_9, input_df_10]]
+
+        slope = 0
+        if tenkan_slope > 0 and close_slope > 0 and kinjun_slope > 0 and macd_slope > 0 and signal_slope > 0 and hist_slope > 0:
+            slope = 1
+        elif tenkan_slope < 0 and close_slope < 0 and kinjun_slope < 0 and macd_slope < 0 and signal_slope < 0 and hist_slope < 0:
+            slope = -1
 
         conditions = [
             (df['tenkan_sen'] > df['senkou_span_a']) & (df['tenkan_sen'] > df['senkou_span_b']) &
-            (df['kijun_sen'] < df['close']) & (df['HIST'] > df['HIST'].shift()),
+            (df.close > df.kijun_sen) & (df.close > df.tenkan_sen) & (df.tenkan_sen > df.kijun_sen) & (
+                        df.HIST > df.HIST.shift()),
 
             (df['tenkan_sen'] < df['senkou_span_a']) & (df['tenkan_sen'] < df['senkou_span_b']) &
-            (df['kijun_sen'] > df['close']) & (df['HIST'] < df['HIST'].shift()),
+            (df.close < df.kijun_sen) & (df.close < df.tenkan_sen) & (df.tenkan_sen < df.kijun_sen) & (
+                        df.HIST < df.HIST.shift())
         ]
+
         values = ['Buy', 'Sell']
         df['Buy_Signal'] = np.select(conditions, values)
 
@@ -155,22 +211,8 @@ class TradingEnv:
             else:
                 resistance, support = pivot_2, pivot_1
 
-        # self.plot_chart(df, pivots, "", "")
-
-        input_df_1 = df['tenkan_sen'][-50:].values
-        input_df_2 = df['kijun_sen'][-50:].values
-        input_df_3 = df['senkou_span_a'][-50:].values
-        input_df_4 = df['senkou_span_b'][-50:].values
-        input_df_5 = df['HIST'][-50:].values
-        input_df_6 = df['MACD'][-50:].values
-        input_df_7 = df['SIGNAL'][-50:].values
-        input_df_8 = df['close'][-50:].values
-
-        normal_array = np.concatenate([input_df_1, input_df_2, input_df_3, input_df_4,
-                                       input_df_5, input_df_6, input_df_7, input_df_8])
-
         return str(df.Date.iat[-1]), df.Buy_Signal.iat[-1], df.Close_Signal.iat[-1], real_close, real_high, real_low, \
-               df.kijun_sen.iat[-1], df['ATR'].iat[-1], normal_array, resistance, support
+               df.kijun_sen.iat[-1], df['ATR'].iat[-1], normal_array, resistance, support, slope
 
     @staticmethod
     def is_support(df, i):
@@ -234,67 +276,73 @@ class TradingEnv:
         return current_trend
 
     def step(self, action):
-        r = 0
-        done = False
-        new_state_1, new_state_2 = None, None
-
+        r = -1
         # actions
         # 0 not buy, 1 buy
+        df1date, h1_trend, close_signal_1, current_price_1, high_price_1, low_price_1, kijun_sen_1, atr_1, dftrain_1, resistance_1, support_1, signal_slope_1 = self.get_frame(utc_to=self.current_time, timeframe=self.timeframe_1, symbol=self.symbol)
+        df2date, h2_trend, close_signal_2, current_price_2, high_price_2, low_price_2, kijun_sen_2, atr_2, dftrain_2, resistance_2, support_2, signal_slope_2 = self.get_frame(utc_to=self.current_time, timeframe=self.timeframe_2, symbol=self.symbol)
+        current_price = current_price_1
+        current_trend = "0"
+        if h1_trend == h2_trend == "Sell":
+            current_trend = "Sell"
+        elif h1_trend == h2_trend == "Buy":
+            current_trend = "Buy"
+        elif h1_trend != "Sell" and h2_trend != "Sell" and close_signal_2 == "Close_Sell":
+            current_trend = "Close_Sell"
+        elif h1_trend != "Buy" and h2_trend != "Buy" and close_signal_2 == "Close_Buy":
+            current_trend = "Close_Buy"
 
-        if self.order_p and action == 1:
-            max_diff = 0
-            while True:
-                self.current_time += timedelta(hours=1)
-                df1date, h1_trend, close_signal_1, current_price_1, high_price_1, low_price_1, kijun_sen_1, atr_1, dftrain_1, resistance_1, support_1 = self.get_frame(
-                    utc_to=self.current_time, timeframe=mt5.TIMEFRAME_H1, symbol=self.symbol
-                )
-                df2date, h2_trend, close_signal_2, current_price_2, high_price_2, low_price_2, kijun_sen_2, atr_2, dftrain_2, resistance_2, support_2 = self.get_frame(
-                    utc_to=self.current_time, timeframe=mt5.TIMEFRAME_H4, symbol=self.symbol
-                )
-                current_trend_tmp = self.get_trend(h1_trend, h2_trend, close_signal_2)
+        if self.order_p and self.order_size == "Buy" and action == 1:
+            diff = current_price - self.order_p
+            if self.stop_loss and self.stop_loss > low_price_1:
+                diff = self.stop_loss - self.order_p
 
-                current_price_tmp = current_price_1
-                # calculate diff
-                diff = self.order_p - current_price_tmp
-                if diff > max_diff:
-                    max_diff = diff
-
-                if current_trend_tmp == "Neutral" or current_trend_tmp == 'Buy' or\
-                        h1_trend == "Buy" or h2_trend == 'Buy' or current_trend_tmp == 'Close_Sell' or\
-                        (self.stop_loss and self.stop_loss < current_price_tmp) or self.current_time.timestamp() >= self.end_time.timestamp():
-                    # order stop here. calculate max min and reward
-                    diff = self.order_p - current_price_tmp
-                    print(diff)
-                    if self.current_time.timestamp() >= self.end_time.timestamp():
-                        done = True
-                    break
-                # modified stoploss
-                if self.stop_loss is None and diff > atr_1:
-                    self.stop_loss = self.order_p
-                if self.stop_loss and self.stop_loss > kijun_sen_1 > current_price_tmp:
-                    self.stop_loss = kijun_sen_1
-
-            # diff = self.order_p - current_price
+            print(
+                f"{df1date} close \x1b[48;5;4m{self.order_size}\x1b[0m order at price {current_price}, max diff {round(self.max_diff, 5)} diff {round(diff, 5)}")
             self.profit += diff
+            # profit -= profit*0.05
             self.all_profit.append(self.profit)
             if diff < 0:
-                self.all_min_diff.append(self.max_diff)
+                self.all_min_diff.append(diff)
                 self.max_loss += diff
                 self.num_loss += 1
-            else:
+                label = 0
+            elif diff > 0:
                 self.all_max_diff.append(self.max_diff)
                 self.max_profit += diff
                 self.num_profit += 1
-            r = 0 if diff > 0 else -1
+                r = 1
 
-        # reset flags
-        self.order_p = None
-        self.order_size = None
-        self.stop_loss = None
-        self.order_index = None
-        self.max_diff = 0
-        self.agent_diff = 0
-        self.order_time = None
+            # reset flags
+            # reset flags
+            self.order_p = None
+            self.order_size = None
+            self.stop_loss = None
+            self.order_index = None
+            self.max_diff = 0
+            self.agent_diff = 0
+            self.order_time = None
+            self.current_state = [0]*15
+
+        elif self.order_p is None and current_trend == "Buy" and resistance_1 and current_price > resistance_1 and signal_slope_1 == 1:
+            self.order_p = current_price
+            self.order_size = current_trend
+            self.stop_loss = None
+            self.accept_next = ""
+            self.max_diff = 0
+            print(f"{df1date} new \x1b[48;5;2m{self.order_size}\x1b[0m order at price {current_price}")
+
+        diff = 0
+        if self.order_size == "Buy":
+            diff = current_price - self.order_p
+            if diff > self.max_diff:
+                self.max_diff = diff
+            if self.stop_loss is None and diff > atr_1:
+                self.stop_loss = self.order_p
+            if self.stop_loss and self.stop_loss < kijun_sen_1 < current_price:
+                self.stop_loss = kijun_sen_1
+
+        self.current_state.append(diff)
 
         # get new state
         # new_state, r, done, info
@@ -307,39 +355,11 @@ class TradingEnv:
             "profit": self.profit
         }
 
-        state = self.get_new_state()
-        if state is None or done:
-            done = True
-            return None, None, done, info
+        state = np.array(self.current_state[-15:])
+        # state = MinMaxScaler().fit_transform(state.reshape(1, -1))[0]
+        self.current_time += timedelta(hours=4)
+        done = True if self.current_time >= self.end_time else False
         return state, r, done, info
-
-    def get_new_state(self):
-        new_state_1, new_state_2 = None, None
-        while self.order_p is None:
-            df1date, h1_trend, close_signal_1, current_price_1, high_price_1, low_price_1, kijun_sen_1, atr_1, dftrain_1, resistance_1, support_1 = self.get_frame(
-                utc_to=self.current_time, timeframe=mt5.TIMEFRAME_H1, symbol=self.symbol
-            )
-            df2date, h2_trend, close_signal_2, current_price_2, high_price_2, low_price_2, kijun_sen_2, atr_2, dftrain_2, resistance_2, support_2 = self.get_frame(
-                utc_to=self.current_time, timeframe=mt5.TIMEFRAME_H4, symbol=self.symbol
-            )
-
-            current_trend = self.get_trend(h1_trend, h2_trend, close_signal_2)
-            self.current_time += timedelta(hours=1)
-            if current_trend == "Sell":
-                self.order_p = current_price_1
-                self.order_size = current_trend
-                self.stop_loss = None
-                self.order_index = None
-                self.max_diff = 0
-                self.agent_diff = 0
-                self.order_time = self.current_time
-                new_state_1 = dftrain_1
-                new_state_2 = dftrain_2
-                break
-            if self.current_time.timestamp() >= self.end_time.timestamp():
-                return None
-
-        return np.concatenate([new_state_1, new_state_2])
 
     def reset(self):
         self.current_time = self.end_time - timedelta(days=30)
@@ -359,37 +379,13 @@ class TradingEnv:
         self.accept_next = ""
         self.all_max_diff = []
         self.all_min_diff = []
+        self.current_state = [0]*15
 
-        new_state_1, new_state_2 = None, None
-        while self.order_p is None and self.current_time.timestamp() <= self.end_time.timestamp():
-            df1date, h1_trend, close_signal_1, current_price_1, high_price_1, low_price_1, kijun_sen_1, atr_1, dftrain_1, resistance_1, support_1 = self.get_frame(
-                utc_to=self.current_time, timeframe=mt5.TIMEFRAME_H1, symbol=self.symbol
-            )
-            df2date, h2_trend, close_signal_2, current_price_2, high_price_2, low_price_2, kijun_sen_2, atr_2, dftrain_2, resistance_2, support_2 = self.get_frame(
-                utc_to=self.current_time, timeframe=mt5.TIMEFRAME_H4, symbol=self.symbol
-            )
-
-            current_trend = self.get_trend(h1_trend, h2_trend, close_signal_2)
-            self.current_time += timedelta(hours=1)
-            if current_trend == "Sell":
-                self.order_p = current_price_1
-                self.order_size = current_trend
-                self.stop_loss = None
-                self.order_index = None
-                self.max_diff = 0
-                self.agent_diff = 0
-                self.order_time = self.current_time
-                new_state_1 = dftrain_1
-                new_state_2 = dftrain_2
-                break
-
-        self.training_step += 1
-        state = np.concatenate([new_state_1, new_state_2])
-        return state
+        return np.array(self.current_state)
 
     @staticmethod
     def get_state_size():
-        return 800
+        return 15
 
     @staticmethod
     def get_action_space():
