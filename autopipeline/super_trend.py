@@ -13,14 +13,14 @@ from termcolor import colored
 mt5_client = AutoOrder()
 timeframe_1 = mt5.TIMEFRAME_H4
 timeframe_2 = mt5.TIMEFRAME_D1
-# sentry_sdk.init(
-#     "https://cc11af54279542189f34a16070babe07@o1068161.ingest.sentry.io/6062320",
-#
-#     # Set traces_sample_rate to 1.0 to capture 100%
-#     # of transactions for performance monitoring.
-#     # We recommend adjusting this value in production.
-#     traces_sample_rate=1.0
-# )
+sentry_sdk.init(
+    "https://cc11af54279542189f34a16070babe07@o1068161.ingest.sentry.io/6062320",
+
+    # Set traces_sample_rate to 1.0 to capture 100%
+    # of transactions for performance monitoring.
+    # We recommend adjusting this value in production.
+    traces_sample_rate=1.0
+)
 
 
 def format_text(trend):
@@ -111,7 +111,7 @@ def modify_stoploss_thread():
 if __name__ == '__main__':
     # Run job every hour at the 42rd minute
     # modify_stoploss_thread()
-    schedule.every().day.at("23:59").do(scheduler_job)
+    schedule.every().day.at("21:26").do(scheduler_job)
     schedule.every().day.at("03:59").do(scheduler_job)
     schedule.every().day.at("07:59").do(scheduler_job)
     schedule.every().day.at("11:59").do(scheduler_job)
