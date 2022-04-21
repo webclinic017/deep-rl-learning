@@ -6,6 +6,7 @@ import MetaTrader5 as mt5
 import uuid
 
 import plotly.graph_objs as go
+from scipy.signal import argrelextrema
 from scipy.stats import linregress
 from sklearn.preprocessing import MinMaxScaler
 
@@ -571,27 +572,49 @@ class AutoOrder:
 
         df['Engulfing'] = CDLENGULFING(df.open, df.high, df.low, df.close)
 
-        # calculate slope
-        macdsignal = df.SIGNAL[-5:]
-        close_signal = df.close[-5:]
-        hist_signal = df.HIST[-5:]
+        x_signal = df.SIGNAL.values
+        maxima = argrelextrema(np.array(x_signal), np.greater)[0]
 
-        signal_slope = self.calculate_slope(macdsignal)
-        price_slope = self.calculate_slope(close_signal)
-        hist_slope = self.calculate_slope(hist_signal)
+        #     x2 = [tmp if tmp < 0 else 0 for tmp in x_signal]
+        #     for local minima
+        minima = argrelextrema(np.array(x_signal), np.less)[0]
+
+        # calculate slope
+        tenkan_array = df.tenkan_sen[-7:]
+        close_array = df.close[-7:]
+        kinjun_array = df.kijun_sen[-7:]
+        macd_array = df.MACD[-7:]
+        signal_array = df.SIGNAL[-7:]
+        hist_array = df.HIST[-7:]
+
+        tenkan_slope = self.calculate_slope(tenkan_array)
+        close_slope = self.calculate_slope(close_array)
+        kinjun_slope = self.calculate_slope(kinjun_array)
+        macd_slope = self.calculate_slope(macd_array)
+        signal_slope = self.calculate_slope(signal_array)
+        hist_slope = self.calculate_slope(hist_array)
+
         slope = 0
-        if signal_slope > 0 and price_slope > 0 and hist_slope > 0:
-            slope = 1
-        elif signal_slope < 0 and price_slope < 0 and hist_slope < 0:
-            slope = -1
+        if tenkan_slope > 0 and hist_slope > 0 and close_slope > 0 and signal_slope > 0:
+            if len(minima) > 0:
+                last_minima = minima[-1]
+                if last_minima >= len(x_signal) - 14:
+                    # detect minimal of signal
+                    slope = 1
+        elif tenkan_slope < 0 and hist_slope < 0 and close_slope < 0 and signal_slope < 0:
+            if len(maxima) > 0:
+                last_maxima = maxima[-1]
+                if last_maxima >= len(x_signal) - 14:
+                    # detect minimal of signal
+                    slope = -1
 
         conditions = [
             (df['tenkan_sen'] > df['senkou_span_a']) & (df['tenkan_sen'] > df['senkou_span_b']) &
             (df['kijun_sen'] < df['close']) & (df['HIST'] > df['HIST'].shift()),
-
             (df['tenkan_sen'] < df['senkou_span_a']) & (df['tenkan_sen'] < df['senkou_span_b']) &
             (df['kijun_sen'] > df['close']) & (df['HIST'] < df['HIST'].shift()),
         ]
+
         values = ['Buy', 'Sell']
         df['Buy_Signal'] = np.select(conditions, values)
 
